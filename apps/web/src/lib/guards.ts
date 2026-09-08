@@ -11,11 +11,11 @@ import {
   type Actor,
   type Permission,
   type UseCaseContext,
-} from '@/modules/platform';
-import { db } from '@/db/client';
+} from '@blood-connect/platform';
+import { db } from '@blood-connect/platform';
 import { idGenerator } from '@blood-connect/ids';
 import { APP_TIMEZONE, dayOf } from '@blood-connect/domain';
-import { currentActor, requestMetadata } from './session';
+import { AUDIENCE, currentActor, requestMetadata } from './session';
 
 /**
  * Layer 2 of §13: the page guard.
@@ -31,7 +31,7 @@ import { currentActor, requestMetadata } from './session';
  */
 export async function requireAccess(pathname: string): Promise<Actor> {
   const actor = await currentActor();
-  const decision = decideAccess(pathname, actor);
+  const decision = decideAccess(pathname, actor, AUDIENCE);
 
   if (decision.allowed) return actor;
 
