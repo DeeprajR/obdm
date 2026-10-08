@@ -62,6 +62,12 @@ export type TelegramOptions = {
   /** Seconds the long poll waits before returning empty. */
   readonly pollTimeoutSeconds?: number;
   readonly fetchImpl?: typeof fetch;
+  /**
+   * Where to say what this adapter dropped. An update with no text, no
+   * contact and no tap (a sticker, a photo, a service message) is skipped,
+   * and without this line it is skipped silently.
+   */
+  readonly log?: ((line: string) => void) | undefined;
 };
 
 /**
@@ -135,6 +141,7 @@ export function createTelegramChannel(options: TelegramOptions): ChannelPort {
     apiBase = 'https://api.telegram.org',
     pollTimeoutSeconds = 30,
     fetchImpl = fetch,
+    log,
   } = options;
 
   if (!token || token === 'replace-me') {
@@ -307,7 +314,18 @@ export function createTelegramChannel(options: TelegramOptions): ChannelPort {
             text: update.message.text,
             updateId: String(update.update_id),
           });
+          continue;
         }
+
+        // Dropped. Say so, with the shape and not the content, so a person
+        // reading the terminal can tell a sticker from a bug.
+        const shape = update.message
+          ? `message with ${Object.keys(update.message).filter((k) => !['message_id', 'from', 'chat', 'date'].includes(k)).join(', ') || 'nothing'}`
+          : `update with ${Object.keys(update).filter((k) => k !== 'update_id').join(', ')}`;
+        log?.(
+          `<- telegram/${String(update.message?.chat.id ?? update.callback_query?.from.id ?? '?')} ` +
+            `#${String(update.update_id)} ignored: ${shape}`,
+        );
       }
 
       return updates;

@@ -13,14 +13,18 @@ the applications with `pnpm dev` and the bot with `pnpm bot`.
 
 ## Applications
 
-| Application | URL | Runs with | Who signs in |
-|---|---|---|---|
-| Staff app | http://localhost:3000 | `pnpm dev` | Doctor, blood centre, volunteer admin |
-| Administration | http://localhost:3001 | `pnpm dev` | Administrator only |
-| Bot worker | no HTTP port | `pnpm bot` | Telegram long polling, or the in-memory channel |
+| Application | URL | Runs with | Who signs in | Cookie |
+|---|---|---|---|---|
+| Doctor app | http://localhost:3000 | `pnpm dev` | Doctor only | `bc_doctor_session` |
+| Administration | http://localhost:3001 | `pnpm dev` | Administrator only | `bc_admin_session` |
+| Blood centre app | http://localhost:3002 | `pnpm dev` | Blood centre only | `bc_centre_session` |
+| Volunteer app | http://localhost:3003 | `pnpm dev` | Volunteer admin only | `bc_volunteer_session` |
+| Bot worker | no HTTP port | `pnpm bot` | Telegram long polling, or the in-memory channel | none |
 
-The two applications are separate deployments. A session cookie names the
-application that issued it, so a cookie from one is inert in the other.
+The four applications are separate deployments, one per role (ADR 0003, ADR
+0015). Each has its own sign-in page and refuses every other role's account
+exactly like a wrong password. A session names the application that issued it,
+so a cookie from one is inert in the other three.
 
 The bot opens no port. It polls Telegram, or runs entirely in process when
 `CHANNEL=memory` is set.
@@ -36,9 +40,9 @@ BloodConnect!Demo2026
 | Role | Email | Sign-in page | Lands on |
 |---|---|---|---|
 | Doctor | doctor@blood-connect.invalid | http://localhost:3000/sign-in | http://localhost:3000/dashboard |
-| Blood centre | centre@blood-connect.invalid | http://localhost:3000/sign-in | http://localhost:3000/centre |
-| Volunteer admin | volunteer@blood-connect.invalid | http://localhost:3000/sign-in | http://localhost:3000/volunteer |
 | Administrator | admin@blood-connect.invalid | http://localhost:3001/sign-in | http://localhost:3001/doctors |
+| Blood centre | centre@blood-connect.invalid | http://localhost:3002/sign-in | http://localhost:3002/centre |
+| Volunteer admin | volunteer@blood-connect.invalid | http://localhost:3003/sign-in | http://localhost:3003/volunteer |
 
 The domain is `.invalid`, which RFC 2606 reserves so it can never resolve. A
 seeded identifier cannot collide with a real person.
@@ -47,11 +51,14 @@ seeded identifier cannot collide with a real person.
 
 | Page | URL |
 |---|---|
-| Public demand board | http://localhost:3000/board |
-| Staff app landing | http://localhost:3000 |
-| Password reset | http://localhost:3000/reset |
-| Staff health check | http://localhost:3000/api/health |
-| Administration health check | http://localhost:3001/api/health |
+| Public demand board | http://localhost:3003/board |
+| Landing pages | http://localhost:3000, http://localhost:3002, http://localhost:3003 |
+| Password reset | `/reset` on each of the three staff apps |
+| Health checks | `/api/health` on each of the four apps |
+
+A reset finished in the wrong app still works: the new password is set, and the
+page sends the person to their own app's sign-in rather than signing them in
+somewhere their session cannot be read.
 
 Invite and email-confirmation links carry a token in the path and arrive by
 mail, so read them out of Mailpit rather than typing them.

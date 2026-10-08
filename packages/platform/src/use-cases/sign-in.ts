@@ -46,9 +46,9 @@ export type SignInInput = {
   readonly email: string;
   readonly password: string;
   /**
-   * Which application is signing them in. The session is bound to it, and the
-   * roles allowed differ: only an administrator signs in to the admin app, and
-   * an administrator signs in to nothing else (§1, §9).
+   * Which application is signing them in. The session is bound to it, and each
+   * application admits exactly one role: a doctor signs in to the doctor app
+   * and nowhere else, and so on for the other three (§1, §9, ADR 0016).
    */
   readonly audience: Audience;
 };
@@ -124,9 +124,9 @@ export async function signIn(
 
     // Not found, never activated, or deactivated, all one outcome, and all
     // reached through the same amount of work.
-    // Wrong application for this role: an administrator at the staff sign-in,
+    // Wrong application for this role: a centre account at the doctor sign-in,
     // or a doctor at the admin one. Refused exactly like a wrong password, so
-    // neither form reveals which accounts exist on the other side.
+    // no form reveals which accounts exist in the other applications.
     const wrongAudience =
       account !== undefined && !ROLES_BY_AUDIENCE[input.audience].includes(account.role);
 

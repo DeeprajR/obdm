@@ -17,6 +17,7 @@ import type { BotDatabase } from './db.js';
 import { handleUpdate } from './conversation.js';
 import { drainOutbox } from './outbox.js';
 import { remindAbandonedSignups } from './use-cases/reminders.js';
+import { normalisePhone } from './use-cases/interview-flow.js';
 import { tellUnansweredItIsCovered } from './use-cases/close-demand.js';
 import type { Choice, IncomingUpdate, OutgoingMessage } from './ports/channel.js';
 
@@ -253,6 +254,162 @@ describe.skipIf(!testUrl)('the conversation', () => {
       await tap('donated:never');
       await tap('sum:confirm');
     }
+  });
+
+  /* ==================================================================== */
+  /* Getting out of the phone step                                         */
+  /* ==================================================================== */
+
+  /**
+   * Written after a real person deleted their record, said hello, and then
+   * read "That does not look like a phone number" three times in a row. Every
+   * word they tried was fed to the phone question, and nothing told them
+   * which words would have worked.
+   */
+  describe('stuck on the phone question', () => {
+    it('explains when the share button arrived as text, and asks again', async () => {
+      await say('hi');
+      // A client that cannot share a contact sends the button's caption.
+      const said = await say('Share my number');
+
+      expect(said).toHaveLength(2);
+      expect(said[0]).toContain('did not send your number');
+      expect(said[0]).toContain('9847012345');
+      expect(said[1]).toContain('phone number');
+    });
+
+    it('shows an example after the second refusal', async () => {
+      await say('hi');
+      const first = await say('hello?');
+      const second = await say('hello??');
+
+      expect(first[0]).toContain('Ten digits, please');
+      expect(first[0]).not.toContain('9847012345');
+      expect(second[0]).toContain('9847012345');
+      expect(second[1]).toContain('phone number');
+    });
+
+    it('answers "help" with the way out, then the open question', async () => {
+      await say('hi');
+      const said = await say('help');
+
+      expect(said).toHaveLength(2);
+      expect(said[0]).toContain('part-way through registering');
+      expect(said[0]).toContain('"stop"');
+      expect(said[1]).toContain('phone number');
+    });
+
+    it('treats "/start" as coming back, not as a wrong number', async () => {
+      await say('hi');
+      const said = await say('/start');
+
+      expect(said).toHaveLength(1);
+      expect(said[0]).toContain('phone number');
+      expect(said[0]).not.toContain('does not look like');
+    });
+
+    it('lets "stop" discard the draft, and starts afresh next time', async () => {
+      await say('hi');
+      await say('9847012345');
+      const said = await say('stop');
+
+      expect(said).toHaveLength(1);
+      expect(said[0]).toContain('Nothing was saved');
+      expect(await db.select().from(bot.conversationState)).toHaveLength(0);
+      expect(await db.select().from(bot.donors)).toHaveLength(0);
+
+      const again = await say('hello');
+      expect(again[0]).toContain('We message people nearby');
+    });
+
+    it('does not greet a stranger who says "stop" with the phone question', async () => {
+      await say('hi');
+      await say('stop');
+      // Saying it again, to be sure. This used to restart the interview.
+      const again = await say('stop');
+
+      expect(again).toHaveLength(1);
+      expect(again[0]).toContain('nothing to stop');
+      expect(await db.select().from(bot.conversationState)).toHaveLength(0);
+
+      const help = await say('/help');
+      expect(help).toHaveLength(1);
+      expect(help[0]).toContain('not registered');
+      expect(await db.select().from(bot.conversationState)).toHaveLength(0);
+
+      // Anything else still begins, as it always did.
+      const hello = await say('hello');
+      expect(hello[0]).toContain('We message people nearby');
+    });
+
+    it('lets "delete" discard the draft, saying there was nothing to delete', async () => {
+      await say('hi');
+      const said = await say('delete');
+
+      expect(said[0]).toContain('nothing to delete');
+      expect(await db.select().from(bot.conversationState)).toHaveLength(0);
+    });
+
+    it('still takes a name that happens to contain a command word', async () => {
+      await say('hi');
+      await say('9847012345');
+      const said = await say('Helpa Menon');
+
+      // "Helpa Menon" is a name. Only a whole message that is the word counts.
+      expect(said[0]).toContain('Which year were you born');
+    });
+
+    it('drops a half-made profile edit when a registered donor sends a command', async () => {
+      await register();
+      await say('profile');
+      const said = await say('stop');
+
+      expect(said[0]).toContain('not saved');
+      expect(said[1]).toContain('We will not contact you again');
+      expect(await db.select().from(bot.conversationState)).toHaveLength(0);
+    });
+  });
+
+  describe('the typed number', () => {
+    async function finishFromName(): Promise<void> {
+      await say('Priya');
+      await tap('dob:y:1994');
+      await tap('dob:m:03');
+      await tap('dob:d:12');
+      await tap('sex:female');
+      await tap('group:O-');
+      await tap('weight:50_60');
+      await tap('durable:no');
+      await tap('durable:no');
+      await tap('durable:no');
+      await tap('durable:no');
+      await tap(`loc:district:${DISTRICT_ID}`);
+      await tap(`loc:city:${CITY_ID}`);
+      await tap(`loc:town:${TOWN_ID}`);
+      await tap('donated:never');
+      await tap('sum:confirm');
+    }
+
+    it('gives ten bare digits the Indian country code', async () => {
+      await say('hi');
+      await say('98470 12345');
+      await finishFromName();
+
+      const [phone] = await db.select().from(bot.donorPhones);
+      // Not "+9847012345", which is a number in Myanmar.
+      expect(phone?.e164).toBe('+919847012345');
+      expect(phone?.verified).toBe(false);
+    });
+
+    it('keeps a shared contact as the platform sent it', async () => {
+      await say('hi');
+      await share('919847012345');
+      await finishFromName();
+
+      const [phone] = await db.select().from(bot.donorPhones);
+      expect(phone?.e164).toBe('+919847012345');
+      expect(phone?.verified).toBe(true);
+    });
   });
 
   /* ==================================================================== */
@@ -1450,5 +1607,32 @@ describe.skipIf(!testUrl)('the conversation', () => {
     // The consent row stays as a dated record; what it was showing does not.
     const [consent] = await db.select().from(bot.donorConsents);
     expect(JSON.stringify(consent?.valuesSnapshot)).not.toContain('Priya');
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* The phone normaliser, which needs no database                              */
+/* -------------------------------------------------------------------------- */
+
+describe('normalisePhone', () => {
+  it('assumes India for a bare mobile number', () => {
+    expect(normalisePhone('9847012345')).toBe('+919847012345');
+    expect(normalisePhone('98470 12345')).toBe('+919847012345');
+    expect(normalisePhone('98470-12345')).toBe('+919847012345');
+  });
+
+  it('drops the trunk zero', () => {
+    expect(normalisePhone('09847012345')).toBe('+919847012345');
+  });
+
+  it('trusts a number typed with its country code', () => {
+    expect(normalisePhone('+91 98470 12345')).toBe('+919847012345');
+    expect(normalisePhone('+1 202 555 0123')).toBe('+12025550123');
+  });
+
+  it('treats a longer bare number as already carrying its country code', () => {
+    // How a shared Telegram contact arrives.
+    expect(normalisePhone('919847012345')).toBe('+919847012345');
+    expect(normalisePhone('12025550123')).toBe('+12025550123');
   });
 });

@@ -24,6 +24,7 @@ export {
 
 export { createMemoryChannel, type MemoryChannel } from './adapters/memory-channel.js';
 export { TELEGRAM_CHANNEL, createTelegramChannel, type TelegramOptions } from './adapters/telegram.js';
+export { withLogging, type LogLine } from './adapters/logging-channel.js';
 
 export { MESSAGES, WORDING_VERSION, readableDay, type HospitalSnapshot } from './messages.js';
 export {

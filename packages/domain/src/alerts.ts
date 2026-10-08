@@ -56,13 +56,13 @@ export type Alert = {
    * Which application that path belongs to.
    *
    * The panel is administrator-only and lives in the administration
-   * application, but most of what it reports about happens in the staff one:
-   * the quarantine screen, the tag register, the demand list. Those are
-   * separate deployments on separate origins (§1), so a row cannot simply
+   * application, but most of what it reports about happens in the others: the
+   * quarantine screen, the tag register, the demand list. Those are separate
+   * deployments on separate origins (§1, ADR 0016), so a row cannot simply
    * carry a path. The producing module says which application; the panel puts
    * the origin on the front.
    */
-  readonly app?: 'staff' | 'admin';
+  readonly app?: 'doctor' | 'centre' | 'volunteer' | 'admin';
 };
 
 /** Nothing wrong is a state, not an absence: the board says so rather than being empty. */

@@ -14,6 +14,7 @@ import { and, count, desc, eq, ne } from 'drizzle-orm';
 import { err, ok, type Result } from '@blood-connect/result';
 import { objectRefs, userSeals, users, type UserStatus } from '@blood-connect/db';
 
+import { appOrigin } from '../app-origins.js';
 import type { UseCaseContext } from '../context.js';
 import { actorHas } from '../domain/authorization.js';
 import { isPlausibleEmail, normaliseEmail } from '../domain/credentials.js';
@@ -39,10 +40,6 @@ const blankToNull = (value: string | null): string | null => {
   const trimmed = value?.trim() ?? '';
   return trimmed.length > 0 ? trimmed : null;
 };
-
-/** Where the doctor sets their password. The admin app is a different origin. */
-const staffAppUrl = (): string =>
-  process.env['STAFF_APP_URL']?.replace(/\/+$/, '') ?? 'http://localhost:3000';
 
 export type DoctorSummary = {
   readonly id: string;
@@ -155,7 +152,9 @@ async function issueInvite(
     userId: args.userId,
     vars: {
       fullName: args.fullName,
-      link: `${staffAppUrl()}/invite/${token}`,
+      // The doctor sets their password in the doctor app, which is a different
+      // origin from the administration app that sent the invite.
+      link: `${appOrigin('doctor')}/invite/${token}`,
       expiresInHours: String(ttlHours),
     },
   });

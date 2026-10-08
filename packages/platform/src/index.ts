@@ -8,15 +8,20 @@
  * `platform` must never know what a blood request is. Nothing exported below
  * mentions one, and if something ever needs to, it belongs in `hospital`.
  *
- * Both applications import this package: the staff app and the administration
- * app are separate deployments over one set of accounts (§1).
+ * Every application imports this package: the doctor, centre, volunteer and
+ * administration apps are separate deployments over one set of accounts (§1,
+ * ADR 0016).
  */
 
 export {
   ADMIN_ROUTE_RULES,
+  AUDIENCES,
+  CENTRE_ROUTE_RULES,
+  DOCTOR_ROUTE_RULES,
   PERMISSIONS,
   ROLES_BY_AUDIENCE,
-  STAFF_ROUTE_RULES,
+  RULES_BY_AUDIENCE,
+  VOLUNTEER_ROUTE_RULES,
   accessFor,
   actorHas,
   anonymousActor,
@@ -32,8 +37,11 @@ export {
   type Audience,
   type Permission,
   type RouteAccess,
+  type StaffAudience,
   type UserRole,
 } from './domain/authorization.js';
+
+export { appOrigin } from './app-origins.js';
 
 export {
   OTP_LENGTH,

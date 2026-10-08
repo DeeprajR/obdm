@@ -11,11 +11,11 @@
  *   3. The use case asserts the permission itself, because a job, a script or a
  *      future HTTP caller never passes through either of the first two.
  *
- * **Two applications, one table.** Administration is its own deployment (§1),
- * so a role belongs to exactly one of them: an administrator signs in to the
- * admin app and nowhere else, and no other role signs in there. Sessions carry
- * the audience that issued them, so a cookie from one is inert in the other
- * even where they share a hostname.
+ * **Four applications, one table.** Every role has its own deployment (§1,
+ * ADR 0003, ADR 0016): doctors, the blood centre, volunteer admins and
+ * administration. A role belongs to exactly one of them and signs in nowhere
+ * else. Sessions carry the audience that issued them, so a cookie from one is
+ * inert in the others even where they share a hostname.
  */
 
 import type { UserRole } from '@blood-connect/db';
@@ -23,20 +23,34 @@ import type { UserRole } from '@blood-connect/db';
 export type { UserRole };
 
 /** Which application a principal belongs to. */
-export type Audience = 'staff' | 'admin';
+export const AUDIENCES = ['doctor', 'centre', 'volunteer', 'admin'] as const;
+export type Audience = (typeof AUDIENCES)[number];
+
+/** The three applications that share a frame, as opposed to administration. */
+export type StaffAudience = Exclude<Audience, 'admin'>;
 
 /**
- * The role split. Administration has no clinical function, and the clinical
- * roles have no administrative one, so an account compromised on either side
- * reaches only that side.
+ * The role split: one role per application. Administration has no clinical
+ * function, a doctor cannot operate the centre, and the centre cannot raise a
+ * request, so an account compromised in one application reaches only that
+ * application's surface, and its cookie is refused by the other three before
+ * any role is consulted.
  */
 export const ROLES_BY_AUDIENCE: Readonly<Record<Audience, readonly UserRole[]>> = {
-  staff: ['doctor', 'blood_centre', 'volunteer_admin'],
+  doctor: ['doctor'],
+  centre: ['blood_centre'],
+  volunteer: ['volunteer_admin'],
   admin: ['admin'],
 };
 
-export const audienceFor = (role: UserRole): Audience =>
-  ROLES_BY_AUDIENCE.admin.includes(role) ? 'admin' : 'staff';
+const AUDIENCE_BY_ROLE: Readonly<Record<UserRole, Audience>> = {
+  doctor: 'doctor',
+  blood_centre: 'centre',
+  volunteer_admin: 'volunteer',
+  admin: 'admin',
+};
+
+export const audienceFor = (role: UserRole): Audience => AUDIENCE_BY_ROLE[role];
 
 /**
  * The actor every use case takes in its context. A use case never reads a
@@ -141,34 +155,31 @@ export type RouteRule = { readonly prefix: string; readonly access: RouteAccess 
  * Anything not matched is **denied**. A new route added without a rule is
  * inaccessible rather than open, the failure direction that gets noticed in
  * development instead of in production.
+ *
+ * Paths keep the names they had when the three staff roles shared one
+ * application, so the centre is still `/centre/...` on its own origin. A
+ * bookmark, a link in an alert and a path in a metric all stay meaningful.
  */
-export const STAFF_ROUTE_RULES: readonly RouteRule[] = [
+
+/**
+ * What every staff application carries whatever its role: the landing page,
+ * signing in and out, the account pages and the offline shell. An invite, a
+ * reset or an address change is opened in the application the account belongs
+ * to, so each of them needs all of these.
+ */
+const ACCOUNT_ROUTE_RULES: readonly RouteRule[] = [
   { prefix: '/', access: { kind: 'public' } },
   { prefix: '/sign-in', access: { kind: 'public' } },
   { prefix: '/sign-out', access: { kind: 'authenticated' } },
   { prefix: '/offline', access: { kind: 'public' } },
   { prefix: '/manifest.webmanifest', access: { kind: 'public' } },
   { prefix: '/sw.js', access: { kind: 'public' } },
-  { prefix: '/board', access: { kind: 'public' } },
   { prefix: '/reset', access: { kind: 'public' } },
   // The invite link and the address-change confirmation both arrive by email
   // and are opened by someone who is not signed in, that is the whole point.
   { prefix: '/invite', access: { kind: 'public' } },
   { prefix: '/confirm-email', access: { kind: 'public' } },
-
-  { prefix: '/dashboard', access: { kind: 'roles', roles: ['doctor'] } },
-  { prefix: '/patients', access: { kind: 'roles', roles: ['doctor'] } },
-  { prefix: '/admissions', access: { kind: 'roles', roles: ['doctor'] } },
-  { prefix: '/requests', access: { kind: 'roles', roles: ['doctor'] } },
-  { prefix: '/samples', access: { kind: 'roles', roles: ['doctor'] } },
-
   { prefix: '/profile', access: { kind: 'authenticated' } },
-
-  { prefix: '/centre', access: { kind: 'roles', roles: ['blood_centre'] } },
-  { prefix: '/volunteer', access: { kind: 'roles', roles: ['volunteer_admin'] } },
-
-  { prefix: '/api/device', access: { kind: 'device' } },
-  { prefix: '/api/public', access: { kind: 'public' } },
   /*
    * The load balancer's probe (§11.9). Public because a health check behind a
    * session is a health check the load balancer cannot make, and shallow enough
@@ -176,6 +187,39 @@ export const STAFF_ROUTE_RULES: readonly RouteRule[] = [
    * of dependencies.
    */
   { prefix: '/api/health', access: { kind: 'public' } },
+];
+
+/** The doctor application: patients, admissions and blood requests. */
+export const DOCTOR_ROUTE_RULES: readonly RouteRule[] = [
+  ...ACCOUNT_ROUTE_RULES,
+  { prefix: '/dashboard', access: { kind: 'roles', roles: ['doctor'] } },
+  { prefix: '/patients', access: { kind: 'roles', roles: ['doctor'] } },
+  { prefix: '/admissions', access: { kind: 'roles', roles: ['doctor'] } },
+  { prefix: '/requests', access: { kind: 'roles', roles: ['doctor'] } },
+  { prefix: '/samples', access: { kind: 'roles', roles: ['doctor'] } },
+];
+
+/**
+ * The blood centre application. The device endpoints live here too: the
+ * camera and the tag reader sit at the centre's shelf, and §9.2 gives them
+ * their own authentication rather than a session.
+ */
+export const CENTRE_ROUTE_RULES: readonly RouteRule[] = [
+  ...ACCOUNT_ROUTE_RULES,
+  { prefix: '/centre', access: { kind: 'roles', roles: ['blood_centre'] } },
+  { prefix: '/api/device', access: { kind: 'device' } },
+];
+
+/**
+ * The volunteer application, and the public demand board with it. The board is
+ * Module 4's public face, and the volunteer dashboard is where its link is
+ * shared from (§6, §9.4).
+ */
+export const VOLUNTEER_ROUTE_RULES: readonly RouteRule[] = [
+  ...ACCOUNT_ROUTE_RULES,
+  { prefix: '/volunteer', access: { kind: 'roles', roles: ['volunteer_admin'] } },
+  { prefix: '/board', access: { kind: 'public' } },
+  { prefix: '/api/public', access: { kind: 'public' } },
 ];
 
 /**
@@ -204,15 +248,17 @@ export const ADMIN_ROUTE_RULES: readonly RouteRule[] = [
   { prefix: '/api/seal', access: { kind: 'roles', roles: ['admin'] } },
 ];
 
-const RULES_BY_AUDIENCE: Readonly<Record<Audience, readonly RouteRule[]>> = {
-  staff: STAFF_ROUTE_RULES,
+export const RULES_BY_AUDIENCE: Readonly<Record<Audience, readonly RouteRule[]>> = {
+  doctor: DOCTOR_ROUTE_RULES,
+  centre: CENTRE_ROUTE_RULES,
+  volunteer: VOLUNTEER_ROUTE_RULES,
   admin: ADMIN_ROUTE_RULES,
 };
 
 /** Denied. A route with no rule is not a route anyone can reach. */
 export const defaultAccess: RouteAccess = { kind: 'roles', roles: [] };
 
-export function accessFor(pathname: string, audience: Audience = 'staff'): RouteAccess {
+export function accessFor(pathname: string, audience: Audience): RouteAccess {
   const path = normalisePath(pathname);
   let best: RouteRule | undefined;
 
@@ -253,12 +299,12 @@ const forbidden: AccessDecision = { allowed: false, reason: 'forbidden' };
 export function decideAccess(
   pathname: string,
   actor: Actor,
-  audience: Audience = 'staff',
+  audience: Audience,
 ): AccessDecision {
   const access = accessFor(pathname, audience);
 
   // A role belongs to exactly one application (§1). Checked before the route
-  // rules so that a doctor presented at the admin app is refused outright
+  // rules so that a doctor presented at the centre app is refused outright
   // rather than falling through to whatever that path happens to allow.
   if (
     actor.kind === 'user' &&
@@ -324,10 +370,10 @@ export function isSameOrigin(
  * ends "signed in on the dashboard for their role", not on a menu (§3).
  */
 const LANDING: Readonly<Record<UserRole, string>> = {
+  // Each is a path in that role's own application.
   doctor: '/dashboard',
   blood_centre: '/centre',
   volunteer_admin: '/volunteer',
-  // In the admin application, which has no other landing place.
   admin: '/doctors',
 };
 

@@ -13,7 +13,9 @@ import type { RouteMetric, SurfaceMetric } from '@blood-connect/ops';
  */
 
 const SURFACE_WORDS: Record<string, string> = {
-  staff: 'Staff app',
+  doctor: 'Doctor app',
+  centre: 'Blood centre app',
+  volunteer: 'Volunteer app',
   admin: 'Administration',
   device: 'Device API',
   demand_api: 'Demand API',

@@ -25,13 +25,13 @@ Blood Centre:
 -------------
 Improve the "localhost:3000/requests/01a08b53-06f2-7540-a624-4b271a09b9d0?raised=1" page to show the UUID number with priority
 
-Auto-refresh (while ensuring the user is retained in the same page which they are using) of "http://localhost:3000/centre" page to show live requests instead of manual refresh.
+Auto-refresh (while ensuring the user is retained in the same page which they are using) of "http://localhost:3002/centre" page to show live requests instead of manual refresh.
 
-Delete the Somebody is here with an ID section from "http://localhost:3000/centre/requests" 
+Delete the Somebody is here with an ID section from "http://localhost:3002/centre/requests" 
 
 How emergency requirements are handled from Blood bank?
 
-Partial information in http://localhost:3000/centre/requests/* is not being saved if user missed something
+Partial information in http://localhost:3002/centre/requests/* is not being saved if user missed something
 
 The date picker UI should be simple, by using YYYY, MM, DD slider
 
@@ -51,3 +51,15 @@ In the bot, there is no default menu to show live blood requirement, inform inte
 Implement menu option in Telegram bot for the users to select from.
 
 When I click Recruit for Donors below the floor, no telegram notification is received (I signed in as B+)
+
+
+----In bot---------
+Which town? Type the first few letters. -> Doesn't show the city list
+
+------------
+Clean up the whole features and create using user stories.
+
+
+---------
+
+Record the walk in is not shown always. It is only shown if there is a donor onboarded via telegram

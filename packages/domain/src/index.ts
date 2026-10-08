@@ -20,5 +20,6 @@ export * from './stock.js';
 export * from './urgency.js';
 export * from './donor.js';
 export * from './request-id.js';
+export * from './returns.js';
 export * from './state-machines.js';
 export * from './wording.js';

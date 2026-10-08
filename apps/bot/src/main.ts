@@ -29,6 +29,7 @@ import {
   drainOutbox,
   handleUpdate,
   tick,
+  withLogging,
   type BotContext,
   type ChannelPort,
 } from '@blood-connect/bot';
@@ -43,6 +44,18 @@ const rootEnv = path.resolve(import.meta.dirname, '..', '..', '..', '.env');
 if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
 
 const TICK_INTERVAL_MS = Number(process.env['BOT_TICK_INTERVAL_MS'] ?? '15000');
+
+/**
+ * One line per update received and per message sent, with phone numbers
+ * masked, so what a person sent and what they were told can be read off the
+ * terminal in order. On unless `BOT_LOG=off`.
+ */
+const CONVERSATION_LOG = (process.env['BOT_LOG'] ?? 'on') !== 'off';
+
+const logLine = (line: string): void => {
+  const at = new Date().toISOString().slice(11, 23);
+  process.stdout.write(`${at} ${line}\n`);
+};
 
 /**
  * Which channel to run against.
@@ -87,12 +100,12 @@ function selectChannel(): ChannelPort {
     return createMemoryChannel();
   }
 
-  return createTelegramChannel({ token });
+  return createTelegramChannel({ token, log: CONVERSATION_LOG ? logLine : undefined });
 }
 
 async function main(): Promise<void> {
   const db = createBotDatabase();
-  const channel = selectChannel();
+  const channel = CONVERSATION_LOG ? withLogging(selectChannel(), logLine) : selectChannel();
   const channels = createChannelRegistry(channel);
   const config = createBotConfigCache(db);
 
@@ -223,7 +236,10 @@ async function main(): Promise<void> {
   };
 
   process.stdout.write(
-    `bot running: ticking every ${String(TICK_INTERVAL_MS / 1000)}s. Ctrl-C to stop.\n`,
+    `bot running: ticking every ${String(TICK_INTERVAL_MS / 1000)}s. Ctrl-C to stop.\n` +
+      (CONVERSATION_LOG
+        ? 'conversation log: on. "<-" is what arrived, "->" is what was sent. BOT_LOG=off silences it.\n'
+        : ''),
   );
 
   await Promise.all([runTicker(), runConversation()]);

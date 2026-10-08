@@ -27,7 +27,7 @@ export async function resolveActor(
   db: Database,
   tokenHash: string | undefined,
   now: Date,
-  audience: Audience = 'staff',
+  audience: Audience,
 ): Promise<Actor> {
   if (!tokenHash) return { kind: 'anonymous' };
 

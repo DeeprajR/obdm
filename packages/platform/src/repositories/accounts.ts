@@ -9,6 +9,7 @@ import { and, eq, gt, isNull, ne } from 'drizzle-orm';
 import { sessions, users, type UserRole, type UserStatus } from '@blood-connect/db';
 
 import type { Database, Transaction } from '../db.js';
+import type { Audience } from '../domain/authorization.js';
 
 export type AccountRow = {
   readonly id: string;
@@ -76,8 +77,8 @@ export type SessionRow = {
   readonly expiresAt: Date;
 };
 
-/** Which application a session belongs to (§1). */
-export type Audience = 'staff' | 'admin';
+/** Which application a session belongs to (§1). One vocabulary, defined once. */
+export type { Audience };
 
 export async function createSession(
   tx: Transaction,
@@ -131,8 +132,8 @@ export async function findLiveSession(
         // type to bind a Date as a timestamptz, and an untyped parameter is
         // rejected at the socket rather than at compile time.
         gt(sessions.expiresAt, now),
-        // The staff app and the admin app share a host in development, where
-        // cookies are not isolated by port. A session is only valid for the
+        // The four applications share a host in development, where cookies
+        // are not isolated by port. A session is only valid for the
         // application that issued it.
         eq(sessions.audience, audience),
         eq(users.status, 'active'),

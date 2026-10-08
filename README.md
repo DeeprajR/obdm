@@ -9,7 +9,7 @@ system at any point. That is a property of the build, not a limitation of the de
 
 > **Not a medical device.** This software does not make clinical decisions. Blood-group
 > compatibility, donor eligibility and screening answers are screening aids only; the
-> pre-donation assessment and the pre-transfusion compatibility test always happen on site.
+> pre-donation assessment and the pre-transfusion compatibility test always happen onsite.
 
 ## The documents
 
@@ -21,6 +21,7 @@ system at any point. That is a property of the build, not a limitation of the de
 | [backend-architecture.md](docs/backend-architecture.md) | How it is built: processes, schema, transactions, ports |
 | [build-plan.md](docs/build-plan.md) | In what order, and by when |
 | [qa-test-plan.md](docs/qa-test-plan.md) | Manual test protocol: every flow, and how it is most likely to break |
+| [docs/user-guides/](docs/user-guides/) | Plain-language guides, one per kind of user: doctor, blood centre, administrator, volunteer admin, donor, and the public board |
 | [docs/adr/](docs/adr/) | Decisions taken along the way, and why |
 
 Section references written as §n point at the specification.
@@ -62,10 +63,14 @@ authorization layers of §13 reading one decision function; the audit writer wir
 use-case context; and a seeded account for each of the four roles. Sign in, sign out, and four
 role dashboards, built on UX4G.
 
-**Administration is a separate application** ([ADR 0003](docs/adr/0003-administration-as-a-separate-application.md)).
-The staff app runs on :3000 and holds the clinical roles; administration runs on :3001 and holds
-only `admin`, which can manage doctor records and nothing clinical. Sessions name the application
-that issued them, so a cookie from one is inert in the other.
+**Every role has its own application** ([ADR 0003](docs/adr/0003-administration-as-a-separate-application.md),
+[ADR 0016](docs/adr/0016-one-application-per-role.md)). Doctors on :3000, administration on
+:3001, the blood centre on :3002 and volunteer admins on :3003, the public demand board with them.
+Each has its own sign-in and admits one role; any other account is refused exactly like a wrong
+password. Sessions name the application that issued them and each has its own cookie, so a
+cookie from one is inert in the other three. The three staff applications share their frame,
+session handling and account pages through `packages/staff-web`; administration holds only
+`admin`, which can manage doctor records and nothing clinical.
 
 An administrator adds a doctor, who receives an emailed link, sets their own password and is
 signed in. Doctors reset a password with a six-digit code, and change their address by confirming
@@ -142,12 +147,12 @@ handling several patients at once is the wrong person to be typing an address.
 
 Run `pnpm db:seed` and sign in as any of:
 
-| Role | Email | Lands on |
-|---|---|---|
-| Doctor | `doctor@blood-connect.invalid` | `/dashboard` |
-| Blood centre | `centre@blood-connect.invalid` | `/centre` |
-| Volunteer admin | `volunteer@blood-connect.invalid` | `/volunteer` |
-| Administrator | `admin@blood-connect.invalid` | `/doctors` **on :3001** |
+| Role | Email | Signs in at | Lands on |
+|---|---|---|---|
+| Doctor | `doctor@blood-connect.invalid` | http://localhost:3000/sign-in | `/dashboard` |
+| Administrator | `admin@blood-connect.invalid` | http://localhost:3001/sign-in | `/doctors` |
+| Blood centre | `centre@blood-connect.invalid` | http://localhost:3002/sign-in | `/centre` |
+| Volunteer admin | `volunteer@blood-connect.invalid` | http://localhost:3003/sign-in | `/volunteer` |
 
 Password `BloodConnect!Demo2026`, printed by the seed. These are synthetic accounts on a
 `.invalid` domain, and the seed refuses to run with `NODE_ENV=production`.
@@ -164,15 +169,18 @@ pnpm install
 cp .env.example .env    # everything already points at the local stack
 pnpm bootstrap          # Docker up, migrations, seed. The three in order
 pnpm verify             # typecheck, lint, boundaries, tests
-pnpm dev                # staff :3000, administration :3001
+pnpm dev                # doctor :3000, admin :3001, centre :3002, volunteer :3003
 ```
+
+`pnpm dev` builds the packages first (`tsc -b`), because the applications load them from their
+`dist`. After editing a package while the servers run, rebuild it with `npx tsc -b`.
 
 `pnpm bootstrap` is one command precisely so no chaining is needed. It is not called `setup`,
 because that is one of pnpm's own commands and a script by that name is shadowed by the CLI,
 which reconfigures your PATH instead of running the project.
 
-There is one `.env`, at the workspace root, shared by the web app, the worker, the bot and the
-seed runner: `apps/web/next.config.ts` loads it, because Next otherwise reads `.env` only from
+There is one `.env`, at the workspace root, shared by the web apps, the worker, the bot and the
+seed runner: each app's `next.config.ts` loads it, because Next otherwise reads `.env` only from
 the application directory. Two copies of a connection string are two things to keep in step.
 
 | Service | Where |
@@ -196,8 +204,8 @@ exists will not re-run it: `docker compose down -v` then `pnpm up` to start clea
 | `pnpm check:gates` | Every page decides access (§13); every mutating use case records what it did (§14) |
 | `pnpm test` | Vitest. Database suites skip without `TEST_DATABASE_URL` |
 | `node scripts/make-icons.mjs` | Regenerate the PWA icons from the committed drawing |
-| `pnpm clean:next` | Deletes both `.next` caches. What to run when a page that has always worked fails on navigation with an ENOENT for a `build-manifest.json`: the route is fine, the Turbopack development cache is describing a build that no longer exists. Stop the dev server first |
-| `pnpm smoke:signin [url]` | Signs in against a running server the way a browser with no JavaScript would: the wiring a unit test cannot see |
+| `pnpm clean:next` | Deletes all four `.next` caches. What to run when a page that has always worked fails on navigation with an ENOENT for a `build-manifest.json` and the Turbopack development cache is describing a build that no longer exists. Stop the dev server first. **If it comes back after cleaning, it is not the cache**: run `pnpm --filter <app> build`, which prints the compile error the development server swallows. A client component importing a server package fails exactly this way |
+| `pnpm smoke:signin [url]` | Signs in against a running server the way a browser with no JavaScript would: the wiring a unit test cannot see. Defaults to the doctor app; `SMOKE_EMAIL` and `SMOKE_COOKIE` point it at another |
 | `pnpm smoke:centre` | Runs the centre's writes as `app_web` and asserts what that role must not be able to do. The suite connects as `migrator`, so it proves nothing about the grants; this does |
 | `pnpm smoke:bot` | The same for `app_bot`: the interview, the profile edit, erasure, and the six things the bot must not be able to reach |
 | `pnpm bot` | The donor bot: long-polls the channel and ticks. `CHANNEL=memory` needs no token |
@@ -209,8 +217,15 @@ exists will not re-run it: `docker compose down -v` then `pnpm up` to start clea
 ## Layout
 
 ```
+apps/
+  doctor/     patients, admissions and blood requests (:3000)
+  admin/      administration: doctor records and the control panel (:3001)
+  centre/     the blood centre: stock, requests, demand, returns (:3002)
+  volunteer/  the volunteer dashboard and the public demand board (:3003)
+  bot/        the donor bot, no HTTP port
 packages/
-  platform/   accounts, sessions, authorization, audit, email, config, shared by both apps
+  platform/   accounts, sessions, authorization, audit, email, config, shared by every app
+  staff-web/  the frame the three staff apps share: session, guards, header, account pages
   hospital/   Module 1: patients, admissions, requests, and its narrow read API
   centre/     Module 2: the register, the §7.2 decision, demand and the stock floor
   bot/        Module 3: onboarding, waves, screening, the outbox and the stand-down
@@ -228,9 +243,9 @@ db/
 docs/         the specification set and the decision log
 ```
 
-`apps/web` is the staff application, `apps/admin` is administration, and `apps/bot` is the donor
-bot, three deployables on three database roles. `apps/vision` arrives with the phase that needs
-it.
+`apps/doctor`, `apps/centre`, `apps/volunteer` and `apps/admin` are the four web applications,
+one per role, all on the `app_web` database role; `apps/bot` is the donor bot on `app_bot`.
+`apps/vision` arrives with the phase that needs it.
 
 ### The rules the build enforces mechanically
 

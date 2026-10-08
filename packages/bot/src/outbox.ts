@@ -15,7 +15,7 @@
  * which is the only delivery guarantee a network actually offers.
  */
 
-import { and, eq, lte, sql } from 'drizzle-orm';
+import { and, count, eq, inArray, lte, notInArray, sql } from 'drizzle-orm';
 import { messageOutbox } from '@blood-connect/db/bot';
 
 import type { IdGenerator } from '@blood-connect/ids';
@@ -136,7 +136,37 @@ export async function drainOutbox(
   let sent = 0;
   let failed = 0;
   let abandoned = 0;
-  let skipped = 0;
+
+  /**
+   * Only rows for a channel this process runs are taken into the batch.
+   *
+   * Before this, every due row was selected oldest-first and the foreign
+   * ones were leased, skipped and left to come due again. A seeded pool of
+   * in-memory donors left a few hundred such rows, older than anything real,
+   * and a process pointed at Telegram spent every batch leasing them: the
+   * reply a person was waiting on sat at attempt zero behind a queue it could
+   * never reach, and whether it went out depended on how many stale leases
+   * had expired that second. Rows for other channels are now not touched at
+   * all, only counted, so the §11.9 alert still sees them.
+   */
+  const running = [...ctx.channel.names];
+  const dueHere = and(
+    eq(messageOutbox.status, 'pending'),
+    lte(messageOutbox.nextAttemptAt, now),
+    inArray(messageOutbox.channel, running),
+  );
+
+  const [elsewhere] = await ctx.db
+    .select({ n: count() })
+    .from(messageOutbox)
+    .where(
+      and(
+        eq(messageOutbox.status, 'pending'),
+        lte(messageOutbox.nextAttemptAt, now),
+        notInArray(messageOutbox.channel, running),
+      ),
+    );
+  let skipped = elsewhere?.n ?? 0;
 
   const due = await ctx.db
     .select({
@@ -148,7 +178,7 @@ export async function drainOutbox(
       attempts: messageOutbox.attempts,
     })
     .from(messageOutbox)
-    .where(and(eq(messageOutbox.status, 'pending'), lte(messageOutbox.nextAttemptAt, now)))
+    .where(dueHere)
     /**
      * By time, then by id, and the second half is load-bearing (§7.6).
      *
@@ -203,9 +233,10 @@ export async function drainOutbox(
     const port = ctx.channel.for(row.channel);
 
     if (!port) {
-      // Not a bad message: a platform this process is not running. Left
-      // pending, so a process that *does* run it will deliver it, and so the
-      // §11.9 alert notices if nothing ever does.
+      // Cannot happen once the select is filtered by the registry's names,
+      // and kept because a registry whose `names` and `for` disagree would
+      // otherwise send this row through nothing at all. Left pending, so a
+      // process that *does* run it will deliver it.
       await ctx.db
         .update(messageOutbox)
         .set({

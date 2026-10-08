@@ -19,6 +19,8 @@
 const BASE = process.argv[2] ?? process.env.SMOKE_BASE_URL ?? 'http://localhost:3000';
 const EMAIL = process.env.SMOKE_EMAIL ?? 'doctor@blood-connect.invalid';
 const PASSWORD = process.env.SMOKE_PASSWORD ?? 'BloodConnect!Demo2026';
+// Each application names its own cookie (ADR 0016). The defaults are the doctor app's.
+const COOKIE = process.env.SMOKE_COOKIE ?? 'bc_doctor_session';
 
 let failures = 0;
 
@@ -58,7 +60,7 @@ async function post(email, password, headers = {}) {
   return {
     status: res.status,
     location: res.headers.get('location'),
-    token: /bc_session=([^;]+)/.exec(setCookie)?.[1],
+    token: new RegExp(`${COOKIE}=([^;]+)`).exec(setCookie)?.[1],
     cookie: setCookie,
   };
 }
@@ -90,15 +92,15 @@ check('no session cookie', evil.token, undefined);
 if (good.token) {
   console.log('\nfollowing the cookie');
   const res = await fetch(`${BASE}/dashboard`, {
-    headers: { cookie: `bc_session=${good.token}` },
+    headers: { cookie: `${COOKIE}=${good.token}` },
     redirect: 'manual',
   });
   const body = await res.text();
   check('reaches the dashboard', res.status, 200);
-  check('renders the doctor dashboard', body.includes('Doctor dashboard'), true);
+  check('renders the doctor dashboard', body.includes('Blood requests'), true);
 
   const forbidden = await fetch(`${BASE}/admin`, {
-    headers: { cookie: `bc_session=${good.token}` },
+    headers: { cookie: `${COOKIE}=${good.token}` },
     redirect: 'manual',
   });
   const forbiddenBody = await forbidden.text();

@@ -15,6 +15,7 @@ import { createChannelRegistry } from './ports/channel.js';
 import type { BotContext } from './context.js';
 import type { BotDatabase } from './db.js';
 import { tick } from './ticker.js';
+import { drainOutbox, enqueue } from './outbox.js';
 
 const testUrl = process.env['TEST_DATABASE_URL'];
 const CENTRE_ID = '01930000-0000-7000-8000-000000000001';
@@ -225,7 +226,68 @@ describe.skipIf(!testUrl)('the ticker', () => {
 
     const [row] = await db.select().from(bot.messageOutbox);
     expect(row?.status).toBe('pending');
-    expect(row?.lastError).toContain('no adapter for channel "memory"');
+    // Not touched: no lease taken, no attempt counted, no error written. The
+    // row belongs to another process and this one has no business marking it.
+    expect(row?.attempts).toBe(0);
+    expect(row?.lastError).toBeNull();
+  });
+
+  it('does not let another channel’s backlog starve the one it is running', async () => {
+    /*
+      What happened on the demo machine: a few hundred pending rows for the
+      in-memory pool, older than anything else, and a Telegram-only process
+      whose every batch was filled with them. A person's reply sat at attempt
+      zero for as long as the stale leases kept expiring.
+    */
+    const delivered: string[] = [];
+    const telegramOnly: BotContext = {
+      ...context(),
+      channel: createChannelRegistry({
+        name: 'telegram',
+        send: (to, message) => {
+          delivered.push(`${to.channelUserId}:${message.text}`);
+          return Promise.resolve({ ok: true as const, messageRef: 'm1' });
+        },
+        receive: () => Promise.resolve([]),
+        check: () => Promise.resolve({ ok: true, detail: 'stub' }),
+      }),
+    };
+
+    const older = new Date(clock.now().getTime() - 60 * 60_000);
+    await db.transaction(async (tx) => {
+      await enqueue(
+        tx,
+        idGenerator,
+        Array.from({ length: 5 }, (_, i) => ({
+          to: { channel: 'memory', channelUserId: `stale-${String(i)}` },
+          kind: 'reply' as const,
+          message: { text: 'to nobody' },
+          dedupeKey: `stale:${String(i)}`,
+        })),
+        older,
+      );
+      await enqueue(
+        tx,
+        idGenerator,
+        [
+          {
+            to: { channel: 'telegram', channelUserId: '404' },
+            kind: 'reply' as const,
+            message: { text: 'What is your name?' },
+            dedupeKey: 'real:1',
+          },
+        ],
+        clock.now(),
+      );
+    });
+
+    // A batch of one, smaller than the stale backlog. It must still be the
+    // real message that goes.
+    const result = await drainOutbox(telegramOnly, 1);
+
+    expect(result.sent).toBe(1);
+    expect(result.skipped).toBe(5);
+    expect(delivered).toEqual(['404:What is your name?']);
   });
 
   it('writes progress back to the centre on every pass that touched a request', async () => {

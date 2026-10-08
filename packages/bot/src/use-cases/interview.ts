@@ -109,6 +109,8 @@ export type InterviewDraft = {
   phone?: string | undefined;
   /** True only when the platform vouched for the number (§5, step 1). */
   phoneVerified?: boolean | undefined;
+  /** Refused phone answers so far, so the second refusal can show an example. */
+  phoneAttempts?: number | undefined;
   name?: string | undefined;
   dob?: string | undefined;
   sex?: Sex | undefined;

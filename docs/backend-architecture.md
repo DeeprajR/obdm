@@ -26,7 +26,7 @@ reference to reusing it as a Phase 1 baseline is superseded by
 
 | | Section | What it covers |
 |---|---|---|
-| 1 | [Deployable units and topology](#1-deployable-units-and-topology) | Four processes, what talks to what |
+| 1 | [Deployable units and topology](#1-deployable-units-and-topology) | Seven processes, four of them web apps, what talks to what |
 | 2 | [Repository and package layout](#2-repository-and-package-layout) | Monorepo, workspaces, module ownership |
 | 3 | [Layering and the dependency rule](#3-layering-and-the-dependency-rule) | Domain / application / adapters, enforced |
 | 4 | [Stack decisions](#4-stack-decisions) | What is fixed, what is chosen here, why |
@@ -50,9 +50,12 @@ reference to reusing it as a Phase 1 baseline is superseded by
 
 ## 1. Deployable units and topology
 
-Four processes. Two of them are the spec's two deployable pieces (§1); the other two exist
-because a stateless horizontally-scaled web app cannot own a schedule, and because vision
-inference is Python.
+Seven processes. The spec's two deployable pieces (§1) are the web release and the bot. The web
+release is **four applications, one per role** ([ADR 0003](adr/0003-administration-as-a-separate-application.md),
+[ADR 0016](adr/0016-one-application-per-role.md)): the spec's single staff application with
+`admin` as a role inside it was split, first administration and then the other three. The other
+two processes exist because a stateless horizontally-scaled web app cannot own a schedule, and
+because vision inference is Python.
 
 ```
    ┌───────────────────────────────────────────────────────────────────────┐
@@ -62,77 +65,93 @@ inference is Python.
    │   column grants on hospital.donor_demand*)  ·  role migrator          │
    └───────▲──────────────▲───────────────────────▲────────────────────────┘
            │              │                       │
-   ┌───────┴───────┐ ┌────┴─────────┐  ┌──────────┴─────────┐
-   │ A. web        │ │ B. worker    │  │ C. bot             │
-   │ Next.js       │ │ same image   │  │ long-running       │
-   │ stateless, N  │ │ as web,      │  │ single instance    │
-   │ replicas      │ │ single       │  │ (advisory lock per │
-   │ Modules 1,2,4 │ │ instance     │  │  bot token)        │
-   │ + machine API │ │ scheduler +  │  │ Module 3           │
-   └───▲───────▲───┘ │ outbox drain │  └────────┬───────────┘
-       │       │     └──────────────┘           │
-       │       │                                │
-   browser   ┌─┴──────────────┐          ┌──────┴────────┐
-   (staff)   │ D. vision svc  │          │ chat platform │
-             │ Python FastAPI │          │ Telegram now, │
-             │ no DB access   │          │ WhatsApp next │
-             │ camera → HTTP  │          └───────────────┘
-             └────────────────┘
+   ┌───────┴────────────┐ ┌┴─────────────┐  ┌──────┴─────────────┐
+   │ the web release    │ │ B. worker    │  │ C. bot             │
+   │ Next.js, app_web   │ │ same         │  │ long-running       │
+   │ stateless, N each  │ │ packages,    │  │ single instance    │
+   │ A. doctor   Mod. 1 │ │ single       │  │ (advisory lock per │
+   │ E. admin   accounts│ │ instance     │  │  bot token)        │
+   │ F. centre   Mod. 2 │ │ scheduler +  │  │ Module 3           │
+   │   + device API     │ │ outbox drain │  └────────┬───────────┘
+   │ G. volunteer Mod. 4│ └──────────────┘           │
+   │   + public board   │                            │
+   └───▲──────────▲─────┘                            │
+       │          │                                  │
+   browsers   ┌───┴────────────┐              ┌──────┴────────┐
+   (one app   │ D. vision svc  │              │ chat platform │
+   per role)  │ Python FastAPI │              │ Telegram now, │
+              │ no DB access   │              │ WhatsApp next │
+              │ camera → HTTP  │              └───────────────┘
+              └────────────────┘
 ```
 
 | | Unit | Runtime | Scale | Public surface | Owns |
 |---|---|---|---|---|---|
-| **A** | `web` | Node, Next.js App Router | N replicas, stateless | HTTPS: staff UI, machine API, public board | `hospital` + `reference` schemas |
-| **B** | `worker` | Node, same image as A | Exactly one | none | nothing; runs A's jobs |
+| **A** | `doctor` | Node, Next.js App Router | N replicas, stateless | HTTPS: Module 1 screens, signed in as `doctor` only | the `hospital` and `reference` schemas, shared by the four web apps through one database role, `app_web` |
+| **E** | `admin` | as A | as A | HTTPS: doctor records and the control panel, `admin` only | as A |
+| **F** | `centre` | as A | as A | HTTPS: Module 2 screens, `blood_centre` only; the device API (§9.2) and the signed demand API (§9.3) | as A |
+| **G** | `volunteer` | as A | as A | HTTPS: Module 4 screens, `volunteer_admin` only; the public board (§9.4) | as A |
+| **B** | `worker` | Node, the same packages as A | Exactly one | none | nothing; runs the web release's jobs |
 | **C** | `bot` | Node | Exactly one per bot token | none on a long-polling channel; an HTTPS webhook endpoint on a webhook channel (§10) | `bot` schema |
 | **D** | `vision` | Python, FastAPI | One per site or per camera | none inbound from the internet; reachable by cameras on the local network | nothing; stateless inference |
 
-**Why `worker` is separate from `web`.** The spec calls the web app stateless and horizontally
-scalable (§10). A stateless replica must not run `setInterval`: with three replicas every
-scheduled sweep fires three times, and the quarantine-ageing escalation mails three times. The
-worker is the same image with a different entrypoint, so it shares the use-case layer verbatim
-and adds no new codebase. It is a process count, not a component. It takes a Postgres advisory
-lock at boot so a rolling deploy never runs two.
+**Why the web release is four applications.** A role belongs to exactly one of them and signs in
+nowhere else. A compromised doctor account reaches no centre screen and a compromised centre
+account reaches no request form, because the other application does not resolve its session at
+all: each application has its own sign-in page, its own session cookie and its own session
+audience (§13). That makes §2.2's separation between raising a request and deciding it a
+separation between two deployments, and keeps administration, which has no clinical function,
+away from every clinical one. What the three staff applications share (the frame, the session
+handling and the account pages) is one package, not three copies (§2). The cost is four builds
+instead of one, accepted in both ADRs.
+
+**Why `worker` is separate from the web apps.** The spec calls the web app stateless and
+horizontally scalable (§10). A stateless replica must not run `setInterval`: with three replicas
+every scheduled sweep fires three times, and the quarantine-ageing escalation mails three times.
+The worker runs the same use-case packages with a different entrypoint, so it adds no new
+codebase. It is a process count, not a component. It takes a Postgres advisory lock at boot so a
+rolling deploy never runs two. **Not yet built**: until it is, the email drain runs after the
+request that queued the mail ([ADR 0003](adr/0003-administration-as-a-separate-application.md) §6).
 
 **Why `vision` never touches the database.** §2.12 makes the camera observational. A process
 with no database credentials cannot write the register even by mistake. The trust model is
 enforced by the absence of a connection string, not by a code review. It posts observations to
-`web`'s device API and reads its configuration back from the same place.
+the centre app's device API and reads its configuration back from the same place.
 
-**What talks to what.** `web` → Postgres, object storage, email provider, geocoder.
+**What talks to what.** The four web apps → Postgres, object storage, email provider, geocoder.
 `worker` → Postgres, object storage, email provider. `bot` → Postgres, chat platform.
-`vision` → `web`. **No process calls another's HTTP API except those two machine paths, and
-`web` never calls `bot`** (§1): the centre and the bot integrate through two tables and nothing
-else.
+`vision` → `centre`. **No process calls another's HTTP API except those machine paths, the web
+apps never call each other, and none of them calls `bot`** (§1): the centre and the bot
+integrate through two tables and nothing else. What crosses between the web apps is a link a
+person follows: an invite email opening in the doctor app, a control-panel alert opening in the
+centre app, the landing pages' link to the board. Never a request one application makes to
+another (§13, cross-origin).
 
 ---
 
 ## 2. Repository and package layout
 
 One repository, pnpm workspaces. The spec requires one implementation of the clinical rules
-(§11.3); that requires the web app and the bot to import the same package, and that requires
+(§11.3); that requires the web apps and the bot to import the same package, and that requires
 them to live in one workspace.
 
 ```
 blood-connect/
   apps/
-    web/                       # A + B: Next.js. Two entrypoints: server (A), worker (B)
-      src/
-        modules/
-          platform/            # auth, accounts, email, audit, config, storage, jobs
-          hospital/            # Module 1: patients, admissions, requests, samples
-          centre/              # Module 2: inventory, tags, decisions, demand, vision
-          volunteer/           # Module 4: read-only aggregates
-        db/                    # connection, generated schema types
-        app/                   # routes, the only place that knows about HTTP
-        worker/                # job registry + entrypoint
-    bot/                       # C: chat adapters, ticker, journey use cases
-      src/
-        channels/              # telegram/, whatsapp/, one directory per adapter
-        onboarding/ matching/ journey/ selfservice/ admin/
-        db/ worker/
-    vision/                    # D: Python, FastAPI, model, calibration evaluation
+    doctor/                    # A: Next.js. Module 1 screens               (:3000 in dev)
+    admin/                     # E: Next.js. Doctor records, control panel   (:3001)
+    centre/                    # F: Next.js. Module 2 screens, device API    (:3002)
+    volunteer/                 # G: Next.js. Module 4 screens, public board  (:3003)
+    bot/                       # C: the bot process: channel, ticker, nothing else
+    vision/                    # D: Python, FastAPI (arrives with the phase that needs it)
   packages/
+    platform/                  # accounts, sessions, authorization, audit, email, config, storage
+    hospital/                  # Module 1: patients, admissions, requests, samples
+    centre/                    # Module 2: inventory, tags, decisions, demand, vision
+    volunteer/                 # Module 4: read-only aggregates
+    bot/                       # Module 3: onboarding, waves, journey, outbox, channel adapters
+    ops/                       # the control panel's reads across the modules (§11.9)
+    staff-web/                 # the frame the three staff apps share: session, guards, account pages
     domain/                    # pure clinical rules, no I/O, no framework, no clock
     contract/                  # §7 tables: schemas, types, transitions, contract tests
     config/                    # typed clinical configuration loader + defaults
@@ -146,25 +165,40 @@ blood-connect/
   docs/                        # the specs and this plan
 ```
 
-**Module ownership inside `apps/web`.** §11.2 forbids one module reading another's tables. The
-four directories under `modules/` are that boundary, and each exposes exactly one `index.ts`:
+**Modules are packages, not directories inside an app.** The spec's first shape put them under
+`apps/web/src/modules/`. With more than one application importing them, a module living inside
+one application was in the wrong place (ADR 0003 §3), so each is its own package and every
+application imports it by name. The worker, when it arrives, is one more importer.
 
-| Module dir | Owns | May import | Must never |
+**Module ownership.** §11.2 forbids one module reading another's tables. The packages are that
+boundary, and each exposes exactly one `index.ts`:
+
+| Package | Owns | May import | Must never |
 |---|---|---|---|
-| `platform` | users, sessions, invites, OTPs, update requests, email, audit, config, jobs, storage | `packages/*` | know what a blood request is |
-| `hospital` | patients, admissions, blood_requests, blood_samples, counters | `platform`, `packages/*` | read a `blood_bags` row |
-| `centre` | bags, tags, assignments, returns, discards, decisions, discrepancies, devices, calibrations, observations, reconciliations; **writes** `donor_demand` | `platform`, `packages/*`, `hospital`'s published read API | read the `bot` schema |
-| `volunteer` | nothing | `platform`, `packages/*`, `contract` | read patients, requests, or donor names |
+| `platform` | users, sessions, invites, OTPs, update requests, email, audit, config, jobs, storage | `db` and the shared packages (`domain`, `config`, `result`, `ids`) | know what a blood request is |
+| `hospital` | patients, admissions, blood_requests, blood_samples, counters | `platform`, `db`, the shared packages | read a `blood_bags` row |
+| `centre` | bags, tags, assignments, returns, discards, decisions, discrepancies, devices, calibrations, observations, reconciliations; **writes** `donor_demand` | `platform`, `db`, `contract`, the shared packages, `hospital`'s published read API | read the `bot` schema |
+| `volunteer` | nothing | `platform`, `domain`, `db` | import `hospital`, `centre` or `bot`: read patients, requests, or donor names |
+| `bot` | the `bot` schema; the bot's columns of the contract tables | `db`'s bot schema, `contract`, the shared packages | import `platform`, `hospital` or `centre`, which are the web release on a different database role |
+| `ops` | `process_health`, `request_samples` | `platform`, `hospital`, `centre` through their entry points | be imported by anything, or reach `bot` |
+| `staff-web` | nothing | `platform`, `domain`, `ids`, `db` | import a module (`hospital`, `centre`, `volunteer`, `bot`, `ops`): a role's screens and rules stay in that role's application |
 
 The centre needs request data to build its queue, and that is the one legitimate cross-module
 read: `hospital` publishes a narrow read API (`getSubmittedRequestsForCentre`,
 `getRequestForDecision`) returning a purpose-built view type, and `centre` calls that function
-rather than the `blood_requests` table. When the centre is split into its own deployment (§4),
-that function becomes an HTTP call and nothing else changes.
+rather than the `blood_requests` table. The centre is now its own deployment (ADR 0016), but the
+read is still a function call: both run the same packages over the same database role. It
+becomes an HTTP call only if the centre ever moves to a database of its own (§4), and nothing
+else changes when it does.
 
-**Enforcement.** `eslint-plugin-import`'s `no-restricted-paths` (or `dependency-cruiser`) in CI,
-per §11.2: deep imports into any `modules/*/…` or `packages/*/src/…` path fail the build;
-`packages/domain` may not import anything outside itself; `apps/*` may not import each other.
+**Enforcement.** `dependency-cruiser` in CI, per §11.2, with each application cruised under its
+own path mapping: a deep import into any `packages/*/src/…` path fails the build;
+`packages/domain` may not import anything outside itself; `apps/*` may not import each other;
+and every "must never import" in the table above is a named rule
+(`the-volunteer-board-sees-no-person`, `the-bot-is-its-own-side`,
+`nothing-depends-on-the-control-panel`, `the-shared-frame-holds-no-role`, and the rest). The
+table reads are held by the database grants instead (§5.1). `pnpm boundaries:prove` writes a
+violating file and fails if the check accepts it.
 
 ---
 
@@ -174,9 +208,13 @@ per §11.2: deep imports into any `modules/*/…` or `packages/*/src/…` path f
 
 | Layer | Lives in | May do | May not do |
 |---|---|---|---|
-| **Domain** | `packages/domain`, plus `modules/*/domain` for module-local rules | Pure functions and types: ABO/Rh matrix, eligibility predicate, screening gate, state machines, expiry and interval arithmetic, request-ID formatting | Read the clock, the network, the database, or `Math.random`; import a framework, a driver, or a chat SDK |
-| **Application** | `modules/*/use-cases` | Open exactly one transaction, call the domain, call ports, write audit and outbox rows, return a `Result` | Know about HTTP, cookies, Telegram, or React |
-| **Adapters** | `modules/*/repositories`, `modules/*/ports/*`, `app/`, `channels/` | Parse input at the boundary, map rows to domain types, call the outside world | Contain a clinical rule |
+| **Domain** | `packages/domain`, plus a module package's own pure functions for module-local rules | Pure functions and types: ABO/Rh matrix, eligibility predicate, screening gate, state machines, expiry and interval arithmetic, request-ID formatting | Read the clock, the network, the database, or `Math.random`; import a framework, a driver, or a chat SDK |
+| **Application** | `packages/<module>/src/use-cases` | Open exactly one transaction, call the domain, call ports, write audit and outbox rows, return a `Result` | Know about HTTP, cookies, Telegram, or React |
+| **Adapters** | `packages/<module>/src/repositories`, `packages/<module>/src/adapters`, each app's `src/app/`, `packages/staff-web` | Parse input at the boundary, map rows to domain types, call the outside world | Contain a clinical rule |
+
+A rule a browser screen needs, such as which outcomes a returned unit may have, lives in
+`packages/domain`, not in the module that records it. A client component cannot import a module
+package, because the module brings the database driver with it ([ADR 0016](adr/0016-one-application-per-role.md) §7).
 
 **Three rules that keep the layering honest:**
 
@@ -218,10 +256,10 @@ at 00:01 (§3, §8).
 | Layer | Choice | Fixed by spec? | Note |
 |---|---|---|---|
 | Database | PostgreSQL 16+ | **Yes** (§11.3) | `FOR UPDATE SKIP LOCKED`, partial unique indexes, transactional counters, schema separation and column grants are all load-bearing |
-| Web app | TypeScript, Next.js App Router | Framework replaceable; TypeScript is not | The earlier implementation used it; nothing is ported |
+| Web apps | TypeScript, Next.js App Router, four applications (§1) | Framework replaceable; TypeScript is not | The earlier implementation used it; nothing is ported |
 | Bot language | **TypeScript** | The one open decision in §11.3 | Decided here: see below |
 | Schema and migrations | Drizzle ORM + drizzle-kit | Tool replaceable; "migrations only" is not | Types generated from SQL, multi-schema support, and it does not hide the SQL §7 depends on |
-| Validation | Zod at every boundary | Library replaceable; boundary validation is not | Shared schemas in `packages/contract` and `modules/*/schemas` |
+| Validation | Zod at every boundary | Library replaceable; boundary validation is not | Shared schemas in `packages/contract` and in each module package |
 | Vision inference | Python + FastAPI | **Yes** (§11.3) | Behind the device API, so it is an adapter like any other |
 | Job scheduling | In-database job table + advisory-locked worker | - | No Redis: one fewer dependency, and every job run is an auditable row |
 | Object storage | S3-compatible, private buckets, streamed through authenticated routes | - | Seals (§3) and camera frames (§4) |
@@ -231,7 +269,7 @@ at 00:01 (§3, §8).
 takes the recommendation. The deciding argument is the spec's own. Blood-group compatibility
 and donor eligibility are clinical rules that must never disagree between two implementations,
 and the only way to guarantee that is to have one implementation. Here that is
-`packages/domain`, imported by both `apps/web` and `apps/bot`. Python stays where there is no
+`packages/domain`, imported by the web apps and the bot alike. Python stays where there is no
 shared rule to duplicate: `apps/vision`.
 
 The cost is accepted deliberately: `grammy` (Telegram) and the WhatsApp Cloud API's plain HTTP
@@ -252,9 +290,9 @@ One database, three schemas, three roles. §11.5 asks for ownership the database
 
 | Schema | Created by | Owner | Contents |
 |---|---|---|---|
-| `hospital` | `db/migrations`, applied as `migrator` | `web` | Modules 1, 2 and 4: including the two shared tables of §7 |
+| `hospital` | `db/migrations`, applied as `migrator` | the web release (`app_web`, all four apps) | Modules 1, 2 and 4: including the two shared tables of §7 |
 | `bot` | `db/migrations-bot`, applied as `migrator` | `bot` | Donors, journeys, conversation state, event log, outbox |
-| `reference` | `db/migrations` | `web`, read-only to `bot` | The seeded location hierarchy and its versions |
+| `reference` | `db/migrations` | the web release, read-only to `bot` | The seeded location hierarchy and its versions |
 
 ```sql
 -- the contract, and nothing else, is what the bot may touch in hospital
@@ -278,14 +316,14 @@ GRANT SELECT ON hospital.walk_in_donations TO app_bot;
 GRANT USAGE ON SCHEMA reference TO app_bot;
 GRANT SELECT ON ALL TABLES IN SCHEMA reference TO app_bot;
 
--- and the reverse: the web app gets nothing in the bot's schema
+-- and the reverse: the web apps get nothing in the bot's schema
 REVOKE ALL ON SCHEMA bot FROM app_web;
 ```
 
 That last line is the one worth defending in review. Module 4 reads "the bot's progress
 counters" (§6), but the bot writes those counters onto `donor_demand`, which lives in
 `hospital`. So the volunteer dashboard needs no access to the `bot` schema at all, and the web
-app is given none. A privacy boundary (§2.10) that is a missing grant cannot be crossed by a
+apps are given none. A privacy boundary (§2.10) that is a missing grant cannot be crossed by a
 careless join.
 
 **Column-level `UPDATE` grants are how §7's "written by" column becomes real.** The bot
@@ -401,9 +439,9 @@ Created only by `db/migrations`. Columns follow §7 exactly; see [§6](#6-the-sh
 | `location_dataset_versions` | version, source, imported_at: the hierarchy is seeded **and versioned** (§5) |
 
 **Deviation, stated.** §5 lists `location_hierarchy` among the bot's data. This plan puts it in
-a shared `reference` schema owned by the web app's migrations, because Module 1 (patient
+a shared `reference` schema owned by the web release's migrations, because Module 1 (patient
 district and city), Module 2 (centre settings) and Module 4 (district scoping) all need it, and
-the alternatives are the web app reading a bot table, forbidden by §11.2, or two copies of a
+the alternatives are a web app reading a bot table, forbidden by §11.2, or two copies of a
 dataset that must agree for proximity ordering to mean anything. Logged as a spec delta in
 [§19](#19-decisions-taken-deviations-and-open-questions).
 
@@ -425,7 +463,7 @@ dataset that must agree for proximity ordering to mean anything. Logged as a spe
 
 ## 6. The shared contract
 
-`packages/contract` is the versioned package §11.2 asks for. Both `apps/web` and `apps/bot`
+`packages/contract` is the versioned package §11.2 asks for. Both the web release and the bot
 depend on it; neither depends on the other.
 
 | Export | What it is |
@@ -570,7 +608,7 @@ COMMIT;
 The outbox is also what makes the §11.9 alert implementable: `SELECT count(*) FROM
 bot.message_outbox WHERE kind = 'stand_down' AND status <> 'sent' AND created_at < now() -
 interval '5 minutes'`. The same pattern carries every email: `email_deliveries` is the web
-app's outbox, so the invite, the OTP and the update-request outcome are all rows committed with
+release's outbox, so the invite, the OTP and the update-request outcome are all rows committed with
 the action that caused them.
 
 ### 7.7 Selecting a wave, and the predicate that exists twice
@@ -702,15 +740,34 @@ column. Asserted by a test that inspects the SQL, not just the response (§14).
 
 Four kinds of caller, four kinds of authentication, and they never share a middleware.
 
-### 9.1 Staff browser (Modules 1, 2, 4)
+### 9.1 Staff browser (Modules 1, 2, 4, and administration)
 
-Session cookie, same-origin, CSRF-checked. Mutations are **server actions** that do nothing but
-parse input with Zod and call one use case; reads are server components calling a repository.
-Route handlers are used only where a browser needs a non-HTML response (seal image, frame image,
-CSV export). The rule that matters: no business logic in `app/` (§3).
+Four applications, each serving one role from its own origin: doctors, the blood centre,
+volunteer admins, administration (§1). Within each, session cookie, same-origin, CSRF-checked.
+Mutations are **server actions** that do nothing but parse input with Zod and call one use case;
+reads are server components calling a repository. Route handlers are used only where a browser
+needs a non-HTML response (seal image, frame image, CSV export). The rule that matters: no
+business logic in `app/` (§3).
+
+Every page and every server action posts to the application that served it. Nothing in any
+browser application calls another application's routes; a person moves between them by
+following a link (§13, cross-origin).
+
+| Application | Serves | Signs in |
+|---|---|---|
+| `doctor` | `/dashboard`, `/patients`, `/admissions`, `/requests`, `/samples` | `doctor` |
+| `centre` | `/centre/...`; `/api/device/*` (§9.2); `/api/v1/demand` (§9.3) | `blood_centre` |
+| `volunteer` | `/volunteer`; `/board` and `/api/public/*`, both public (§9.4) | `volunteer_admin` |
+| `admin` | `/doctors`, `/updates`, `/panel`, `/api/seal/*` | `admin` |
+
+The three staff applications also each serve the account pages every role needs: the landing
+page, `/sign-in`, `/reset`, `/invite/*`, `/confirm-email/*`, `/profile`, `/offline` and
+`/api/health`. Paths keep the names they had when the roles shared one application, so the
+centre is still `/centre/...` on its own origin.
 
 ### 9.2 Machine callers: `/api/device/*`
 
+Served by the centre application: the camera and the tag reader sit at the centre's shelf.
 Device token in a header, no session, no cookies, no CSRF (there is no browser). Tokens are
 hashed at rest, individually revocable, and `last_seen_at` is written on every call (§4).
 
@@ -723,19 +780,22 @@ hashed at rest, individually revocable, and `last_seen_at` is written on every c
 
 ### 9.3 The signed centre API: `/api/v1/demand`
 
-For an external blood centre that cannot share the database (§5). HMAC-SHA256 over
-`timestamp.body` with a per-centre secret; the timestamp is inside the signed payload to prevent
-replay, and a `(centre_id, nonce)` table rejects duplicates inside the acceptance window.
+Served by the centre application. For an external blood centre that cannot share the database
+(§5). HMAC-SHA256 over `timestamp.body` with a per-centre secret; the timestamp is inside the
+signed payload to prevent replay, and a `(centre_id, nonce)` table rejects duplicates inside the
+acceptance window.
 `centre_id` is required from day one so multi-tenant is not a retrofit (§13). This is the only
 public write surface the system has, and it is off by default behind a feature flag until a
 second centre exists.
 
 ### 9.4 Public read: the demand board
 
-No account. Group, hospital, town, units outstanding, needed-by, and nothing else (§6). Served
-from a query that **cannot** join to patients or requests, it reads `donor_demand` columns
-only, cached for 30 seconds, rate-limited by IP. §14 names this as the one page an outsider can
-read, so its response shape is pinned by a test that fails if any new column appears.
+Served by the volunteer application at `/board`: the board is Module 4's public face, and the
+volunteer dashboard is where its link is shared from. No account. Group, hospital, town, units
+outstanding, needed-by, and nothing else (§6). Served from a query that **cannot** join to
+patients or requests, it reads `donor_demand` columns only, cached for 30 seconds, rate-limited
+by IP. §14 names this as the one page an outsider can read, so its response shape is pinned by a
+test that fails if any new column appears.
 
 ### 9.5 Chat (Module 3)
 
@@ -782,7 +842,7 @@ UPDATE hospital.jobs SET started_at = now(), attempts = attempts + 1
 RETURNING *;
 ```
 
-### 11.1 `worker` (web app)
+### 11.1 `worker` (web release)
 
 | Job | Cadence | What it does | Spec |
 |---|---|---|---|
@@ -853,10 +913,28 @@ SHA-256 hash is stored (§3). Passwords are Argon2id. Login and OTP attempts are
 and per account **in the database**, so the limit survives a restart and applies across replicas
 (§3).
 
+**One session per application** (§1, ADR 0016). Each of the four applications admits one role
+and keeps its sessions apart from the others three independent ways:
+
+| | What it is | What it stops |
+|---|---|---|
+| Cookie name | `bc_doctor_session`, `bc_centre_session`, `bc_volunteer_session`, `bc_admin_session`, host-only (no `Domain`) | In development all four share `localhost`, where cookies are not isolated by port; one application reading or clearing another's cookie |
+| Session audience | `sessions.audience` names the issuing application, and resolving a session requires it to match | A token presented under the right cookie name at the wrong application: it resolves to nobody |
+| Role per application | A role that does not belong to the application is refused before any route rule is read | A session that somehow resolved at the wrong application reaching anything |
+
+An account at the wrong application's sign-in is refused **exactly like a wrong password**, and
+audited as `wrong_audience_<role>` (§15: a form must not reveal that an account exists
+elsewhere). Each sign-in page says whose it is and links to the other two staff sign-ins. A
+password reset finished in the wrong application sets the password and sends the person to their
+own application's sign-in rather than setting a cookie this one cannot read.
+
 **Authorization at three independent layers** (§3), because no single mistake should grant access:
 
-1. **Route protection**. Middleware maps a path prefix to a required role set (`/centre` →
-   `blood_centre` or `admin`; `/volunteer` → `volunteer_admin` or `admin`; `/admin` → `admin`).
+1. **Route protection**. Each application's proxy maps a path prefix to a required role set from
+   that application's own route table (`/dashboard` → `doctor` in the doctor app; `/centre` →
+   `blood_centre` in the centre app; `/volunteer` → `volunteer_admin` in the volunteer app;
+   `/doctors` → `admin` in administration). A path with no rule is denied, so no application
+   holds another's screens for a misconfigured role to be let into.
 2. **Page guard**, every server component re-reads the session and re-checks the role before
    rendering.
 3. **Use-case check**, every use case takes an `actor` and asserts the permission itself, so a
@@ -869,6 +947,36 @@ volunteer admin hitting a centre endpoint must get no data, not a 302 with a JSO
 deactivate your own account; cannot approve your own update request (`CHECK`); the last active
 admin cannot be demoted or deactivated (row-locked count); duplicate email or registration
 number rejected (unique).
+
+**Cross-origin requests: no CORS policy, because nothing needs one.** CORS governs a script in a
+page on one origin reading a response from another. Nothing in this system does that:
+
+- No browser code calls any application's routes by script. Pages are server-rendered, and every
+  mutation is a server action posted to **the application that served the page**.
+- What crosses between the four applications is navigation, which CORS does not apply to: an
+  `<a href>` to another origin (the landing pages' link to the board, the sign-in pages' links to
+  each other, the control panel's alert links), an emailed link, or a redirect.
+- The one cross-origin redirect is a server action's (the wrong-application reset above). Called
+  by script, Next answers it with the target in `x-action-redirect`, and the client router
+  performs a full page load to an external URL rather than fetching it.
+- Machine callers (§9.2, §9.3) are not browsers and send no `Origin`.
+
+So no application sends `Access-Control-Allow-*` headers, and none should be added: a permissive
+CORS header on a cookie-authenticated application is exactly the hole the per-application
+sessions above exist to close. A future page that genuinely needs another application's data
+reads it through the shared packages on the server, never by a browser request.
+
+**CSRF, and what that asks of a deployment.** Two independent checks refuse a mutating request
+whose `Origin` does not match the application's own host: Next's own check on every server
+action, and `assertSameOrigin` (in `packages/staff-web` for the three staff applications, in
+`apps/admin` for administration). They read the host differently. Next
+prefers `X-Forwarded-Host` and falls back to `Host`; `assertSameOrigin` reads `Host` only. So
+**a reverse proxy or load balancer in front of the applications must pass the public `Host`
+through unchanged**. One that rewrites `Host` to the upstream's address makes every form in
+the affected application fail with a CSRF refusal. It will look like a CORS problem, and it is
+not one. In development, opening the applications by anything other than `localhost` (a phone
+on the same network, by IP) needs that address in `allowedDevOrigins`, or Next blocks its
+development assets.
 
 **Device tokens** are 256-bit random, shown once, stored hashed, revocable individually, and
 scoped to one device row. A revoked token fails closed.
@@ -923,7 +1031,7 @@ error rather than a 500.
 
 | Requirement | Backend |
 |---|---|
-| **Grievance contact** | A config-driven contact rendered in the web app, the bot menu and the public board; a `grievances` table recording each contact and its outcome |
+| **Grievance contact** | A config-driven contact rendered in the web apps, the bot menu and the public board; a `grievances` table recording each contact and its outcome |
 | **Versioned privacy notice** | `notice_versions` (version, locale, body, published_at); the version is written into every `donor_consents` row (§5) |
 | **Data subject requests** | `data_subject_requests` (subject kind donor/patient, request kind access/export/correction/erasure, status, handled_by, outcome), each with an audited end state |
 | **Access/export** | A use case that assembles everything held about one donor or patient into a single JSON export, generated from the schema so a new table cannot be silently omitted |
@@ -973,7 +1081,7 @@ The layering in §3 is what makes §11.6's pyramid cheap. Each layer's tests and
 | **Contract** | Both sides of §7 against `packages/contract`, run in both codebases; column-grant assertions | Real Postgres |
 | **Adapter** | Chat flows against a fake channel (including one that **declines `update_card`**); the device API against recorded observations; email against a capture server | Fakes |
 | **Flow** | Every row of §8's flow index, **including the ways out**: the cancelled-demand stand-down first, not last (§14) | App + Postgres |
-| **Authorization** | Every surface in §9's role matrix as every role, asserting the **response body** | App |
+| **Authorization** | Every surface in §9's role matrix as every role, in the application that serves it, asserting the **response body**; and every role's session presented to the other three applications | App |
 | **Regression** | Standard clinical wording (§2.7); the public board's exact response shape; retention jobs' dry-run output | Fast |
 
 **CI gates** (§11.7), nothing merges without: typecheck, lint, format, unit + integration tests,
@@ -1029,12 +1137,15 @@ Each is expensive to reverse and gets a decision record in `docs/adr/` per §11.
 | 2 | **A separate `worker` process** | A stateless, horizontally-scaled web app cannot own a schedule (§10) without firing every sweep N times |
 | 3 | **Transactional outbox for chat messages and email** | The stand-down on a cancelled demand is the highest-consequence message in the system (§5); it must survive a chat API failure after commit |
 | 4 | **Column-level grants encode §7's ownership** | Makes "written by" a database fact rather than a convention |
-| 5 | **The web app holds no grant on the `bot` schema** | Module 4's counters live on `donor_demand`, so the privacy boundary can be a missing grant (§2.10) |
-| 6 | **`location_hierarchy` moves to a shared `reference` schema** | Three web surfaces need it, and §11.2 forbids the web app reading a bot table |
+| 5 | **The web release holds no grant on the `bot` schema** | Module 4's counters live on `donor_demand`, so the privacy boundary can be a missing grant (§2.10) |
+| 6 | **`location_hierarchy` moves to a shared `reference` schema** | Three web surfaces need it, and §11.2 forbids the web release reading a bot table |
 | 7 | **`overdue` is derived, not stored** | A stored flag needs a job, and overdue must be true the moment the date passes (§3) |
 | 8 | **UUIDv7 keys with a separate human identifier** | Time-ordered index locality without leaking counts |
 | 9 | **No Redis; jobs and rate limits live in Postgres** | One fewer dependency, and every job run and throttle window is an auditable row (§3 requires DB-backed throttling anyway) |
 | 10 | **Vision holds no database credentials** | §2.12's trust model enforced by absence, not by review |
+| 11 | **Administration is its own application** ([ADR 0003](adr/0003-administration-as-a-separate-application.md)) | The only surface with no clinical function; a compromised administrator reaches nothing clinical, and a clinical account reaches no account management |
+| 12 | **One application per role** ([ADR 0016](adr/0016-one-application-per-role.md)) | The same argument one level down: a doctor's session is nobody in the centre app, so §2.2's split between raising a request and deciding it is a split between deployments |
+| 13 | **The staff applications share one frame package** (`packages/staff-web`) | Three copies of session handling and account pages would drift; the package may not import a module, so no role's rule is shared by accident |
 
 ### 19.2 Deviations from the spec, to be reconciled in the same PR (§11.8)
 
@@ -1043,6 +1154,7 @@ Each is expensive to reverse and gets a decision record in `docs/adr/` per §11.
 | Location hierarchy ownership | §5 lists it under the bot's data | A shared `reference` schema owned by web migrations | Update §5 and §7's ownership note |
 | `tag_discrepancies`, `bag_quarantines`, `bag_discards`, `decision_bags`, `object_refs`, `jobs` | Not in §4's "data it owns" list | Named tables, because the flows in §4 need them to be closable and auditable | Add to §4's list |
 | Outbox tables (`message_outbox`, `email_deliveries` as an outbox) | §2.4 requires delivery status; §5 requires closure fan-out | Both are outboxes committed with their cause | Add a line to §2.4 and §5 |
+| The web release's shape | §1: one staff web application holding Modules 1, 2 and 4, with `admin` a role inside it; §9's matrix reads as one application | Four applications, one role each, each with its own sign-in, cookie and session audience; the public board in the volunteer application (§1, §9, §13) | Update §1 and §9 of the spec; ADR 0003 and ADR 0016 record the reasoning meanwhile |
 
 ### 19.3 Open questions that need an answer before the phase that depends on them
 

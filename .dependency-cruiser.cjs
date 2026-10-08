@@ -117,6 +117,17 @@ module.exports = {
       to: { path: '^packages/bot/' },
     },
     {
+      name: 'the-shared-frame-holds-no-role',
+      comment:
+        'packages/staff-web is the frame the three staff applications share: the session, the ' +
+        'guards, the header and the account pages (ADR 0016). An import of a role module would ' +
+        'put one role\'s screen or rule into every application, which is the sharing the split ' +
+        'exists to prevent. A role\'s work stays in that role\'s application.',
+      severity: 'error',
+      from: { path: '^packages/staff-web/' },
+      to: { path: '^packages/(hospital|centre|volunteer|bot|ops)/' },
+    },
+    {
       name: 'no-production-code-in-testing',
       comment:
         'packages/testing holds fakes and harnesses. Nothing outside a test may import it, so ' +
@@ -141,10 +152,10 @@ module.exports = {
         'volunteer exposes exactly one index.ts, and that is the whole of its surface — the ' +
         'alternative is the cross-module table read the spec forbids.',
       severity: 'error',
-      from: { path: '^apps/web/src/modules/([^/]+)/' },
+      from: { path: '^apps/[^/]+/src/modules/([^/]+)/' },
       to: {
-        path: '^apps/web/src/modules/([^/]+)/(?!index\\.ts$)',
-        pathNot: ['^apps/web/src/modules/$1/'],
+        path: '^apps/[^/]+/src/modules/([^/]+)/(?!index\\.ts$)',
+        pathNot: ['^apps/[^/]+/src/modules/$1/'],
       },
     },
     {
@@ -162,15 +173,16 @@ module.exports = {
         'No business logic in app/ (§9.1). A route or a server action parses input and calls one ' +
         'use case; it may not reach past a module entry point to do it itself.',
       severity: 'error',
-      from: { path: '^apps/web/src/app/' },
-      to: { path: '^apps/web/src/modules/[^/]+/(?!index\\.ts$)' },
+      from: { path: '^apps/[^/]+/src/app/' },
+      to: { path: '^apps/[^/]+/src/modules/[^/]+/(?!index\\.ts$)' },
     },
     {
       name: 'no-app-reaches-into-another',
       comment:
-        'The staff application and the administration application are separate deployments ' +
-        '(§1). Anything they share lives in packages/ — platform, in this case — so that the ' +
-        'shared surface is an entry point rather than whatever one app happens to expose.',
+        'The doctor, centre, volunteer and administration applications are separate ' +
+        'deployments (§1, ADR 0016). Anything they share lives in packages/, platform and ' +
+        'staff-web, so that the shared surface is an entry point rather than whatever one app ' +
+        'happens to expose.',
       severity: 'error',
       from: { path: '^apps/([^/]+)/' },
       to: { path: '^apps/([^/]+)/', pathNot: ['^apps/$1/'] },
@@ -197,6 +209,9 @@ module.exports = {
           // A package entry point is an orphan until something imports it, and
           // publishing it before its first caller exists is the intended order.
           '^packages/[^/]+/src/index\\.ts$',
+          // The staff frame's second entry point, for client components; its
+          // callers are the applications, which are cruised separately.
+          '^packages/staff-web/src/client/index\\.ts$',
           // Next's file conventions: a page, a layout, the proxy and the config
           // are entry points the framework calls, not modules anything imports.
           '^apps/[^/]+/next\\.config\\.ts$',

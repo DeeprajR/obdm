@@ -286,7 +286,7 @@ describe.skipIf(!testUrl)('the control panel (§11.9, §14)', () => {
     // A path would put a request uuid into a table nobody thinks of as
     // clinical, and aggregation wants the pattern anyway.
     await recordSample(context(), {
-      surface: 'staff',
+      surface: 'centre',
       route: '/centre/requests/[id]',
       method: 'GET',
       status: 200,

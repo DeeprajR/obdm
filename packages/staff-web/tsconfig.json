@@ -1,0 +1,14 @@
+{
+  "$comment": "Bundler resolution, not NodeNext: this package is only ever loaded by Next, and Next's type declarations are CommonJS shims that NodeNext reads as a module object rather than a component. No project references either: with them, the referenced packages' declarations are resolved under their own NodeNext settings and drizzle-orm's types load twice, once as ESM and once as CommonJS, which makes SQL unassignable to itself. Without them it reads the other packages exactly as the Next apps do, through their built dist. The root tsconfig lists this package after everything it imports, so tsc -b still builds them first.",
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
+}

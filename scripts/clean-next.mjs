@@ -1,5 +1,5 @@
 /**
- * Deletes the Next build caches for both applications.
+ * Deletes the Next build caches for all four applications.
  *
  * Turbopack's development server keeps a per-route manifest under `.next/dev`,
  * and it can be left behind for a route that was added, renamed or compiled
@@ -23,7 +23,7 @@ import { rm, stat } from 'node:fs/promises';
 import path from 'node:path';
 
 const root = path.resolve(import.meta.dirname, '..');
-const targets = ['apps/web/.next', 'apps/admin/.next'];
+const targets = ['doctor', 'admin', 'centre', 'volunteer'].map((app) => `apps/${app}/.next`);
 
 let removed = 0;
 

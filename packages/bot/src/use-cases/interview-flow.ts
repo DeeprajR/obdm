@@ -296,10 +296,50 @@ export async function answerContact(
   return { kind: 'next', state: next };
 }
 
-const normalisePhone = (value: string): string => {
-  const cleaned = value.replace(/[^\d+]/g, '');
-  return cleaned.startsWith('+') ? cleaned : `+${cleaned}`;
+/**
+ * The country code a bare mobile number is assumed to carry. The hospital is
+ * in India, and a donor typing their number types the ten digits they give
+ * everyone else. Without this, "9847012345" became "+9847012345", a number in
+ * Myanmar, and the counter had nothing to ring.
+ */
+export const DEFAULT_COUNTRY_CODE = '+91';
+
+/**
+ * To E.164. A leading plus is trusted as typed. Ten bare digits, or eleven
+ * with the trunk zero, are an Indian mobile. Anything longer already carries
+ * its country code: a shared Telegram contact arrives as "919847012345".
+ */
+export const normalisePhone = (value: string): string => {
+  const trimmed = value.trim();
+  const digits = trimmed.replace(/\D/g, '');
+  if (trimmed.startsWith('+')) return `+${digits}`;
+  if (digits.length === 10) return `${DEFAULT_COUNTRY_CODE}${digits}`;
+  if (digits.length === 11 && digits.startsWith('0')) {
+    return `${DEFAULT_COUNTRY_CODE}${digits.slice(1)}`;
+  }
+  return `+${digits}`;
 };
+
+/** The caption of the contact button, arriving as text because the client could not share. */
+const isShareButtonCaption = (value: string): boolean =>
+  value.trim().toLowerCase().replace(/[^a-z ]/g, '') === 'share my number';
+
+/**
+ * A refused phone answer, with the refusal count written to the draft so the
+ * next refusal can be worded differently. `invalid()` alone saves nothing,
+ * which is right for every other step and wrong for this one.
+ */
+async function refusePhone(
+  ctx: BotContext,
+  address: ChannelAddress,
+  state: InterviewState,
+  message: string,
+  attempts: number = state.draft.phoneAttempts ?? 0,
+): Promise<AnswerResult> {
+  const next: InterviewState = { ...state, draft: { ...state.draft, phoneAttempts: attempts } };
+  await save(ctx, address, next);
+  return invalid(next, message);
+}
 
 /* -------------------------------------------------------------------------- */
 /* One answered step                                                           */
@@ -318,9 +358,19 @@ async function handleAnswer(
 
   switch (step) {
     case 'phone': {
+      if (isShareButtonCaption(value)) {
+        return refusePhone(ctx, address, state, MESSAGES.shareButtonSentAsText);
+      }
       const digits = value.replace(/\D/g, '');
-      if (digits.length < 10) {
-        return invalid(state, 'That does not look like a phone number. Ten digits, please.');
+      if (digits.length < 10 || digits.length > 15) {
+        const attempts = (state.draft.phoneAttempts ?? 0) + 1;
+        return refusePhone(
+          ctx,
+          address,
+          state,
+          attempts >= 2 ? MESSAGES.phoneInvalidAgain : MESSAGES.phoneInvalid,
+          attempts,
+        );
       }
       draft.phone = normalisePhone(value);
       // Typed, not shared: the platform has not vouched for it (§5).

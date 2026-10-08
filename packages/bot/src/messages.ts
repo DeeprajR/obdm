@@ -69,6 +69,61 @@ export const MESSAGES = {
     'What is your phone number?\n\n' +
     'Only the blood centre sees it, and only after you say yes to a patient.',
 
+  phoneInvalid: 'That does not look like a phone number. Ten digits, please.',
+
+  /**
+   * The second refusal shows what a right answer looks like. One refusal is a
+   * slip; two means the wording did not land, and repeating it a third time
+   * would not land either.
+   */
+  phoneInvalidAgain:
+    'That is still not a phone number we can use. Type the ten digits of your ' +
+    'mobile number, like 9847012345.',
+
+  /**
+   * Some chat clients cannot share a contact and send the button's caption as
+   * plain text instead. Left unexplained, the person taps it again and reads
+   * the same refusal for as long as they keep trying.
+   */
+  shareButtonSentAsText:
+    'The share button did not send your number on this app. Please type it ' +
+    'instead: ten digits, like 9847012345.',
+
+  /* ------------------------------------- commands while mid-interview */
+
+  helpDuringSignup:
+    'You are part-way through registering. Answer the question below to carry ' +
+    'on, or say "stop" to discard your answers and leave.',
+
+  helpDuringEdit:
+    'You are part-way through changing your details. Answer the question below ' +
+    'to carry on. Any other command leaves the change unsaved.',
+
+  signupDiscarded:
+    'Nothing was saved. Your unfinished answers have been discarded. Say hello ' +
+    'any time to start again.',
+
+  nothingToDelete:
+    'Nothing is saved yet, so there is nothing to delete. Your unfinished ' +
+    'answers have been discarded.',
+
+  editDiscarded: 'Your unfinished change was not saved.',
+
+  /* -------------------------------- commands from somebody not registered */
+
+  /**
+   * "stop" from a stranger used to start the interview, because a stranger's
+   * every word did. Somebody who has just left with "stop" and says it again
+   * to be sure must not be greeted and asked for their phone number.
+   */
+  nothingToStop:
+    'Nothing is saved about you, so there is nothing to stop. Say hello ' +
+    'whenever you would like to register.',
+
+  strangerHelp:
+    'You are not registered. Say hello and I will ask a few quick questions, ' +
+    'about a minute. Nothing is saved until you say so at the end.',
+
   askDob: 'What is your date of birth? Like 1995-04-23.',
 
   /**

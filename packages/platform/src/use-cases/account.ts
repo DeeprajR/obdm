@@ -14,6 +14,7 @@ import { eq } from 'drizzle-orm';
 import { err, ok, type Result } from '@blood-connect/result';
 import { users, type UserRole } from '@blood-connect/db';
 
+import { appOrigin } from '../app-origins.js';
 import type { UseCaseContext } from '../context.js';
 import { audienceFor } from '../domain/authorization.js';
 import {
@@ -67,9 +68,6 @@ import {
   secondsUntilWindowEnds,
 } from '../repositories/rate-limits.js';
 import { SESSION_TTL_HOURS } from './sign-in.js';
-
-const staffAppUrl = (): string =>
-  process.env['STAFF_APP_URL']?.replace(/\/+$/, '') ?? 'http://localhost:3000';
 
 /* -------------------------------------------------------------------------- */
 /* Activation                                                                  */
@@ -340,7 +338,9 @@ export async function requestEmailChange(
       userId: actorId,
       vars: {
         fullName: account.fullName,
-        link: `${staffAppUrl()}/confirm-email/${token}`,
+        // Opened in the application this account signs in to, so the link
+        // lands next to the sign-in page it is about to need.
+        link: `${appOrigin(audienceFor(account.role))}/confirm-email/${token}`,
         expiresInHours: String(ttlHours),
       },
     });

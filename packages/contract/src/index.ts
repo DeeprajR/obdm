@@ -3,8 +3,8 @@
  *
  * Three tables in the `hospital` schema, and nothing else. The centre and the bot
  * integrate through these and no HTTP call in either direction (§1). Both
- * `apps/web` and `apps/bot` depend on this package; neither depends on the
- * other.
+ * sides depend on this package, the web release through `db` and the bot
+ * through `packages/bot`; neither depends on the other.
  *
  * §11.2 names a one-sided change to `donor_demand` as the single most likely way
  * this system breaks in production. So the ownership rules below are exported as

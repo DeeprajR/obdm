@@ -8,13 +8,13 @@
   },
   "scripts": {
     "bootstrap": "pnpm up && pnpm db:migrate && pnpm db:migrate:bot && pnpm db:seed",
-    "dev": "pnpm --parallel --filter @blood-connect/web --filter @blood-connect/admin dev",
-    "build": "tsc -b && pnpm --filter @blood-connect/web build && pnpm --filter @blood-connect/admin build",
-    "typecheck": "tsc -b --pretty && tsc -p tsconfig.test.json && pnpm --filter @blood-connect/web typecheck && pnpm --filter @blood-connect/admin typecheck",
+    "dev": "tsc -b && pnpm --parallel --filter @blood-connect/doctor-app --filter @blood-connect/admin --filter @blood-connect/centre-app --filter @blood-connect/volunteer-app dev",
+    "build": "tsc -b && pnpm --filter @blood-connect/doctor-app build && pnpm --filter @blood-connect/admin build && pnpm --filter @blood-connect/centre-app build && pnpm --filter @blood-connect/volunteer-app build",
+    "typecheck": "tsc -b --pretty && tsc -p tsconfig.test.json && pnpm --filter @blood-connect/doctor-app typecheck && pnpm --filter @blood-connect/admin typecheck && pnpm --filter @blood-connect/centre-app typecheck && pnpm --filter @blood-connect/volunteer-app typecheck",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "boundaries": "depcruise packages db --config .dependency-cruiser.cjs && depcruise apps/web --config .dependency-cruiser.cjs --ts-config tsconfig.depcruise-web.json && depcruise apps/admin --config .dependency-cruiser.cjs --ts-config tsconfig.depcruise-admin.json",
+    "boundaries": "depcruise packages db --config .dependency-cruiser.cjs && depcruise apps/doctor --config .dependency-cruiser.cjs --ts-config tsconfig.depcruise-doctor.json && depcruise apps/admin --config .dependency-cruiser.cjs --ts-config tsconfig.depcruise-admin.json && depcruise apps/centre --config .dependency-cruiser.cjs --ts-config tsconfig.depcruise-centre.json && depcruise apps/volunteer --config .dependency-cruiser.cjs --ts-config tsconfig.depcruise-volunteer.json",
     "boundaries:prove": "node scripts/prove-boundary-check.mjs",
     "smoke:signin": "node scripts/signin-smoke.mjs",
     "smoke:centre": "node --env-file=.env packages/centre/scripts/smoke.mjs",
@@ -36,11 +36,11 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/node": "^26.5.0",
-    "dependency-cruiser": "^18.2.0",
-    "eslint": "^10.10.0",
+    "@types/node": "^26.6.2",
+    "dependency-cruiser": "^18.4.0",
+    "eslint": "^10.11.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "~8.69.0",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.1"
   }
 }

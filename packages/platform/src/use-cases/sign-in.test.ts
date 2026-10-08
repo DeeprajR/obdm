@@ -85,7 +85,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
     const result = await signIn(context(), {
       email: 'active@blood-connect.invalid',
       password: PASSWORD,
-      audience: 'staff',
+      audience: 'doctor',
     });
 
     expect(result.ok).toBe(true);
@@ -99,7 +99,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
     const result = await signIn(context(), {
       email: 'active@blood-connect.invalid',
       password: PASSWORD,
-      audience: 'staff',
+      audience: 'doctor',
     });
     if (!result.ok) throw new Error('expected a session');
 
@@ -116,7 +116,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
     const result = await signIn(context(), {
       email: '  ACTIVE@Blood-Connect.INVALID ',
       password: PASSWORD,
-      audience: 'staff',
+      audience: 'doctor',
     });
     expect(result.ok).toBe(true);
   });
@@ -126,7 +126,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
     await signIn(context({ correlationId }), {
       email: 'active@blood-connect.invalid',
       password: PASSWORD,
-      audience: 'staff',
+      audience: 'doctor',
     });
 
     const rows = await db
@@ -148,7 +148,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
     const result = await signIn(context(), {
       email: 'active@blood-connect.invalid',
       password: PASSWORD,
-      audience: 'staff',
+      audience: 'doctor',
     });
     if (!result.ok) throw new Error('expected a session');
 
@@ -156,6 +156,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
       db,
       nodeTokens.fingerprint(result.value.token),
       clock.now(),
+      'doctor',
     );
 
     expect(actor).toEqual({
@@ -166,11 +167,30 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
     });
   });
 
+  it('resolves to nobody in any application but the one that issued it (ADR 0016)', async () => {
+    // The four applications share `localhost` in development, where cookies
+    // are not isolated by port. A doctor's token presented to the centre app
+    // is somebody else's cookie, and must mean nothing there.
+    const result = await signIn(context(), {
+      email: 'active@blood-connect.invalid',
+      password: PASSWORD,
+      audience: 'doctor',
+    });
+    if (!result.ok) throw new Error('expected a session');
+
+    const fingerprint = nodeTokens.fingerprint(result.value.token);
+    for (const audience of ['centre', 'volunteer', 'admin'] as const) {
+      expect(await resolveActor(db, fingerprint, clock.now(), audience), audience).toEqual({
+        kind: 'anonymous',
+      });
+    }
+  });
+
   it('stops resolving once the session is revoked, and again after that', async () => {
     const result = await signIn(context(), {
       email: 'active@blood-connect.invalid',
       password: PASSWORD,
-      audience: 'staff',
+      audience: 'doctor',
     });
     if (!result.ok) throw new Error('expected a session');
 
@@ -178,7 +198,9 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
     const first = await signOut(context(), fingerprint);
     expect(first.ok && first.value.revoked).toBe(true);
 
-    expect(await resolveActor(db, fingerprint, clock.now())).toEqual({ kind: 'anonymous' });
+    expect(await resolveActor(db, fingerprint, clock.now(), 'doctor')).toEqual({
+      kind: 'anonymous',
+    });
 
     // Idempotent: a double-click or a replayed post is not an error (§7.4).
     const second = await signOut(context(), fingerprint);
@@ -189,21 +211,23 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
     const result = await signIn(context(), {
       email: 'active@blood-connect.invalid',
       password: PASSWORD,
-      audience: 'staff',
+      audience: 'doctor',
     });
     if (!result.ok) throw new Error('expected a session');
 
     const fingerprint = nodeTokens.fingerprint(result.value.token);
     const afterExpiry = new Date(result.value.expiresAt.getTime() + 1000);
 
-    expect(await resolveActor(db, fingerprint, afterExpiry)).toEqual({ kind: 'anonymous' });
+    expect(await resolveActor(db, fingerprint, afterExpiry, 'doctor')).toEqual({
+      kind: 'anonymous',
+    });
   });
 
   it('stops resolving the moment the account is deactivated', async () => {
     const result = await signIn(context(), {
       email: 'active@blood-connect.invalid',
       password: PASSWORD,
-      audience: 'staff',
+      audience: 'doctor',
     });
     if (!result.ok) throw new Error('expected a session');
 
@@ -215,7 +239,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
     // Deactivating ends the sessions too, which is what an admin expects the
     // word to mean.
     expect(
-      await resolveActor(db, nodeTokens.fingerprint(result.value.token), clock.now()),
+      await resolveActor(db, nodeTokens.fingerprint(result.value.token), clock.now(), 'doctor'),
     ).toEqual({ kind: 'anonymous' });
   });
 
@@ -223,21 +247,21 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
 
   it('answers identically for a wrong password, an unknown address, a deactivated account and one never activated (§15)', async () => {
     const attempts = await Promise.all([
-      signIn(context(), { email: 'active@blood-connect.invalid', password: 'wrong', audience: 'staff' }),
+      signIn(context(), { email: 'active@blood-connect.invalid', password: 'wrong', audience: 'doctor' }),
       signIn(context({ request: { ip: '10.0.0.2', userAgent: 'vitest' } }), {
         email: 'nobody@blood-connect.invalid',
         password: PASSWORD,
-        audience: 'staff',
+        audience: 'doctor',
       }),
       signIn(context({ request: { ip: '10.0.0.3', userAgent: 'vitest' } }), {
         email: 'deactivated@blood-connect.invalid',
         password: PASSWORD,
-        audience: 'staff',
+        audience: 'doctor',
       }),
       signIn(context({ request: { ip: '10.0.0.4', userAgent: 'vitest' } }), {
         email: 'invited@blood-connect.invalid',
         password: PASSWORD,
-        audience: 'staff',
+        audience: 'doctor',
       }),
     ]);
 
@@ -261,7 +285,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
     await signIn(context({ correlationId }), {
       email: 'nobody@blood-connect.invalid',
       password: PASSWORD,
-      audience: 'staff',
+      audience: 'doctor',
     });
 
     const [row] = await db
@@ -273,6 +297,48 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
     expect(row?.metadata).toEqual({ reason: 'no_account' });
   });
 
+  it('refuses a doctor at every other application exactly like a wrong password (ADR 0016)', async () => {
+    // The right password, at the wrong door. Each application admits one role,
+    // and the refusal must not tell the form that this account exists
+    // somewhere else.
+    for (const audience of ['centre', 'volunteer', 'admin'] as const) {
+      const correlationId = newId();
+      const result = await signIn(context({ correlationId }), {
+        email: 'active@blood-connect.invalid',
+        password: PASSWORD,
+        audience,
+      });
+
+      expect(result.ok, audience).toBe(false);
+      if (!result.ok) {
+        expect(result.error).toEqual({
+          kind: 'InvalidCredentials',
+          message: 'Email or password is incorrect.',
+        });
+      }
+
+      const [row] = await db
+        .select()
+        .from(auditLog)
+        .where(eq(auditLog.correlationId, correlationId));
+      expect(row?.metadata, audience).toEqual({ reason: 'wrong_audience_doctor' });
+    }
+
+    expect(await db.select().from(sessions)).toHaveLength(0);
+  });
+
+  it('binds the session to the application that signed them in', async () => {
+    const result = await signIn(context(), {
+      email: 'active@blood-connect.invalid',
+      password: PASSWORD,
+      audience: 'doctor',
+    });
+    expect(result.ok).toBe(true);
+
+    const [session] = await db.select().from(sessions);
+    expect(session?.audience).toBe('doctor');
+  });
+
   /* ----------------------------------------------------------- throttling */
 
   it('throttles per account after the configured number of failures (§3)', async () => {
@@ -282,7 +348,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
       const result = await signIn(context(), {
         email: 'active@blood-connect.invalid',
         password: 'wrong',
-        audience: 'staff',
+        audience: 'doctor',
       });
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.error.kind).toBe('InvalidCredentials');
@@ -293,7 +359,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
     const blocked = await signIn(context(), {
       email: 'active@blood-connect.invalid',
       password: PASSWORD,
-      audience: 'staff',
+      audience: 'doctor',
     });
 
     expect(blocked.ok).toBe(false);
@@ -306,7 +372,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
   });
 
   it('survives a restart, because the counter is a row and not memory (§3)', async () => {
-    await signIn(context(), { email: 'active@blood-connect.invalid', password: 'wrong', audience: 'staff' });
+    await signIn(context(), { email: 'active@blood-connect.invalid', password: 'wrong', audience: 'doctor' });
 
     const rows = await db
       .select()
@@ -319,8 +385,8 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
   });
 
   it('clears the account counter on success but never the IP counter', async () => {
-    await signIn(context(), { email: 'active@blood-connect.invalid', password: 'wrong', audience: 'staff' });
-    await signIn(context(), { email: 'active@blood-connect.invalid', password: PASSWORD, audience: 'staff' });
+    await signIn(context(), { email: 'active@blood-connect.invalid', password: 'wrong', audience: 'doctor' });
+    await signIn(context(), { email: 'active@blood-connect.invalid', password: PASSWORD, audience: 'doctor' });
 
     const account = await db
       .select()
@@ -338,7 +404,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
   });
 
   it('counts a failure against both the account and the IP', async () => {
-    await signIn(context(), { email: 'active@blood-connect.invalid', password: 'wrong', audience: 'staff' });
+    await signIn(context(), { email: 'active@blood-connect.invalid', password: 'wrong', audience: 'doctor' });
 
     const rows = await db.select().from(authRateLimits);
     expect(rows.map((r) => r.scope).sort()).toEqual(['login_account', 'login_ip']);

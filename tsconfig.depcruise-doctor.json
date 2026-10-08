@@ -1,0 +1,12 @@
+{
+  "$comment": "Read only by dependency-cruiser. Each application maps @/* to its own src, so the four are cruised separately. One shared mapping would resolve one app's imports into another and report violations that are not there.",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "jsx": "preserve",
+    "baseUrl": ".",
+    "paths": { "@/*": ["apps/doctor/src/*"] }
+  }
+}

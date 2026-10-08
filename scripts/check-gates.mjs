@@ -64,8 +64,12 @@ const codeOf = (file) =>
  * offline and forbidden pages are what somebody is shown *instead of* content.
  */
 const PUBLIC_PAGES = new Set([
-  'apps/web/src/app/offline/page.tsx',
-  'apps/web/src/app/forbidden/page.tsx',
+  ...['doctor', 'centre', 'volunteer'].flatMap((app) => [
+    `apps/${app}/src/app/offline/page.tsx`,
+    `apps/${app}/src/app/forbidden/page.tsx`,
+    // The load balancer's probe; see the note on the admin one below.
+    `apps/${app}/src/app/api/health/route.ts`,
+  ]),
   'apps/admin/src/app/offline/page.tsx',
   'apps/admin/src/app/forbidden/page.tsx',
   // Administration has no landing page; this redirects to a guarded one.
@@ -76,7 +80,6 @@ const PUBLIC_PAGES = new Set([
    * cannot make. It reads no table, returns one word and a status code, and
    * enumerates nothing: the detailed panel is the authenticated screen.
    */
-  'apps/web/src/app/api/health/route.ts',
   'apps/admin/src/app/api/health/route.ts',
 ]);
 

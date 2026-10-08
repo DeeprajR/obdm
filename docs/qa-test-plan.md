@@ -32,12 +32,14 @@ pnpm bot
 
 ### Where things live
 
-Four of these open in a browser:
+Six of these open in a browser:
 
 | Service | Open at |
 |---|---|
-| Staff app | <http://localhost:3000> |
+| Doctor app | <http://localhost:3000> |
 | Administration | <http://localhost:3001> |
+| Blood centre app | <http://localhost:3002> |
+| Volunteer app, and the public board | <http://localhost:3003> |
 | Mailpit inbox | <http://localhost:8025> |
 | MinIO console | <http://localhost:9001>, `minioadmin` / `minioadmin` |
 
@@ -78,7 +80,7 @@ having three:
 | User | Password | Sees |
 |---|---|---|
 | `migrator` | `migrator` | Everything. Use this to inspect |
-| `app_web` | `app_web` | What the two web apps can reach. Nothing in the `bot` schema |
+| `app_web` | `app_web` | What the four web apps can reach. Nothing in the `bot` schema |
 | `app_bot` | `app_bot` | The bot's own schema, and only the agreed columns of the shared demand table |
 
 Connecting as `app_web` and trying to read a donor is itself a useful check, and the port
@@ -97,10 +99,13 @@ Every seeded account uses the password `BloodConnect!Demo2026`. All four address
 
 | Account | Does |
 |---|---|
-| `doctor@` | Raises requests. Staff app |
-| `centre@` | Inventory, decisions, roster. Staff app |
-| `volunteer@` | Dashboard only, scoped to one district |
-| `admin@` | Accounts and the control panel. Administration app |
+| `doctor@` | Raises requests. Doctor app, `:3000` |
+| `centre@` | Inventory, decisions, roster. Blood centre app, `:3002` |
+| `volunteer@` | Dashboard only, scoped to one district. Volunteer app, `:3003` |
+| `admin@` | Accounts and the control panel. Administration app, `:3001` |
+
+Each account signs in only at its own application. At any other one it is refused exactly like
+a wrong password.
 
 ### Starting clean
 
@@ -173,9 +178,16 @@ here is worth more than a failure anywhere else. [§2.3, §3, §13]
   - Expect: the doctor sees the note on their profile page, not just a refusal.
 - [ ] **M0-12** Withdraw a pending request, then ask for the same field again.
   - Expect: allowed. Two pending requests for one field are not.
-- [ ] **M0-13** Sign in as a doctor on `:3000`, then open `localhost:3001` in the same browser.
+- [ ] **M0-13** Sign in as a doctor on `:3000`, then open `localhost:3001`, `localhost:3002` and
+  `localhost:3003/volunteer` in the same browser.
+  - Expect: each shows its own sign-in page. The doctor's session means nothing outside the
+    doctor app, even though all four share `localhost`.
+  - Then try the doctor's email and password on `localhost:3002/sign-in`.
+  - Expect: refused with the same message as a wrong password, and no hint that the account
+    exists somewhere else.
+  - Then, still signed in on `:3000`, open `localhost:3000/admin`.
   - Expect: 403. **View source and confirm the body carries no data at all**, rather than
-    only that you were redirected.
+    only that you were refused.
 - [ ] **M0-14** Deactivate an account that is signed in elsewhere. Reload that other window.
   - Expect: signed out immediately, not at the next expiry.
 
@@ -331,7 +343,7 @@ Counts and hospitals. The test that matters most here is the one that checks wha
   - Expect: the scope does not move. It comes from the account, not the query string.
 - [ ] **M4-6** Read the six-week trend strip.
   - Expect: every bar carries its two numbers as well as its length.
-- [ ] **M4-7** Open `localhost:3000/board` signed out, with the public board flag off, then on.
+- [ ] **M4-7** Open `localhost:3003/board` signed out, with the public board flag off, then on.
   - Expect: off, it says it is not published. It does **not** show a plausible-looking sample.
 - [ ] **M4-8** With the board published, read a row and view source.
   - Expect: five fields only, group, hospital, town, units needed, needed by. No count of who

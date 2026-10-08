@@ -1,21 +1,25 @@
 import type { Alert } from '@blood-connect/domain';
+import { appOrigin } from '@blood-connect/platform';
 
 /**
  * The silent-failure board (§11.9).
  *
  * Each row links to the record, so the panel is a way in rather than a dead
- * end. Most of what it reports about lives in the staff application on a
- * different origin (§1), so the link is absolute and the row says which
- * application it is sending you to. An operator following a link at 3am should
- * not discover they needed a second sign-in only after clicking.
+ * end. Most of what it reports about lives in another application on a
+ * different origin (§1, ADR 0016), so the link is absolute and the row says
+ * which application it is sending you to. An operator following a link at 3am
+ * should not discover they needed a second sign-in only after clicking.
  *
  * An empty board is stated rather than shown as an absence. "Nothing is
  * waiting" and "this section failed to load" look identical when both render
  * as blank space, and the difference is the whole point of the screen.
  */
 
-const staffOrigin = (): string =>
-  process.env['STAFF_APP_URL']?.replace(/\/+$/, '') ?? 'http://localhost:3000';
+const OPEN_IN = {
+  doctor: 'Open in the doctor app',
+  centre: 'Open in the blood centre app',
+  volunteer: 'Open in the volunteer app',
+} as const;
 
 const LEVEL_WORDS = {
   critical: 'Somebody is waiting',
@@ -59,11 +63,13 @@ export function AlertRows({
       ) : (
         <ul className="app-stack-tight app-plain-list">
           {alerts.map((alert) => {
+            const elsewhere =
+              alert.app === undefined || alert.app === 'admin' ? undefined : alert.app;
             const href =
               alert.href === undefined
                 ? undefined
-                : alert.app === 'staff'
-                  ? `${staffOrigin()}${alert.href}`
+                : elsewhere
+                  ? `${appOrigin(elsewhere)}${alert.href}`
                   : alert.href;
 
             return (
@@ -80,7 +86,7 @@ export function AlertRows({
                   <p className="app-alert-todo">{alert.whatToDo}</p>
                   {href ? (
                     <a className="ux4g-btn ux4g-btn-outline-primary ux4g-btn-md app-target" href={href}>
-                      {alert.app === 'staff' ? 'Open in the staff app' : 'Open'}
+                      {elsewhere ? OPEN_IN[elsewhere] : 'Open'}
                     </a>
                   ) : null}
                 </div>

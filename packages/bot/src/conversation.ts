@@ -51,9 +51,11 @@ import {
   answerContact,
   answerInterview,
   beginInterview,
+  clearInterview,
   loadInterview,
   type AnswerResult,
 } from './use-cases/interview-flow.js';
+import type { InterviewState } from './use-cases/interview.js';
 import {
   deleteDonorData,
   draftFromProfile,
@@ -377,6 +379,18 @@ export async function handleUpdate(ctx: BotContext, update: IncomingUpdate): Pro
    */
   if (state) {
     /*
+      A command wins over the question. Otherwise "help", "stop" and "/start"
+      are fed to whatever is being asked, and at the phone step every one of
+      them is refused as "not a phone number" with no way out but a number.
+    */
+    if (
+      update.kind === 'text' &&
+      (await handleCommandDuringInterview(ctx, address, state, said, update.updateId))
+    ) {
+      return;
+    }
+
+    /*
       The question as it currently stands, captured **before** the answer is
       applied. After `answerInterview` the state has moved on and the prompt
       would describe the next question, so locking against it would tick a
@@ -411,7 +425,24 @@ export async function handleUpdate(ctx: BotContext, update: IncomingUpdate): Pro
    * No command needed. Whatever they said, the useful reply is the welcome and
    * the first question. Asking somebody to type `/start` first is a step that
    * exists for the system's convenience, not theirs.
+   *
+   * With two exceptions. "stop", "delete" and "pause" from a stranger are
+   * somebody making sure they have left, and greeting them with a question
+   * reads as the bot refusing to let go. "help" is somebody asking what this
+   * is, and the answer to that is a sentence, not the phone question.
    */
+  if (update.kind === 'text') {
+    const word = said.toLowerCase().replace(/^\//, '');
+    if (word === 'stop' || word === 'delete' || word === 'pause') {
+      await reply(ctx, address, [{ text: MESSAGES.nothingToStop }], update.updateId);
+      return;
+    }
+    if (word === 'help' || word === 'menu') {
+      await reply(ctx, address, [{ text: MESSAGES.strangerHelp }], update.updateId);
+      return;
+    }
+  }
+
   const begun = await beginInterview(ctx, address);
   await reply(
     ctx,
@@ -669,6 +700,77 @@ const requestCard = (
 });
 
 /* -------------------------------------------------------------------------- */
+/* Commands that arrive mid-interview                                          */
+/* -------------------------------------------------------------------------- */
+
+/** The words a person part-way through signing up can use to get out or get help. */
+const SIGNUP_COMMANDS = new Set(['help', 'menu', 'start', 'resume', 'stop', 'delete']);
+
+/** Every word `handleRegistered` understands. A profile edit yields to any of them. */
+const REGISTERED_COMMANDS = new Set([
+  ...SIGNUP_COMMANDS,
+  'pause',
+  'needs',
+  'board',
+  'requests',
+  'donate',
+  'give',
+  'profile',
+  'edit',
+]);
+
+/**
+ * A whole message that is exactly a command word, slash or not. Only a whole
+ * message counts: a town called "Stop" typed at the location step is an
+ * answer, and so is a name.
+ *
+ * Returns true when the message was handled as a command, false when it should
+ * be treated as the answer to the open question.
+ */
+async function handleCommandDuringInterview(
+  ctx: BotContext,
+  address: ChannelAddress,
+  state: InterviewState,
+  said: string,
+  updateId: string,
+): Promise<boolean> {
+  const word = said.toLowerCase().replace(/^\//, '');
+
+  if (word === 'help' || word === 'menu') {
+    // Help, then the open question again, so the edit or the signup is not lost.
+    const text = state.flow === 'profile' ? MESSAGES.helpDuringEdit : MESSAGES.helpDuringSignup;
+    await reply(ctx, address, [{ text }, await promptFor(ctx, state)], updateId);
+    return true;
+  }
+
+  if (state.flow === 'profile' && state.donorId) {
+    if (!REGISTERED_COMMANDS.has(word)) return false;
+    // An explicit command from a registered donor is what they meant. The
+    // half-made edit is dropped, and they are told so before the command runs.
+    await clearInterview(ctx, address);
+    await handleRegistered(ctx, address, state.donorId, said, updateId, [
+      { text: MESSAGES.editDiscarded },
+    ]);
+    return true;
+  }
+
+  if (!SIGNUP_COMMANDS.has(word)) return false;
+
+  if (word === 'start' || word === 'resume') {
+    // Somebody coming back. The open question, with no refusal in front of it.
+    await reply(ctx, address, [await promptFor(ctx, state)], updateId);
+    return true;
+  }
+
+  // "stop" and "delete": nothing is committed until the acknowledgement (§5),
+  // so leaving means dropping the draft, and saying that nothing was kept.
+  await clearInterview(ctx, address);
+  const text = word === 'delete' ? MESSAGES.nothingToDelete : MESSAGES.signupDiscarded;
+  await reply(ctx, address, [{ text }], updateId);
+  return true;
+}
+
+/* -------------------------------------------------------------------------- */
 /* Registered                                                                  */
 /* -------------------------------------------------------------------------- */
 
@@ -678,25 +780,37 @@ async function handleRegistered(
   donorId: string,
   said: string,
   updateId: string,
+  /**
+   * Said before whatever this handler replies, in the same reply. A second
+   * `reply()` for the same update would collide on the outbox's dedupe key
+   * and be dropped, so a note that must precede the answer travels with it.
+   */
+  before: readonly OutgoingMessage[] = [],
 ): Promise<void> {
   const word = said.toLowerCase().replace(/^\//, '');
+  const replyWith = (
+    c: BotContext,
+    to: ChannelAddress,
+    messages: readonly OutgoingMessage[],
+    id: string,
+  ): Promise<void> => reply(c, to, [...before, ...messages], id);
 
   if (word === 'delete:confirm' || said === `delete:${donorId}`) {
     const erased = await deleteDonorData(ctx, donorId);
     // What was kept, said plainly: a donation record the centre must keep is
     // not the donor's to delete, and hiding that would be a lie (§12.1).
-    await reply(ctx, address, [{ text: MESSAGES.deleted(erased.donationsKept) }], updateId);
+    await replyWith(ctx, address, [{ text: MESSAGES.deleted(erased.donationsKept) }], updateId);
     return;
   }
   if (said === 'cancel:delete') {
-    await reply(ctx, address, [{ text: MESSAGES.deletionCancelled }], updateId);
+    await replyWith(ctx, address, [{ text: MESSAGES.deletionCancelled }], updateId);
     return;
   }
 
   if (word === 'pause') {
     const until = addDays(ctx.clock.today(), SNOOZE_DAYS);
     await snoozeDonor(ctx, donorId, until);
-    await reply(ctx, address, [{ text: MESSAGES.snoozed(until) }], updateId);
+    await replyWith(ctx, address, [{ text: MESSAGES.snoozed(until) }], updateId);
     return;
   }
 
@@ -704,7 +818,7 @@ async function handleRegistered(
     // "start" from somebody already registered is not a re-registration. It is
     // almost always somebody looking for the menu, or coming back after a pause.
     await resumeDonor(ctx, donorId);
-    await reply(
+    await replyWith(
       ctx,
       address,
       [{ text: MESSAGES.resumed }, await standingMessage(ctx, donorId)],
@@ -715,13 +829,13 @@ async function handleRegistered(
 
   if (word === 'stop') {
     await optOutDonor(ctx, donorId);
-    await reply(ctx, address, [{ text: MESSAGES.optedOut }], updateId);
+    await replyWith(ctx, address, [{ text: MESSAGES.optedOut }], updateId);
     return;
   }
 
   if (word === 'delete') {
     // Said plainly **before** deleting, in one sentence (§5).
-    await reply(
+    await replyWith(
       ctx,
       address,
       [
@@ -750,7 +864,7 @@ async function handleRegistered(
      */
     const draft = await draftFromProfile(ctx, donorId);
     if (!draft) {
-      await reply(ctx, address, [{ text: MESSAGES.help }], updateId);
+      await replyWith(ctx, address, [{ text: MESSAGES.help }], updateId);
       return;
     }
 
@@ -760,12 +874,12 @@ async function handleRegistered(
       draft: draft,
       step: 'summary',
     });
-    await reply(ctx, address, [await promptFor(ctx, state)], updateId);
+    await replyWith(ctx, address, [await promptFor(ctx, state)], updateId);
     return;
   }
 
   if (word === 'board' || word === 'needs' || word === 'requests') {
-    await reply(ctx, address, [boardMessage(await openBoard(ctx, donorId))], updateId);
+    await replyWith(ctx, address, [boardMessage(await openBoard(ctx, donorId))], updateId);
     return;
   }
 
@@ -795,7 +909,7 @@ async function handleRegistered(
             ? MESSAGES.notEligibleYet(standing.eligibleFrom)
             : null;
 
-    await reply(
+    await replyWith(
       ctx,
       address,
       [
@@ -815,12 +929,12 @@ async function handleRegistered(
   }
 
   if (word === 'help' || word === 'menu') {
-    await reply(ctx, address, [withMenu({ text: MESSAGES.help }, false)], updateId);
+    await replyWith(ctx, address, [withMenu({ text: MESSAGES.help }, false)], updateId);
     return;
   }
 
   // Anything else: their own situation. Useful, and never a contradiction.
-  await reply(ctx, address, [await standingMessage(ctx, donorId)], updateId);
+  await replyWith(ctx, address, [await standingMessage(ctx, donorId)], updateId);
 }
 
 /* -------------------------------------------------------------------------- */

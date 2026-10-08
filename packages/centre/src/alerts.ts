@@ -72,7 +72,7 @@ export async function centreAlerts(ctx: UseCaseContext): Promise<readonly Alert[
       oldestAgeSeconds: ageSeconds(quarantine?.oldest ?? null, now),
       sample: quarantineIds.map((row) => row.bagId),
       href: '/centre/quarantine',
-      app: 'staff',
+      app: 'centre',
     },
     {
       kind: 'centre.discrepancy_open',
@@ -84,7 +84,7 @@ export async function centreAlerts(ctx: UseCaseContext): Promise<readonly Alert[
       oldestAgeSeconds: ageSeconds(discrepancy?.oldest ?? null, now),
       sample: discrepancyIds.map((row) => row.id),
       href: '/centre/tags',
-      app: 'staff',
+      app: 'centre',
     },
   ];
 }
