@@ -2,8 +2,7 @@ import type { Metadata } from 'next';
 
 import { ConfirmEmailOutcome } from '@blood-connect/staff-web';
 
-import { AppShell } from '../../shell';
-import { currentActor } from '@/lib/session';
+import { APP } from '@/lib/app';
 
 export const metadata: Metadata = { title: 'Confirm your address · Blood Connect' };
 
@@ -17,11 +16,6 @@ export default async function ConfirmEmailPage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  const actor = await currentActor();
 
-  return (
-    <AppShell actor={actor} title="Confirm your address" narrow>
-      <ConfirmEmailOutcome token={token} />
-    </AppShell>
-  );
+  return <ConfirmEmailOutcome app={APP} token={token} />;
 }

@@ -144,3 +144,35 @@ them. They now live in `packages/domain` with their types, `centre` re-exports
 them, and the form imports them from `domain`. All four pages render, and the
 README now says to run a production build when a cleaned cache does not fix
 the error.
+
+## 8. Landing on the kit
+
+This change was written against the UX4G screens and merged after
+[ADR 0015](0015-ux4g-replaced-by-in-repo-clinical-kit.md) had replaced them
+with the in-repo kit. The kit's screens take priority: every page the split
+moved carries the kit restyle it received on `main`, and the shared frame was
+rewritten onto the kit rather than keeping a UX4G copy alive in one package.
+
+What that changed in §5:
+
+- `packages/staff-web` imports `@blood-connect/ui`. The
+  `nothing-depends-on-ui-except-apps` rule admits it by name, because the frame
+  is presentation that happens to live in a package, and
+  `ui-is-presentation-only` now also keeps the kit out of `staff-web`.
+- The shell is the kit's `AppShell`, wrapped once in `staff-web` as `AppFrame`.
+  Each application keeps a thin `kit-shell.tsx`, which is what its pages
+  import, and a `nav.ts` listing only its own role's surfaces. The nav for a
+  role lives in that role's application, not in a table of four.
+- The public pages (sign-in, reset, invite, address confirmation) have no
+  shell, as the kit's versions had none. Their brand line names the
+  application, which is where §2's "whose sign-in is this" now reads.
+- Tailwind is per application. Each `tailwind.css` lists `packages/staff-web/src`
+  as a second `@source`, or the frame's classes are never generated.
+- UX4G is gone from the three applications and from the package, including
+  `theme.css` and the runtime shim.
+
+§7's defect was fixed on `main` in parallel, by moving the two functions to
+`packages/centre/src/rules/returns.ts` behind a subpath export. This merge keeps
+the `packages/domain` home and drops that subpath: the rule is pure, `domain` is
+where the other pure rules are, and one home is one fewer place for the form and
+the refusal to disagree.

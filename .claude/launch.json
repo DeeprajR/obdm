@@ -1,0 +1,29 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "doctor",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@blood-connect/doctor-app", "dev"],
+      "port": 3000
+    },
+    {
+      "name": "admin",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@blood-connect/admin", "dev"],
+      "port": 3001
+    },
+    {
+      "name": "centre",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@blood-connect/centre-app", "dev"],
+      "port": 3002
+    },
+    {
+      "name": "volunteer",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@blood-connect/volunteer-app", "dev"],
+      "port": 3003
+    }
+  ]
+}

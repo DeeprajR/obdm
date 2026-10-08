@@ -1,5 +1,9 @@
+import { Card } from '@blood-connect/ui';
+
+import type { StaffApp } from './app.js';
 import { ChoosePasswordForm } from './client/forms.js';
 import type { FormAction } from './form-state.js';
+import { PublicPage } from './public-page.js';
 
 /**
  * The invite link (§2.3, §8).
@@ -10,27 +14,26 @@ import type { FormAction } from './form-state.js';
  * application's activate action before handing that action in here.
  */
 export function InviteCard({
+  app,
   minimumLength,
   action,
 }: {
+  app: StaffApp;
   minimumLength: number;
   action: FormAction;
 }) {
   return (
-    <div className="ux4g-card ux4g-card-outline">
-      <div className="ux4g-card-header">
-        <h1 className="ux4g-card-title">Choose a password</h1>
-        <p className="ux4g-card-sub-title">
+    <PublicPage app={app} subtitle="Set your password">
+      <Card title="Choose a password">
+        <p className="mb-4 text-xs text-ink-subtle">
           This signs you in and takes you to your dashboard.
         </p>
-      </div>
-      <div className="ux4g-card-body">
         <ChoosePasswordForm
           action={action}
           minimumLength={minimumLength}
           label="Set password and sign in"
         />
-      </div>
-    </div>
+      </Card>
+    </PublicPage>
   );
 }

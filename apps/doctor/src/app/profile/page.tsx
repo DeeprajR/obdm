@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 
 import { ProfileBody } from '@blood-connect/staff-web';
 
-import { AppShell } from '../shell';
+import { KitShell } from '../kit-shell';
 import {
   cancelEmailChangeAction,
   requestAccountUpdateAction,
@@ -15,9 +15,10 @@ export const metadata: Metadata = { title: 'Your profile · Blood Connect' };
 
 export default async function ProfilePage() {
   const actor = await requireAccess('/profile');
+  if (actor.kind !== 'user') return null;
 
   return (
-    <AppShell actor={actor} title="Your profile">
+    <KitShell role={actor.role} currentPath="/profile" currentTitle="Your profile">
       <ProfileBody
         actor={actor}
         actions={{
@@ -27,6 +28,6 @@ export default async function ProfilePage() {
           withdrawAccountUpdate: withdrawAccountUpdateAction,
         }}
       />
-    </AppShell>
+    </KitShell>
   );
 }

@@ -1,19 +1,21 @@
 import Link from 'next/link';
 
+import { Card } from '@blood-connect/ui';
 import { appOrigin } from '@blood-connect/platform';
 
 import { STAFF_APPS, type StaffApp } from './app.js';
 import { SignInForm } from './client/sign-in-form.js';
 import type { SignInAction } from './form-state.js';
+import { PublicPage } from './public-page.js';
 
 /**
- * The sign-in card, for one application.
+ * The sign-in page, for one application.
  *
  * Accounts are provisioned by an administrator; there is no sign-up page
  * (§2.2). A first sign-in happens on the emailed invite link.
  *
  * Each application admits one role, and an account at the wrong one is refused
- * exactly like a wrong password (§15), so the card says whose it is, and says
+ * exactly like a wrong password (§15), so the page says whose it is, and says
  * where the other two are. That is the whole of the routing: it names places,
  * and it never learns anything about the address typed into it.
  */
@@ -21,37 +23,34 @@ export function SignInCard({ app, action }: { app: StaffApp; action: SignInActio
   const others = STAFF_APPS.filter((other) => other.audience !== app.audience);
 
   return (
-    <>
-      <div className="ux4g-card ux4g-card-outline">
-        <div className="ux4g-card-header">
-          <h1 className="ux4g-card-title">Sign in</h1>
-          <p className="ux4g-card-sub-title">
-            For {app.who}. Use the account your administrator created for you.
-          </p>
-        </div>
+    <PublicPage app={app} subtitle={`Sign in for ${app.who}`} width="sm">
+      <Card>
+        <SignInForm action={action} />
+      </Card>
 
-        <div className="ux4g-card-body">
-          <SignInForm action={action} />
-        </div>
-
-        <div className="ux4g-card-footer">
-          <Link className="ux4g-btn ux4g-btn-text-primary ux4g-btn-md" href="/reset">
-            Forgot your password?
-          </Link>
-        </div>
+      <div className="text-center text-sm">
+        <Link
+          href="/reset"
+          className="font-medium text-primary hover:underline"
+        >
+          Forgot your password?
+        </Link>
       </div>
 
-      <nav className="app-row" aria-label="Other Blood Connect applications">
+      <nav
+        aria-label="Other Blood Connect applications"
+        className="flex flex-col items-center gap-1 text-center text-sm"
+      >
         {others.map((other) => (
           <a
             key={other.audience}
-            className="ux4g-btn ux4g-btn-text-primary ux4g-btn-md"
             href={`${appOrigin(other.audience)}/sign-in`}
+            className="text-ink-muted hover:text-ink hover:underline"
           >
             Sign in for {other.who}
           </a>
         ))}
       </nav>
-    </>
+    </PublicPage>
   );
 }

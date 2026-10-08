@@ -3,9 +3,8 @@ import type { Metadata } from 'next';
 import { InviteCard } from '@blood-connect/staff-web';
 import { currentConfig } from '@blood-connect/platform';
 
-import { AppShell } from '../../shell';
 import { activateAction } from '../../actions';
-import { currentActor } from '@/lib/session';
+import { APP } from '@/lib/app';
 
 export const metadata: Metadata = { title: 'Set your password · Blood Connect' };
 
@@ -16,15 +15,13 @@ export default async function InvitePage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  const actor = await currentActor();
   const config = await currentConfig();
 
   return (
-    <AppShell actor={actor} title="Set your password" narrow>
-      <InviteCard
-        minimumLength={config.auth.minPasswordLength}
-        action={activateAction.bind(null, token)}
-      />
-    </AppShell>
+    <InviteCard
+      app={APP}
+      minimumLength={config.auth.minPasswordLength}
+      action={activateAction.bind(null, token)}
+    />
   );
 }

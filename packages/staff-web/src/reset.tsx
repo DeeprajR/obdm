@@ -1,7 +1,11 @@
 import Link from 'next/link';
 
+import { Card } from '@blood-connect/ui';
+
+import type { StaffApp } from './app.js';
 import { CompleteResetForm, RequestResetForm } from './client/forms.js';
 import type { FormAction } from './form-state.js';
+import { PublicPage } from './public-page.js';
 
 /**
  * Password reset in four steps (§3): enter the address, receive a six-digit
@@ -20,43 +24,40 @@ import type { FormAction } from './form-state.js';
  * one's sign-in instead.
  */
 export function ResetCards({
+  app,
   minimumLength,
   requestAction,
   completeAction,
 }: {
+  app: StaffApp;
   minimumLength: number;
   requestAction: FormAction;
   completeAction: FormAction;
 }) {
   return (
-    <>
-      <div className="ux4g-card ux4g-card-outline">
-        <div className="ux4g-card-header">
-          <h1 className="ux4g-card-title">Send me a code</h1>
-          <p className="ux4g-card-sub-title">
-            We will email a six-digit code to the address on your account.
-          </p>
-        </div>
-        <div className="ux4g-card-body">
-          <RequestResetForm action={requestAction} />
-        </div>
-      </div>
+    <PublicPage app={app} subtitle="Reset your password">
+      <Card title="Send me a code">
+        <p className="mb-4 text-xs text-ink-subtle">
+          We will email a six-digit code to the address on your account.
+        </p>
+        <RequestResetForm action={requestAction} />
+      </Card>
 
-      <div className="ux4g-card ux4g-card-outline">
-        <div className="ux4g-card-header">
-          <h2 className="ux4g-card-title">I have a code</h2>
-          <p className="ux4g-card-sub-title">
-            Setting a new password signs you in and ends every other session.
-          </p>
-        </div>
-        <div className="ux4g-card-body">
-          <CompleteResetForm action={completeAction} minimumLength={minimumLength} />
-        </div>
-      </div>
+      <Card title="I have a code">
+        <p className="mb-4 text-xs text-ink-subtle">
+          Setting a new password signs you in and ends every other session.
+        </p>
+        <CompleteResetForm action={completeAction} minimumLength={minimumLength} />
+      </Card>
 
-      <Link className="ux4g-btn ux4g-btn-text-primary ux4g-btn-md" href="/sign-in">
-        Back to sign in
-      </Link>
-    </>
+      <div className="text-center">
+        <Link
+          href="/sign-in"
+          className="text-sm font-medium text-primary hover:underline"
+        >
+          ← Back to sign in
+        </Link>
+      </div>
+    </PublicPage>
   );
 }

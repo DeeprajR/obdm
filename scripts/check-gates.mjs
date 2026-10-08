@@ -69,6 +69,29 @@ const PUBLIC_PAGES = new Set([
     `apps/${app}/src/app/forbidden/page.tsx`,
     // The load balancer's probe; see the note on the admin one below.
     `apps/${app}/src/app/api/health/route.ts`,
+    /*
+     * Password reset (§3): the address form and the code-and-new-password
+     * form, both on one route. Public by necessity, somebody who cannot sign
+     * in is exactly who needs to be here. The safety property is not a guard
+     * on the page but on the response: the "send me a code" reply is
+     * identical whether or not the address exists, so this route cannot
+     * become an account-enumeration oracle.
+     */
+    `apps/${app}/src/app/reset/page.tsx`,
+    /*
+     * The invite link (§2.3, §8). The person opening it has no account yet,
+     * so the token in the path is the whole credential. Public by necessity;
+     * single-use, short-lived, and superseded the moment a new invite is
+     * sent.
+     */
+    `apps/${app}/src/app/invite/[token]/page.tsx`,
+    /*
+     * The address-change confirmation (§3). Signed-out on purpose: the new
+     * inbox may be on a phone that never signed in, and requiring a session
+     * would strand exactly that person. The token in the path is the whole
+     * credential.
+     */
+    `apps/${app}/src/app/confirm-email/[token]/page.tsx`,
   ]),
   'apps/admin/src/app/offline/page.tsx',
   'apps/admin/src/app/forbidden/page.tsx',
