@@ -321,8 +321,11 @@ Open no inbound port except SSH. The tunnel dials out.
    `S3_SECRET_ACCESS_KEY`; the endpoint is
    `https://<account id>.r2.cloudflarestorage.com`, region `auto`.
 3. **Brevo.** Senders, Domains & Dedicated IPs → add the domain in `MAIL_FROM`
-   (`obdm.deeprajr.com` in the example) and put the records it lists into
-   Cloudflare DNS, then verify. SMTP & API → SMTP: the login shown there is
+   (the bare `deeprajr.com` in the example) and put the records it lists into
+   Cloudflare DNS, then verify. Not `obdm.deeprajr.com`: that name is the
+   tunnel's CNAME, and a CNAME allows no other record beside it, so Brevo's
+   TXT records could not go there. If `deeprajr.com` already has an SPF or
+   DMARC record, edit it rather than adding a second. SMTP & API → SMTP: the login shown there is
    `SMTP_USER`, and a generated SMTP key is `SMTP_PASSWORD`.
 4. **GitHub packages.** After the first release run, the six packages appear
    under the repository's Packages. Set each one's visibility to public, since
