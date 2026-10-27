@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { newId } from '@blood-connect/ids';
+import { newId } from '@obdm/ids';
 
 import { makePublicId } from './import-demand.js';
 

@@ -28,9 +28,9 @@ import {
   decisionBags,
   donorDemand,
   donorDemandConfirmations,
-} from '@blood-connect/db';
-import { createAuditWriter, type UseCaseContext } from '@blood-connect/platform';
-import { formatRequestNumber, parseRequestNumber } from '@blood-connect/domain';
+} from '@obdm/db';
+import { createAuditWriter, type UseCaseContext } from '@obdm/platform';
+import { formatRequestNumber, parseRequestNumber } from '@obdm/domain';
 
 /**
  * A moment in the chain.

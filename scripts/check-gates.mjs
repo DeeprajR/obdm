@@ -93,6 +93,20 @@ const PUBLIC_PAGES = new Set([
      */
     `apps/${app}/src/app/confirm-email/[token]/page.tsx`,
   ]),
+  /*
+   * The donor application (ADR 0017) has no account to guard with. A donor is
+   * a device cookie, resolved on the server by the chat route, and the chat
+   * page renders nothing from the database: the client fetches its own
+   * transcript. Every page and route here is public by design, and each is
+   * listed rather than exempted by directory so adding one is a decision.
+   */
+  'apps/donor/src/app/page.tsx',
+  'apps/donor/src/app/offline/page.tsx',
+  // Redirects to the chat with the request id in hand; it decides nothing itself.
+  'apps/donor/src/app/r/[publicId]/page.tsx',
+  // The conversation: identity is the device cookie, never the body.
+  'apps/donor/src/app/api/chat/route.ts',
+  'apps/donor/src/app/api/health/route.ts',
   'apps/admin/src/app/offline/page.tsx',
   'apps/admin/src/app/forbidden/page.tsx',
   // Administration has no landing page; this redirects to a guarded one.

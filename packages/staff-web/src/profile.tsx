@@ -1,14 +1,14 @@
 import Link from 'next/link';
 
-import { Button, Card, DescList, PageHeader, linkButtonClasses } from '@blood-connect/ui';
+import { Button, Card, DescList, PageHeader, linkButtonClasses } from '@obdm/ui';
 import {
   UPDATE_REQUEST_LABELS,
   findAccountById,
   listMyUpdateRequests,
   type Actor,
-} from '@blood-connect/platform';
-import { db } from '@blood-connect/platform';
-import { emailChangeRequests } from '@blood-connect/db';
+} from '@obdm/platform';
+import { db } from '@obdm/platform';
+import { emailChangeRequests } from '@obdm/db';
 import { and, eq, isNull } from 'drizzle-orm';
 
 import { RequestEmailChangeForm } from './client/forms.js';

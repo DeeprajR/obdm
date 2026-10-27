@@ -8,8 +8,8 @@
  */
 
 import { eq } from 'drizzle-orm';
-import { err, ok, type Result } from '@blood-connect/result';
-import { objectRefs, userSeals } from '@blood-connect/db';
+import { err, ok, type Result } from '@obdm/result';
+import { objectRefs, userSeals } from '@obdm/db';
 
 import type { UseCaseContext } from '../context.js';
 import { actorHas } from '../domain/authorization.js';

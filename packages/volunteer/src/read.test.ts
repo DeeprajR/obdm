@@ -2,10 +2,10 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
-import { CONFIG_DEFAULTS } from '@blood-connect/config';
-import { donorDemand } from '@blood-connect/db';
-import { idGenerator, newId } from '@blood-connect/ids';
-import { createFakeClock } from '@blood-connect/testing';
+import { CONFIG_DEFAULTS } from '@obdm/config';
+import { donorDemand } from '@obdm/db';
+import { idGenerator, newId } from '@obdm/ids';
+import { createFakeClock } from '@obdm/testing';
 import {
   anonymousActor,
   argon2Hasher,
@@ -13,7 +13,7 @@ import {
   type Actor,
   type Database,
   type UseCaseContext,
-} from '@blood-connect/platform';
+} from '@obdm/platform';
 
 import { demandsForGroup, groupPressure, publicBoard, trend } from './read.js';
 import { scopeFor } from './scope.js';
@@ -121,7 +121,7 @@ describe.skipIf(!testUrl)('the volunteer board (§6)', () => {
     // needs it to exist.
     const doctorId = newId();
     await client`INSERT INTO hospital.users (id, email, full_name, role, status, password_hash)
-                 VALUES (${doctorId}, ${`vol-${doctorId}@blood-connect.invalid`},
+                 VALUES (${doctorId}, ${`vol-${doctorId}@obdm.invalid`},
                          'Fixture Doctor', 'doctor', 'active', 'x')`;
     requestId = newId();
     await client`INSERT INTO hospital.blood_requests

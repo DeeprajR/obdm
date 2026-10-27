@@ -10,8 +10,8 @@
  */
 
 import { and, count, eq, inArray, lt, min, sql } from 'drizzle-orm';
-import { emailDeliveries } from '@blood-connect/db';
-import type { Alert } from '@blood-connect/domain';
+import { emailDeliveries } from '@obdm/db';
+import type { Alert } from '@obdm/domain';
 
 import type { UseCaseContext } from '../context.js';
 

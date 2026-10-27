@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
-import { linkButtonClasses } from '@blood-connect/ui';
-import { anonymousActor, confirmEmailChange } from '@blood-connect/platform';
+import { linkButtonClasses } from '@obdm/ui';
+import { anonymousActor, confirmEmailChange } from '@obdm/platform';
 
 import type { StaffApp } from './app.js';
 import { useCaseContext } from './guards.js';

@@ -12,8 +12,8 @@
  */
 
 import { and, count, desc, eq, isNull, or } from 'drizzle-orm';
-import { admissions, bloodRequests, patients } from '@blood-connect/db';
-import { actorHas, createAuditWriter, type UseCaseContext } from '@blood-connect/platform';
+import { admissions, bloodRequests, patients } from '@obdm/db';
+import { actorHas, createAuditWriter, type UseCaseContext } from '@obdm/platform';
 
 export type DoctorActivity = {
   readonly admissionsOpen: number;

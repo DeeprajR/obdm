@@ -1,14 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { Card } from '@blood-connect/ui';
+import { Card } from '@obdm/ui';
 
 import { KitShell } from '../../kit-shell';
 import { RaiseRequestForm } from '../../raise-request-form';
 import { requireAccess, useCaseContext } from '@/lib/guards';
-import { listAdmissions } from '@blood-connect/hospital';
+import { listAdmissions } from '@obdm/hospital';
 
-export const metadata: Metadata = { title: 'New request · Blood Connect' };
+export const metadata: Metadata = { title: 'New request · OBDM' };
 
 /**
  * The doctor's one screen (§3, ADR 0010).
@@ -46,7 +46,7 @@ export default async function NewRequestPage({
 
   return (
     <KitShell
-      role={actor.role}
+      role={actor.role} userId={actor.userId}
       currentPath="/requests/new"
       currentTitle="New request"
     >

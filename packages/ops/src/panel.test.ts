@@ -3,10 +3,10 @@ import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
-import { CONFIG_DEFAULTS } from '@blood-connect/config';
-import { auditLog, donorDemand, processHealth } from '@blood-connect/db';
-import { idGenerator, newId } from '@blood-connect/ids';
-import { createFakeClock } from '@blood-connect/testing';
+import { CONFIG_DEFAULTS } from '@obdm/config';
+import { auditLog, donorDemand, processHealth } from '@obdm/db';
+import { idGenerator, newId } from '@obdm/ids';
+import { createFakeClock } from '@obdm/testing';
 import {
   anonymousActor,
   argon2Hasher,
@@ -14,7 +14,7 @@ import {
   type Actor,
   type Database,
   type UseCaseContext,
-} from '@blood-connect/platform';
+} from '@obdm/platform';
 
 import { readBoard } from './board.js';
 import { pruneSamples, recordSample, routeMetrics, statusBreakdown, surfaceMetrics } from './metrics.js';
@@ -68,9 +68,9 @@ describe.skipIf(!testUrl)('the control panel (§11.9, §14)', () => {
     doctorId = newId();
     adminId = newId();
     await client`INSERT INTO hospital.users (id, email, full_name, role, status, password_hash)
-                 VALUES (${doctorId}, ${`panel-${doctorId}@blood-connect.invalid`},
+                 VALUES (${doctorId}, ${`panel-${doctorId}@obdm.invalid`},
                          'Fixture Doctor', 'doctor', 'active', 'x'),
-                        (${adminId}, ${`panel-admin-${adminId}@blood-connect.invalid`},
+                        (${adminId}, ${`panel-admin-${adminId}@obdm.invalid`},
                          'Fixture Admin', 'admin', 'active', 'x')`;
 
     requestUuid = newId();
@@ -171,7 +171,7 @@ describe.skipIf(!testUrl)('the control panel (§11.9, §14)', () => {
     await client`INSERT INTO hospital.donor_demand_confirmations
                    (id, demand_id, donor_id, channel, donor_name, donor_phone,
                     blood_group, confirmed_at)
-                 SELECT ${newId()}, id, ${newId()}, 'telegram',
+                 SELECT ${newId()}, id, ${newId()}, 'web',
                         'Sreelakshmi Nair', '+919999000011', 'O-', now()
                    FROM hospital.donor_demand LIMIT 1`;
 

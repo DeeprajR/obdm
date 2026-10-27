@@ -15,13 +15,13 @@
  * query per pass and a change is picked up without a restart.
  */
 
-import { appConfig } from '@blood-connect/db';
+import { appConfig } from '@obdm/db';
 import {
   CONFIG_DEFAULTS,
   createConfigCache,
   resolveConfig,
   type AppConfig,
-} from '@blood-connect/config';
+} from '@obdm/config';
 
 import type { BotDatabase } from './db.js';
 

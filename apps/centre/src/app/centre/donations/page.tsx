@@ -1,13 +1,13 @@
 import type { Metadata } from 'next';
 
-import { Card, PageHeader } from '@blood-connect/ui';
+import { Card, PageHeader } from '@obdm/ui';
 
 import { CentreShell } from '../../centre-shell';
 import { CompletedDonations, UpcomingDonations } from '../../donations-tables';
 import { requireAccess, useCaseContext } from '@/lib/guards';
-import { listCompletedDonations, listUpcomingDonations } from '@blood-connect/centre';
+import { listCompletedDonations, listUpcomingDonations } from '@obdm/centre';
 
-export const metadata: Metadata = { title: 'Donation status · Blood Connect' };
+export const metadata: Metadata = { title: 'Donation status · OBDM' };
 
 /**
  * Every donor coming in, and everything already collected (§4, §8.3).

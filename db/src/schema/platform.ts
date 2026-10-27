@@ -75,10 +75,12 @@ export const users = hospitalSchema.table(
       'users_status_check',
       sql`status IN ('pending_activation', 'active', 'deactivated')`,
     ),
-    // An account that can sign in has a password; one that cannot, does not.
+    // An account that can sign in has a password; one still waiting for its
+    // invite does not. A deactivated one may be either: an invite can be
+    // withdrawn before it is ever opened.
     check(
       'users_activation_check',
-      sql`(status = 'pending_activation') = (password_hash IS NULL)`,
+      sql`(status <> 'pending_activation' OR password_hash IS NULL) AND (status <> 'active' OR password_hash IS NOT NULL)`,
     ),
     // Only a volunteer admin is district-scoped (§6).
     check(

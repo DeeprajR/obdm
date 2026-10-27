@@ -1,7 +1,7 @@
 /*
- * @blood-connect/ui · base tokens
+ * @obdm/ui · base tokens
  *
- * Clinical palette shared by every Blood Connect surface. Ported from
+ * Clinical palette shared by every OBDM surface. Ported from
  * the `blood-connect-ui` hackathon frontend (ADR 0015).
  *
  * Declared in a Tailwind v4 `@theme` block so Tailwind's PostCSS
@@ -9,7 +9,7 @@
  * matching utility classes (`bg-canvas`, `text-ink`, `border-border`,
  * `rounded-card`, `shadow-card`, and so on). Without Tailwind PostCSS
  * this file is inert — an unknown at-rule the browser ignores — which
- * is fine, because in Bloodconnect only the apps that opt into the
+ * is fine, because in OBDM only the apps that opt into the
  * kit's utilities also install Tailwind. Non-Tailwind consumers can
  * still read the values through `var(--color-*)` after Tailwind has
  * emitted them, or import `tokens/index.css` for a bundled set.

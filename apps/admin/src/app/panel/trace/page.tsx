@@ -1,13 +1,13 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { DataTable, PageHeader, type Column } from '@blood-connect/ui';
+import { DataTable, PageHeader, type Column } from '@obdm/ui';
 
 import { KitShell } from '../../kit-shell';
 import { TraceSearchForm } from './form';
 import { notePage } from '@/lib/metrics';
 import { requireAccess, useCaseContext } from '@/lib/guards';
-import { trace } from '@blood-connect/ops';
+import { trace } from '@obdm/ops';
 
 export const metadata: Metadata = { title: 'Follow a request · Administration' };
 
@@ -78,7 +78,7 @@ export default async function TracePage({
   ];
 
   return (
-    <KitShell currentPath="/panel" currentTitle="Follow a request">
+    <KitShell actor={actor} currentPath="/panel" currentTitle="Follow a request">
       <PageHeader
         title="Follow one request"
         description="Paste a request number from the slip, a demand id, or a correlation id from a log line. Reading a trace is recorded in the audit log."

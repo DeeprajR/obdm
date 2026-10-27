@@ -6,7 +6,7 @@
  */
 
 import { and, eq, gt, isNull, ne } from 'drizzle-orm';
-import { sessions, users, type UserRole, type UserStatus } from '@blood-connect/db';
+import { sessions, users, type UserRole, type UserStatus } from '@obdm/db';
 
 import type { Database, Transaction } from '../db.js';
 import type { Audience } from '../domain/authorization.js';

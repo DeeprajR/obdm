@@ -123,6 +123,28 @@ module.exports = {
       to: { path: '^packages/bot/' },
     },
     {
+      name: 'the-donor-app-is-the-bot-side',
+      comment:
+        'apps/donor is the bot release behind a chat screen, on app_bot (ADR 0017). It may not ' +
+        'import platform, hospital, centre, volunteer, ops or staff-web: those are the web ' +
+        'release on app_web, and an import would make the two deployables one and give the ' +
+        'donor register a path to a patient (§5.1).',
+      severity: 'error',
+      from: { path: '^apps/donor/' },
+      to: { path: '^packages/(platform|hospital|centre|volunteer|ops|staff-web)/' },
+    },
+    {
+      name: 'the-worker-is-the-web-side',
+      comment:
+        'apps/worker runs the web release’s scheduled jobs on app_web (§1, §11.1). It may not ' +
+        'import bot: that is the other deployable on the other role, and the two meet only in ' +
+        'the shared tables. Nor the kit, the frame, the board or the panel, none of which is a ' +
+        'job: a process with no screen has no business holding one.',
+      severity: 'error',
+      from: { path: '^apps/worker/' },
+      to: { path: '^packages/(bot|ui|staff-web|volunteer|ops)/' },
+    },
+    {
       name: 'the-shared-frame-holds-no-role',
       comment:
         'packages/staff-web is the frame the three staff applications share: the session, the ' +

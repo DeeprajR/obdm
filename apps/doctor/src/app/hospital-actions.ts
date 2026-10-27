@@ -12,10 +12,12 @@ import {
   raiseRequest,
   recordSample,
   type PossibleDuplicate,
-} from '@blood-connect/hospital';
-import { cancelRequest } from '@blood-connect/centre';
+} from '@obdm/hospital';
+import { cancelRequest } from '@obdm/centre';
 
-import { actorHas } from '@blood-connect/platform';
+import { actorHas } from '@obdm/platform';
+
+import { parseLocalDateTime } from '@obdm/domain';
 
 import { useCaseContext } from '@/lib/guards';
 import { assertSameOrigin, currentActor } from '@/lib/session';
@@ -158,9 +160,11 @@ export async function createAdmissionAction(
 ): Promise<FormState> {
   await assertSameOrigin();
 
+  // The form posts a wall-clock time with no zone; it is read on the
+  // hospital's clock, never the server's (`parseLocalDateTime`).
   const admittedRaw = value(formData, 'admittedAt');
-  const admittedAt = admittedRaw === '' ? new Date() : new Date(admittedRaw);
-  if (Number.isNaN(admittedAt.getTime())) return { error: 'Give a valid admission time.' };
+  const admittedAt = admittedRaw === '' ? new Date() : parseLocalDateTime(admittedRaw);
+  if (admittedAt === undefined) return { error: 'Give a valid admission time.' };
 
   const ctx = await useCaseContext(await currentActor());
   const result = await createAdmission(ctx, {
@@ -292,7 +296,7 @@ export async function raiseRequestAction(
 /**
  * The doctor's one post-submit action (§3, §8).
  *
- * It reaches into `@blood-connect/centre` rather than `hospital`, because
+ * It reaches into `@obdm/centre` rather than `hospital`, because
  * cancelling releases reserved bags and withdraws an open demand, three
  * modules' tables, one transaction, and only that module may see all of them.
  * The permission it checks is still the doctor's.
@@ -334,8 +338,8 @@ export async function recordSampleAction(
   await assertSameOrigin();
 
   const collectedRaw = value(formData, 'collectedAt');
-  const collectedAt = collectedRaw === '' ? new Date() : new Date(collectedRaw);
-  if (Number.isNaN(collectedAt.getTime())) return { error: 'Give a valid collection time.' };
+  const collectedAt = collectedRaw === '' ? new Date() : parseLocalDateTime(collectedRaw);
+  if (collectedAt === undefined) return { error: 'Give a valid collection time.' };
 
   const ctx = await useCaseContext(await currentActor());
   const result = await recordSample(ctx, requestUuid, {

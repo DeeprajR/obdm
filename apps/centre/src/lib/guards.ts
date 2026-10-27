@@ -4,8 +4,8 @@ import {
   requireAccess as requireAccessIn,
   requirePermission as requirePermissionIn,
   useCaseContext,
-} from '@blood-connect/staff-web';
-import type { Actor, Permission } from '@blood-connect/platform';
+} from '@obdm/staff-web';
+import type { Actor, Permission } from '@obdm/platform';
 
 import { APP } from './app';
 

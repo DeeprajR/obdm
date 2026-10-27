@@ -20,7 +20,7 @@
  */
 
 import { and, eq, gte, sql } from 'drizzle-orm';
-import { donorDemand, locationNodes } from '@blood-connect/db';
+import { donorDemand, locationNodes } from '@obdm/db';
 import {
   BLOOD_GROUPS,
   STOCK_DISPLAY_ORDER,
@@ -28,8 +28,8 @@ import {
   unitsOutstanding,
   type BloodGroup,
   type PressureLevel,
-} from '@blood-connect/domain';
-import type { UseCaseContext } from '@blood-connect/platform';
+} from '@obdm/domain';
+import type { UseCaseContext } from '@obdm/platform';
 
 /**
  * How much of the board a volunteer sees.

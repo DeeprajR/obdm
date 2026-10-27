@@ -19,13 +19,13 @@
  */
 
 import { and, asc, eq, inArray, notExists, sql } from 'drizzle-orm';
-import { botRequests, donorRequests, donors } from '@blood-connect/db/bot';
+import { botRequests, donorRequests, donors } from '@obdm/db/bot';
 import {
   compatibleRecipientGroupsFor,
   hasIntervalElapsed,
   parseCalendarDay,
   type BloodGroup,
-} from '@blood-connect/domain';
+} from '@obdm/domain';
 
 import type { BotContext } from '../context.js';
 import type { HospitalSnapshot } from '../messages.js';

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-import { Card } from '@blood-connect/ui';
+import { Card } from '@obdm/ui';
 
 import type { StaffApp } from './app.js';
 import { CompleteResetForm, RequestResetForm } from './client/forms.js';

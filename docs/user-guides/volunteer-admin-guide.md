@@ -194,8 +194,9 @@ Two states are worth knowing about, because people may ask you about them:
 - "Nothing is outstanding right now. Thank you to everyone who came in." Everything is
   covered.
 
-The board does not link to the Telegram bot. Donors who want the bot can find it on
-Telegram as `cmck_blood_donor_bot`, or from a poster or message that carries its link.
+The board does not link to the donor app. Donors who want to register open the donor
+app's address (http://localhost:3004 on the demo machine), or a request link of the form
+`/r/<request id>` from a poster or message that carries it.
 
 ---
 

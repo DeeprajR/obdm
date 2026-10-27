@@ -8,7 +8,7 @@ import {
   canCentreWrite,
   canBotWriteConfirmation,
   canCentreWriteConfirmation,
-} from '@blood-connect/contract';
+} from '@obdm/contract';
 
 /**
  * The shared contract, enforced by the database (§5.1, §6, §7, §11.2).
@@ -172,7 +172,7 @@ describe.skipIf(!testUrl)('the contract tables, as the application roles', () =>
     const donorId = crypto.randomUUID();
     await bot`INSERT INTO hospital.donor_demand_confirmations
                 (id, demand_id, donor_id, channel, donor_name, donor_phone, blood_group)
-              VALUES (gen_random_uuid(), ${demandId}, ${donorId}, 'telegram',
+              VALUES (gen_random_uuid(), ${demandId}, ${donorId}, 'web',
                       'Synthetic Donor', '+910000000000', 'O-')`;
 
     await web`UPDATE hospital.donor_demand_confirmations
@@ -192,7 +192,7 @@ describe.skipIf(!testUrl)('the contract tables, as the application roles', () =>
     await expect(
       web`INSERT INTO hospital.donor_demand_confirmations
             (id, demand_id, donor_id, channel, donor_name, donor_phone, blood_group)
-          VALUES (gen_random_uuid(), ${demandId}, gen_random_uuid(), 'telegram',
+          VALUES (gen_random_uuid(), ${demandId}, gen_random_uuid(), 'web',
                   'Invented', '+910000000001', 'O-')`,
     ).rejects.toThrow(/permission denied/i);
   });
@@ -201,7 +201,7 @@ describe.skipIf(!testUrl)('the contract tables, as the application roles', () =>
     const donorId = crypto.randomUUID();
     await bot`INSERT INTO hospital.donor_demand_confirmations
                 (id, demand_id, donor_id, channel, donor_name, donor_phone, blood_group)
-              VALUES (gen_random_uuid(), ${demandId}, ${donorId}, 'telegram',
+              VALUES (gen_random_uuid(), ${demandId}, ${donorId}, 'web',
                       'Synthetic Donor', '+910000000002', 'O-')`;
 
     // The counter is the authority on who actually gave blood (§4).

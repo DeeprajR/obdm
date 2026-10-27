@@ -18,16 +18,16 @@
  */
 
 import { and, eq, sql } from 'drizzle-orm';
-import { err, ok, type Result } from '@blood-connect/result';
-import { centreSettings, donorDemand } from '@blood-connect/db';
-import { recruitsDonors, type BloodGroup, type Product } from '@blood-connect/domain';
-import type { IdGenerator } from '@blood-connect/ids';
+import { err, ok, type Result } from '@obdm/result';
+import { centreSettings, donorDemand } from '@obdm/db';
+import { recruitsDonors, type BloodGroup, type Product } from '@obdm/domain';
+import type { IdGenerator } from '@obdm/ids';
 import {
   actorHas,
   createAuditWriter,
   type Transaction,
   type UseCaseContext,
-} from '@blood-connect/platform';
+} from '@obdm/platform';
 
 import {
   demandNotFound,

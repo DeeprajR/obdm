@@ -1,10 +1,10 @@
 import type { Metadata } from 'next';
 
-import { ConfirmEmailOutcome } from '@blood-connect/staff-web';
+import { ConfirmEmailOutcome } from '@obdm/staff-web';
 
 import { APP } from '@/lib/app';
 
-export const metadata: Metadata = { title: 'Confirm your address · Blood Connect' };
+export const metadata: Metadata = { title: 'Confirm your address · OBDM' };
 
 /**
  * The address-change confirmation (§3). Usable while signed out on purpose:

@@ -13,7 +13,7 @@ import {
   accountInvites,
   emailChangeRequests,
   passwordResetOtps,
-} from '@blood-connect/db';
+} from '@obdm/db';
 
 import type { Transaction } from '../db.js';
 

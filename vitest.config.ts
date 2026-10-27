@@ -13,25 +13,25 @@ const pkg = (name: string): string =>
 export default defineConfig({
   resolve: {
     alias: {
-      '@blood-connect/result': pkg('result'),
-      '@blood-connect/ids': pkg('ids'),
-      '@blood-connect/domain': pkg('domain'),
-      '@blood-connect/config': pkg('config'),
-      '@blood-connect/contract': pkg('contract'),
-      '@blood-connect/testing': pkg('testing'),
-      '@blood-connect/platform': pkg('platform'),
-      '@blood-connect/hospital': pkg('hospital'),
-      '@blood-connect/centre': pkg('centre'),
-      '@blood-connect/bot': pkg('bot'),
-      '@blood-connect/volunteer': pkg('volunteer'),
-      '@blood-connect/ops': pkg('ops'),
+      '@obdm/result': pkg('result'),
+      '@obdm/ids': pkg('ids'),
+      '@obdm/domain': pkg('domain'),
+      '@obdm/config': pkg('config'),
+      '@obdm/contract': pkg('contract'),
+      '@obdm/testing': pkg('testing'),
+      '@obdm/platform': pkg('platform'),
+      '@obdm/hospital': pkg('hospital'),
+      '@obdm/centre': pkg('centre'),
+      '@obdm/bot': pkg('bot'),
+      '@obdm/volunteer': pkg('volunteer'),
+      '@obdm/ops': pkg('ops'),
       // The web app's own path alias, so its module tests import exactly what
       // the app imports.
-      // The longer alias first: Vite matches by prefix, so `@blood-connect/db`
-      // would otherwise swallow `@blood-connect/db/bot` and resolve it to a
+      // The longer alias first: Vite matches by prefix, so `@obdm/db`
+      // would otherwise swallow `@obdm/db/bot` and resolve it to a
       // path that does not exist.
-      '@blood-connect/db/bot': path.resolve(import.meta.dirname, 'db/src/schema-bot/index.ts'),
-      '@blood-connect/db': path.resolve(import.meta.dirname, 'db/src/index.ts'),
+      '@obdm/db/bot': path.resolve(import.meta.dirname, 'db/src/schema-bot/index.ts'),
+      '@obdm/db': path.resolve(import.meta.dirname, 'db/src/index.ts'),
 
     },
   },

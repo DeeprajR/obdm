@@ -12,9 +12,9 @@
  */
 
 import { and, count, eq, isNull, lt, min } from 'drizzle-orm';
-import { bagQuarantines, tagDiscrepancies } from '@blood-connect/db';
-import type { Alert } from '@blood-connect/domain';
-import type { UseCaseContext } from '@blood-connect/platform';
+import { bagQuarantines, tagDiscrepancies } from '@obdm/db';
+import type { Alert } from '@obdm/domain';
+import type { UseCaseContext } from '@obdm/platform';
 
 const ageSeconds = (from: Date | null, now: Date): number | null =>
   from === null ? null : Math.max(0, Math.floor((now.getTime() - from.getTime()) / 1000));

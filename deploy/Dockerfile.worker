@@ -1,0 +1,52 @@
+# syntax=docker/dockerfile:1.7
+#
+# The worker, and the migration runner (docs/deployment.md). One image serves
+# both because both are plain Node over the built workspace packages: the
+# worker runs apps/worker, and a release's migration step runs db/dist with
+# the same image and a different command.
+#
+#   docker build -f deploy/Dockerfile.worker -t obdm/worker .
+#
+# The image keeps the built workspace rather than tracing a single entry
+# point: the migration runner needs db/migrations and db/migrations-bot on
+# disk, and the worker resolves the workspace packages through pnpm's
+# node_modules layout. Development dependencies are pruned before the final
+# layer so the compiler and the test runner do not ship.
+
+ARG NODE_VERSION=22
+
+FROM node:${NODE_VERSION}-bookworm-slim AS build
+
+RUN npm install --global pnpm@12.3.4
+
+WORKDIR /repo
+COPY . .
+
+RUN pnpm install --frozen-lockfile
+# Every workspace package and the worker. The Next applications are not
+# built here; they have their own image.
+RUN pnpm exec tsc -b && pnpm --filter @obdm/worker build
+
+# Drop the development dependencies, keeping the lockfile's production set.
+RUN pnpm prune --prod
+
+FROM node:${NODE_VERSION}-bookworm-slim AS runtime
+
+ENV NODE_ENV=production \
+    TZ=Asia/Kolkata
+WORKDIR /repo
+
+COPY --from=build --chown=node:node /repo/package.json /repo/pnpm-workspace.yaml ./
+COPY --from=build --chown=node:node /repo/node_modules ./node_modules
+COPY --from=build --chown=node:node /repo/packages ./packages
+COPY --from=build --chown=node:node /repo/db ./db
+COPY --from=build --chown=node:node /repo/apps/worker ./apps/worker
+COPY --from=build --chown=node:node /repo/docs/kozhikode.json ./docs/kozhikode.json
+
+USER node
+
+# The worker by default. A release overrides this to run the migrations:
+#   node db/dist/src/migrate.js && node db/dist/src/migrate-bot.js
+# and, once per deployment, the bootstrap:
+#   node db/dist/src/bootstrap.js
+CMD ["node", "apps/worker/dist/main.js"]

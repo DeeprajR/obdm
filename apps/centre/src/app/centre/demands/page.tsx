@@ -1,16 +1,16 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { Card, DataTable, PageHeader, linkButtonClasses, type Column } from '@blood-connect/ui';
+import { Card, DataTable, PageHeader, linkButtonClasses, type Column } from '@obdm/ui';
 
 import { CentreShell } from '../../centre-shell';
-import { LiveRefresh } from '@blood-connect/staff-web/client';
+import { LiveRefresh } from '@obdm/staff-web/client';
 import { CancelDemandForm } from '../../centre-forms';
 import { requireAccess, useCaseContext } from '@/lib/guards';
-import { countUnmarked, listDemands } from '@blood-connect/centre';
-import { WORDING, bloodGroupLabel, productLabel } from '@blood-connect/domain';
+import { countUnmarked, listDemands } from '@obdm/centre';
+import { WORDING, bloodGroupLabel, productLabel } from '@obdm/domain';
 
-export const metadata: Metadata = { title: 'Demand · Blood Connect' };
+export const metadata: Metadata = { title: 'Demand · OBDM' };
 
 const STATUS_LABELS: Readonly<Record<string, string>> = {
   open: 'Open',

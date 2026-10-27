@@ -17,10 +17,10 @@
  * because `app_web` holds no grant on the `bot` schema at all.
  */
 
-import { processHealth } from '@blood-connect/db';
-import { rankAlerts, type Alert } from '@blood-connect/domain';
-import { centreAlerts } from '@blood-connect/centre';
-import { platformAlerts, type UseCaseContext } from '@blood-connect/platform';
+import { processHealth } from '@obdm/db';
+import { rankAlerts, type Alert } from '@obdm/domain';
+import { centreAlerts } from '@obdm/centre';
+import { platformAlerts, type UseCaseContext } from '@obdm/platform';
 
 import type { ProcessName } from './types.js';
 

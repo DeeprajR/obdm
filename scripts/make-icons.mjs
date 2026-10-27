@@ -106,7 +106,7 @@ const targets = [
   ['icon-maskable-512.png', 512, 0.2],
 ];
 
-for (const app of ['web', 'admin']) {
+for (const app of ['doctor', 'admin', 'centre', 'volunteer', 'donor']) {
   const dir = path.join(root, 'apps', app, 'public', 'icons');
   mkdirSync(dir, { recursive: true });
 

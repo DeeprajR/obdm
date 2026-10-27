@@ -2,6 +2,7 @@ packages:
   - 'apps/*'
   - 'packages/*'
   - 'db'
+  - 'e2e'
 
 # Build scripts are opt-in. esbuild is a native binary that vitest and
 # drizzle-kit both need; nothing else in the tree is allowed to run install

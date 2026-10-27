@@ -11,8 +11,8 @@
  * UPDATE or DELETE on it (migration 0004).
  */
 
-import { auditLog } from '@blood-connect/db';
-import { newId } from '@blood-connect/ids';
+import { auditLog } from '@obdm/db';
+import { newId } from '@obdm/ids';
 
 import type { Transaction } from '../db.js';
 import type { Actor } from '../domain/authorization.js';

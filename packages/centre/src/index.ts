@@ -14,6 +14,7 @@
 export { centreAlerts } from './alerts.js';
 
 export { cancelRequest, type CancelResult } from './use-cases/cancel.js';
+export { handOverBags } from './use-cases/issue.js';
 
 export {
   classifyTag,

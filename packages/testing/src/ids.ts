@@ -1,4 +1,4 @@
-import { newId, type IdGenerator, type Uuid } from '@blood-connect/ids';
+import { newId, type IdGenerator, type Uuid } from '@obdm/ids';
 
 /**
  * An id generator a test can predict.

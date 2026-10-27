@@ -18,48 +18,44 @@
 
 Doctor's app:
 -------------
-Reduce the doctor's password length to 6 instead of 12.
-Show the name and email of the signed in doctor in the top right account section.
+- [x] ~~Reduce the doctor's password length to 6 instead of 12.~~ `auth.min_password_length`
+  defaults to 6 (`packages/config`), and stays a row a deployment can raise again.
+- [x] ~~Show the name and email of the signed in doctor in the top right account section.~~ The
+  sidebar's account card names the person and their address in every application (ADR 0018 §6).
 
 Blood Centre:
 -------------
-Improve the "localhost:3000/requests/01a08b53-06f2-7540-a624-4b271a09b9d0?raised=1" page to show the UUID number with priority
+- [ ] Improve the request page to show the UUID number with priority.
+- [x] ~~Auto-refresh of the centre overview to show live requests instead of manual refresh.~~
+  `LiveRefresh` re-runs the overview and the queue every thirty seconds in place.
+- [x] ~~Delete the "Somebody is here with an ID" section from the request queue.~~ Gone; the queue
+  row carries the identifier and the "Take details" action (ADR 0018 §6).
+- [ ] How emergency requirements are handled from the blood bank? (ADR 0010 §: an emergency may be
+  answered before the patient is attached; the debt is shown until paid.)
+- [x] ~~Partial information in the request page is not being saved if the user missed
+  something.~~ A rejected submit echoes every field back (`attach-patient-form.tsx`).
+- [x] ~~The date picker should be simple, using YYYY, MM, DD.~~ `date-parts.tsx`.
+- [x] ~~On clicking Roster, ENOENT under `apps/web/.next`.~~ Stale build output from before the
+  one-app-per-role split (ADR 0016); `apps/web` no longer exists.
 
-Auto-refresh (while ensuring the user is retained in the same page which they are using) of "http://localhost:3002/centre" page to show live requests instead of manual refresh.
+Donor app (was: Telegram bot):
+------------------------------
+The bot is a web application now (ADR 0017); the Telegram items no longer apply.
+- [ ] A default menu to show live blood requirements and to volunteer without a request link.
+- [ ] "Which town? Type the first few letters" offers no list: by design where the list is
+  long (§5); worth a short list of the commonest places above the prompt.
+- [ ] Record the walk-in is only shown once a donor has been onboarded.
 
-Delete the Somebody is here with an ID section from "http://localhost:3002/centre/requests" 
-
-How emergency requirements are handled from Blood bank?
-
-Partial information in http://localhost:3002/centre/requests/* is not being saved if user missed something
-
-The date picker UI should be simple, by using YYYY, MM, DD slider
-
-On clicking Roster, it shows the error: "## Error Type
-Runtime Error
-
-## Error Message
-ENOENT: no such file or directory, open 'C:\Users\dr\Desktop\BloodConnect\apps\web\.next\dev\server\app\centre\demands\[id]\page\build-manifest.json'
-
-Next.js version: 16.3.4 (Turbopack)
-"
-
-Telegram Bot:
--------------
-In the bot, there is no default menu to show live blood requirement, inform interest to random donate.
-
-Implement menu option in Telegram bot for the users to select from.
-
-When I click Recruit for Donors below the floor, no telegram notification is received (I signed in as B+)
-
-
-----In bot---------
-Which town? Type the first few letters. -> Doesn't show the city list
-
-------------
-Clean up the whole features and create using user stories.
-
+Production (ADR 0018, docs/deployment.md):
+------------------------------------------
+- [x] ~~The worker process: email retries, bag expiry, credential sweep.~~
+- [x] ~~Refuse to start unconfigured in production.~~
+- [x] ~~`db:bootstrap` for a real database and its first administrator.~~
+- [x] ~~Rate limit on the donor chat route.~~
+- [x] ~~Security headers, container images, compose, release workflow, secret scan.~~
+- [ ] Counsel's answers to open questions 3, 4, 5 and 6; privacy notice; breach runbook;
+  hospital agreement; the centre's own catalogue and shelf lives (docs/deployment.md §8).
 
 ---------
 
-Record the walk in is not shown always. It is only shown if there is a donor onboarded via telegram
+Clean up the whole features and create using user stories.

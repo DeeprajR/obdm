@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
-import { linkButtonClasses } from '@blood-connect/ui';
-import { appOrigin, landingFor, type Actor } from '@blood-connect/platform';
+import { linkButtonClasses } from '@obdm/ui';
+import { appOrigin, landingFor, type Actor } from '@obdm/platform';
 
 import type { StaffApp } from './app.js';
 
@@ -44,13 +44,14 @@ export function Landing({ app, actor }: { app: StaffApp; actor: Actor }) {
     >
       <div className="w-full max-w-md space-y-6 text-center">
         <div className="mx-auto flex size-12 items-center justify-center rounded-control bg-primary text-lg font-bold text-white">
-          B
+          O
         </div>
 
         <div className="space-y-2">
           <h1 className="text-2xl font-semibold tracking-tight text-ink">
-            Blood Connect
+            OBDM
           </h1>
+          <p className="text-sm text-ink-subtle">Open Blood Donation Management</p>
           <p className="text-sm font-medium text-ink-muted">For {app.who}</p>
           <p className="text-sm text-ink-muted">
             Blood requests, centre inventory and donor recruitment for a

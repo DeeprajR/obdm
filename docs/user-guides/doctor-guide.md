@@ -13,7 +13,7 @@ the address will be different. Ask your administrator.
 ## 1. Signing in for the first time
 
 You cannot create your own account. An administrator creates it for you. You get an
-email with the subject "Set up your Blood Connect account".
+email with the subject "Set up your OBDM account".
 
 1. Open the link in the email.
 2. Choose a password. It needs at least 6 characters. A phrase you can remember is
@@ -245,7 +245,7 @@ request is cancelled.
 
 ## 8. Patients and admissions (optional)
 
-Blood Connect can hold patient and admission records, but you do not need them to raise
+OBDM can hold patient and admission records, but you do not need them to raise
 a request. The blood centre records the patient from the bystander in the normal flow.
 
 If your hospital uses these records:
@@ -325,7 +325,7 @@ sign-in page, not the blood centre or volunteer one. If you still cannot sign in
 
 **"Too many attempts. Try again in N minutes."** Wait for the time shown and try again.
 
-**"Not available. This account does not have access to this part of Blood Connect."**
+**"Not available. This account does not have access to this part of OBDM."**
 You opened a page your account cannot use. Go back to the dashboard.
 
 **The request does not show a patient.** The bystander has not reached the counter yet,

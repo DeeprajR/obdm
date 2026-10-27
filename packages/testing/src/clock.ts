@@ -1,4 +1,4 @@
-import { APP_TIMEZONE, dayOf, parseCalendarDay, type CalendarDay, type Clock, type Instant } from '@blood-connect/domain';
+import { APP_TIMEZONE, dayOf, parseCalendarDay, type CalendarDay, type Clock, type Instant } from '@obdm/domain';
 
 export type FakeClock = Clock & {
   /** Move time forward. Negative values are rejected. Time does not go back. */

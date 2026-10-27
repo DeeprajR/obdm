@@ -5,4 +5,4 @@
  * Everything that reads a session, sets a cookie or decides access is handed
  * this, so a blood centre session is the only kind this application resolves.
  */
-export { CENTRE_APP as APP } from '@blood-connect/staff-web';
+export { CENTRE_APP as APP } from '@obdm/staff-web';

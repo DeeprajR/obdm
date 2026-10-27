@@ -1,5 +1,5 @@
 {
-  "name": "@blood-connect/ops",
+  "name": "@obdm/ops",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -15,18 +15,18 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@blood-connect/centre": "workspace:*",
-    "@blood-connect/config": "workspace:*",
-    "@blood-connect/contract": "workspace:*",
-    "@blood-connect/db": "workspace:*",
-    "@blood-connect/domain": "workspace:*",
-    "@blood-connect/hospital": "workspace:*",
-    "@blood-connect/ids": "workspace:*",
-    "@blood-connect/platform": "workspace:*",
+    "@obdm/centre": "workspace:*",
+    "@obdm/config": "workspace:*",
+    "@obdm/contract": "workspace:*",
+    "@obdm/db": "workspace:*",
+    "@obdm/domain": "workspace:*",
+    "@obdm/hospital": "workspace:*",
+    "@obdm/ids": "workspace:*",
+    "@obdm/platform": "workspace:*",
     "drizzle-orm": "^0.45.2"
   },
   "devDependencies": {
-    "@blood-connect/testing": "workspace:*",
+    "@obdm/testing": "workspace:*",
     "postgres": "^3.4.9"
   }
 }

@@ -4,7 +4,7 @@ import { useActionState, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 
 // The outcome rules come from the domain package, not the centre one: this is
-// a client component, and `@blood-connect/centre` carries the database driver
+// a client component, and `@obdm/centre` carries the database driver
 // with it, which cannot be bundled for a browser.
 import {
   Button,
@@ -12,7 +12,7 @@ import {
   Select,
   TextArea,
   TextInput,
-} from '@blood-connect/ui';
+} from '@obdm/ui';
 
 import {
   BLOOD_GROUPS,
@@ -21,7 +21,7 @@ import {
   bloodGroupLabel,
   defaultOutcome,
   type StorageBand,
-} from '@blood-connect/domain';
+} from '@obdm/domain';
 
 import {
   discardBagAction,

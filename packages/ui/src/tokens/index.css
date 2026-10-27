@@ -1,5 +1,5 @@
 /*
- * @blood-connect/ui · aggregate token entry point
+ * @obdm/ui · aggregate token entry point
  *
  * A single-import convenience for future callers. PR-01 imports the token
  * files individually from each app's layout, so the app can pick the right

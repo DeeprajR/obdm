@@ -17,8 +17,8 @@
  */
 
 import { and, eq, isNotNull, isNull, sql } from 'drizzle-orm';
-import { botRequests, donorRequests } from '@blood-connect/db/bot';
-import { donorDemand } from '@blood-connect/db';
+import { botRequests, donorRequests } from '@obdm/db/bot';
+import { donorDemand } from '@obdm/db';
 
 import type { BotContext } from '../context.js';
 import { createEventWriter } from '../events.js';

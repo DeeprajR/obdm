@@ -1,5 +1,5 @@
 {
-  "name": "@blood-connect/result",
+  "name": "@obdm/result",
   "version": "0.0.0",
   "private": true,
   "type": "module",

@@ -19,10 +19,10 @@ import { randomBytes } from 'node:crypto';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 
-import { CONFIG_DEFAULTS } from '@blood-connect/config';
-import { idGenerator, newId } from '@blood-connect/ids';
-import { argon2Hasher, nodeTokens } from '@blood-connect/platform';
-import { APP_TIMEZONE, dayOf } from '@blood-connect/domain';
+import { CONFIG_DEFAULTS } from '@obdm/config';
+import { idGenerator, newId } from '@obdm/ids';
+import { argon2Hasher, nodeTokens } from '@obdm/platform';
+import { APP_TIMEZONE, dayOf } from '@obdm/domain';
 import {
   discardBag,
   listOpenDiscrepancies,
@@ -36,7 +36,7 @@ import {
   resolveTag,
   resolveTagDiscrepancy,
   returnBag,
-} from '@blood-connect/centre';
+} from '@obdm/centre';
 
 const appUrl = process.env.DATABASE_URL;
 const migratorUrl = process.env.MIGRATION_DATABASE_URL;
@@ -267,7 +267,7 @@ async function main() {
     await admin`
       INSERT INTO hospital.donor_demand_confirmations
         (id, demand_id, donor_id, channel, donor_name, donor_phone, blood_group, status)
-      VALUES (${confirmationId}, ${demandId}, ${newId()}, 'telegram',
+      VALUES (${confirmationId}, ${demandId}, ${newId()}, 'web',
               'Synthetic Donor', '+919900000000', 'O+', 'confirmed')`;
 
     // The write the grant in migration 0014 exists for. If that GRANT is

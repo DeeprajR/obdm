@@ -3,18 +3,18 @@ import { and, eq, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
-import { CONFIG_DEFAULTS } from '@blood-connect/config';
-import * as bot from '@blood-connect/db/bot';
-import { donorDemand, donorDemandConfirmations } from '@blood-connect/db';
+import { CONFIG_DEFAULTS } from '@obdm/config';
+import * as bot from '@obdm/db/bot';
+import { donorDemand, donorDemandConfirmations } from '@obdm/db';
 import {
   addDays,
   parseCalendarDay,
   subtractDays,
   type BloodGroup,
   type CalendarDay,
-} from '@blood-connect/domain';
-import { idGenerator, newId } from '@blood-connect/ids';
-import { createFakeClock } from '@blood-connect/testing';
+} from '@obdm/domain';
+import { idGenerator, newId } from '@obdm/ids';
+import { createFakeClock } from '@obdm/testing';
 
 import { createMemoryChannel, type MemoryChannel } from '../adapters/memory-channel.js';
 import { readableDay } from '../messages.js';
@@ -33,7 +33,7 @@ import {
 } from './journey.js';
 import { applyCounterOutcomes } from './outcomes.js';
 import { applyWalkIns } from './walk-ins.js';
-import { isEligible, selectWave, sendWave } from './waves.js';
+import { findRequestsDueAWave, isEligible, selectWave, sendWave } from './waves.js';
 
 const testUrl = process.env['TEST_DATABASE_URL'];
 const CENTRE_ID = '01930000-0000-7000-8000-000000000001';
@@ -177,7 +177,13 @@ describe.skipIf(!testUrl)('the bot loop (§7.3, §7.4, §7.6, §7.7)', () => {
   async function passScreening(journeyId: string): Promise<unknown> {
     const accepted = await acceptRequest(context(), journeyId);
     if (!accepted.ok) return accepted;
+    // A request that filled before the tap is answered at the tap (§5): the
+    // person is waitlisted there, and there is no questionnaire to walk.
+    if (accepted.value.kind === 'waitlisted') return accepted;
+    return answerEveryQuestion(journeyId);
+  }
 
+  async function answerEveryQuestion(journeyId: string): Promise<unknown> {
     let last: unknown;
     for (let i = 0; i < QUESTION_COUNT; i += 1) {
       // The safe answer differs per question; the domain knows which.
@@ -191,6 +197,21 @@ describe.skipIf(!testUrl)('the bot loop (§7.3, §7.4, §7.6, §7.7)', () => {
       if (last && typeof last === 'object' && 'ok' in last && !last.ok) return last;
     }
     return last;
+  }
+
+  /**
+   * Both say yes while there is still a place, the first finishes the
+   * questions and takes it, and the second finishes too and is waitlisted with
+   * their answers given: the waitlister a freed place can go straight to.
+   */
+  async function screenedWaitlist(botRequestId: string, first: string, second: string): Promise<void> {
+    const journeyA = await journeyFor(botRequestId, first);
+    const journeyB = await journeyFor(botRequestId, second);
+    await acceptRequest(context(), journeyA);
+    await acceptRequest(context(), journeyB);
+    await answerEveryQuestion(journeyA);
+    const loser = await answerEveryQuestion(journeyB);
+    expect(loser).toMatchObject({ ok: true, value: { kind: 'waitlisted' } });
   }
 
   async function journeyFor(botRequestId: string, donorId: string): Promise<string> {
@@ -440,9 +461,7 @@ describe.skipIf(!testUrl)('the bot loop (§7.3, §7.4, §7.6, §7.7)', () => {
       const a = await makeDonor();
       const b = await makeDonor();
       await sendWave(context(), imported.botRequestId);
-
-      await passScreening(await journeyFor(imported.botRequestId, a.donorId));
-      await passScreening(await journeyFor(imported.botRequestId, b.donorId));
+      await screenedWaitlist(imported.botRequestId, a.donorId, b.donorId);
 
       // The counter marks the first donor a no-show, which frees the unit.
       await client`UPDATE hospital.donor_demand_confirmations
@@ -464,6 +483,169 @@ describe.skipIf(!testUrl)('the bot loop (§7.3, §7.4, §7.6, §7.7)', () => {
           ),
         );
       expect(journey?.status).toBe('CONFIRMED');
+    });
+
+    it('asks the questions of somebody waitlisted at the tap, rather than confirming them', async () => {
+      const demandId = await openDemand(1);
+      const [imported] = await importOpenDemands(context());
+      if (!imported) throw new Error('nothing imported');
+      const a = await makeDonor();
+      const b = await makeDonor();
+      await sendWave(context(), imported.botRequestId);
+
+      await passScreening(await journeyFor(imported.botRequestId, a.donorId));
+      // Full by the time they tap yes: waitlisted, and asked nothing.
+      const journeyB = await journeyFor(imported.botRequestId, b.donorId);
+      expect(await passScreening(journeyB)).toMatchObject({
+        ok: true,
+        value: { kind: 'waitlisted' },
+      });
+
+      await client`UPDATE hospital.donor_demand_confirmations
+                      SET status = 'no_show'
+                    WHERE demand_id = ${demandId} AND donor_id = ${a.donorId}`;
+      await applyCounterOutcomes(context());
+
+      // A place is offered, not given: nobody has said they are well today.
+      const promoted = await promoteFromWaitlist(context(), imported.botRequestId);
+      expect(promoted.promoted).toBe(0);
+
+      const journeyRow = async () =>
+        (await db.select().from(bot.donorRequests).where(eq(bot.donorRequests.id, journeyB)))[0];
+      expect((await journeyRow())?.status).toBe('SCREENING');
+
+      const roster = await db
+        .select()
+        .from(donorDemandConfirmations)
+        .where(
+          and(
+            eq(donorDemandConfirmations.demandId, demandId),
+            eq(donorDemandConfirmations.donorId, b.donorId),
+          ),
+        );
+      expect(roster).toHaveLength(0);
+
+      // The first question went out with the offer, on the buttons the
+      // conversation reads.
+      const queued = await db
+        .select({ payload: bot.messageOutbox.payload })
+        .from(bot.messageOutbox)
+        .where(eq(bot.messageOutbox.kind, 'promoted'));
+      expect(JSON.stringify(queued)).toContain(`screen:${journeyB}:0:yes`);
+
+      // Answering them is what takes the place.
+      expect(await answerEveryQuestion(journeyB)).toMatchObject({
+        ok: true,
+        value: { kind: 'confirmed' },
+      });
+      expect((await journeyRow())?.status).toBe('CONFIRMED');
+    });
+
+    it('releases the place when the counter records a cancellation, and fills it from the waitlist', async () => {
+      const demandId = await openDemand(1);
+      const [imported] = await importOpenDemands(context());
+      if (!imported) throw new Error('nothing imported');
+      const a = await makeDonor();
+      const b = await makeDonor();
+      await sendWave(context(), imported.botRequestId);
+      await screenedWaitlist(imported.botRequestId, a.donorId, b.donorId);
+
+      // The person phoned the centre to say they could not come: the third
+      // outcome on the roster, and the one that used to be acknowledged and
+      // then ignored (§5: "Cancelled releases the unit").
+      await client`UPDATE hospital.donor_demand_confirmations
+                      SET status = 'cancelled'
+                    WHERE demand_id = ${demandId} AND donor_id = ${a.donorId}`;
+      const outcomes = await applyCounterOutcomes(context());
+      expect(outcomes.cancelled).toBe(1);
+      expect(outcomes.touched).toEqual([imported.botRequestId]);
+
+      const [journeyA] = await db
+        .select()
+        .from(bot.donorRequests)
+        .where(
+          and(
+            eq(bot.donorRequests.botRequestId, imported.botRequestId),
+            eq(bot.donorRequests.donorId, a.donorId),
+          ),
+        );
+      expect(journeyA?.status).toBe('CANCELLED');
+
+      const [noted] = await db
+        .select({ kind: bot.messageOutbox.kind })
+        .from(bot.messageOutbox)
+        .where(eq(bot.messageOutbox.kind, 'cancelled'));
+      expect(noted).toBeDefined();
+
+      const promoted = await promoteFromWaitlist(context(), imported.botRequestId);
+      expect(promoted.promoted).toBe(1);
+
+      // Full again, so the waves stay stopped.
+      const [request] = await db
+        .select()
+        .from(bot.botRequests)
+        .where(eq(bot.botRequests.id, imported.botRequestId));
+      expect(request?.status).toBe('fulfilled');
+      expect(request?.confirmedCount).toBe(1);
+    });
+
+    it('starts recruiting again when a no-show frees a place and nobody is waiting', async () => {
+      const demandId = await openDemand(1);
+      const [imported] = await importOpenDemands(context());
+      if (!imported) throw new Error('nothing imported');
+      const a = await makeDonor();
+      await sendWave(context(), imported.botRequestId);
+      await passScreening(await journeyFor(imported.botRequestId, a.donorId));
+
+      await client`UPDATE hospital.donor_demand_confirmations
+                      SET status = 'no_show'
+                    WHERE demand_id = ${demandId} AND donor_id = ${a.donorId}`;
+      await applyCounterOutcomes(context());
+      await promoteFromWaitlist(context(), imported.botRequestId);
+
+      /**
+       * The place is empty and there is nobody to promote. A request left
+       * `fulfilled` here would never be waved again and never complete: the
+       * demand would sit with a unit outstanding until it expired.
+       */
+      const [request] = await db
+        .select()
+        .from(bot.botRequests)
+        .where(eq(bot.botRequests.id, imported.botRequestId));
+      expect(request?.status).toBe('open');
+      expect(request?.confirmedCount).toBe(0);
+
+      const due = await findRequestsDueAWave(context());
+      expect(due.map((row) => row.id)).toContain(imported.botRequestId);
+    });
+
+    it('waitlists a donor who accepts after the request has filled, without the questions', async () => {
+      await openDemand(1);
+      const [imported] = await importOpenDemands(context());
+      if (!imported) throw new Error('nothing imported');
+      const a = await makeDonor();
+      const b = await makeDonor();
+      await sendWave(context(), imported.botRequestId);
+
+      await passScreening(await journeyFor(imported.botRequestId, a.donorId));
+
+      // B's card is still on their screen. Tapping yes now is not the start of
+      // a questionnaire for a place that no longer exists (§5).
+      const journeyB = await journeyFor(imported.botRequestId, b.donorId);
+      const accepted = await acceptRequest(context(), journeyB);
+      expect(accepted).toMatchObject({ ok: true, value: { kind: 'waitlisted' } });
+
+      const [journey] = await db.select().from(bot.donorRequests).where(eq(bot.donorRequests.id, journeyB));
+      expect(journey?.status).toBe('REQUEST_FILLED');
+
+      const [request] = await db
+        .select()
+        .from(bot.botRequests)
+        .where(eq(bot.botRequests.id, imported.botRequestId));
+      expect(request?.waitlistedCount).toBe(1);
+
+      // A replay of the tap is refused like any other.
+      expect((await acceptRequest(context(), journeyB)).ok).toBe(false);
     });
   });
 

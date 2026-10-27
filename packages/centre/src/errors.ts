@@ -10,9 +10,9 @@
  *    screen can say what actually happened rather than "tag in use".
  */
 
-export { notAuthorized, type NotAuthorized } from '@blood-connect/platform';
+export { notAuthorized, type NotAuthorized } from '@obdm/platform';
 
-import type { NotAuthorized } from '@blood-connect/platform';
+import type { NotAuthorized } from '@obdm/platform';
 
 export type RequestNotFound = { readonly kind: 'RequestNotFound'; readonly message: string };
 

@@ -1,6 +1,6 @@
 import type { NextRequest, NextResponse } from 'next/server';
 
-import { guardRequest } from '@blood-connect/staff-web';
+import { guardRequest } from '@obdm/staff-web';
 
 import { APP } from '@/lib/app';
 

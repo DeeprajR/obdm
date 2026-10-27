@@ -10,11 +10,11 @@
  */
 
 import { sql } from 'drizzle-orm';
-import { CONTRACT_VERSION } from '@blood-connect/contract';
-import { processHealth } from '@blood-connect/db';
-import { worstLevel, type Alert } from '@blood-connect/domain';
-import { platformAlerts, type UseCaseContext } from '@blood-connect/platform';
-import { centreAlerts } from '@blood-connect/centre';
+import { CONTRACT_VERSION } from '@obdm/contract';
+import { processHealth } from '@obdm/db';
+import { worstLevel, type Alert } from '@obdm/domain';
+import { platformAlerts, type UseCaseContext } from '@obdm/platform';
+import { centreAlerts } from '@obdm/centre';
 
 export async function publishWebHealth(ctx: UseCaseContext): Promise<readonly Alert[]> {
   const now = ctx.clock.now();

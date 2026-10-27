@@ -14,7 +14,7 @@
  */
 
 import { and, eq, sql } from 'drizzle-orm';
-import { authRateLimits, type AuthRateLimitScope } from '@blood-connect/db';
+import { authRateLimits, type AuthRateLimitScope } from '@obdm/db';
 
 import type { Transaction } from '../db.js';
 

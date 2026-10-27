@@ -13,10 +13,10 @@
  */
 
 import { hash } from '@node-rs/argon2';
-import { newId } from '@blood-connect/ids';
+import { newId } from '@obdm/ids';
 
 /** Long enough to satisfy the configured minimum of 12 (§12, §15). */
-export const SEED_PASSWORD = 'BloodConnect!Demo2026';
+export const SEED_PASSWORD = 'OBDM!Demo2026';
 
 export type AccountSeed = {
   readonly email: string;
@@ -33,28 +33,28 @@ export type AccountSeed = {
  */
 export const ACCOUNT_SEEDS: readonly AccountSeed[] = [
   {
-    email: 'doctor@blood-connect.invalid',
+    email: 'doctor@obdm.invalid',
     fullName: 'Dr Anita Menon (seed)',
     role: 'doctor',
     provisionalReg: 'TCMC-SEED-00001',
     districtScopeId: null,
   },
   {
-    email: 'admin@blood-connect.invalid',
+    email: 'admin@obdm.invalid',
     fullName: 'Ravi Nair (seed)',
     role: 'admin',
     provisionalReg: null,
     districtScopeId: null,
   },
   {
-    email: 'centre@blood-connect.invalid',
+    email: 'centre@obdm.invalid',
     fullName: 'Blood Centre Counter (seed)',
     role: 'blood_centre',
     provisionalReg: null,
     districtScopeId: null,
   },
   {
-    email: 'volunteer@blood-connect.invalid',
+    email: 'volunteer@obdm.invalid',
     fullName: 'Sneha Pillai (seed)',
     role: 'volunteer_admin',
     provisionalReg: null,

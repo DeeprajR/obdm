@@ -12,10 +12,10 @@
  */
 
 import { eq } from 'drizzle-orm';
-import { err, ok, type Result } from '@blood-connect/result';
-import { centreSettings, productShelfLives } from '@blood-connect/db';
-import { isProduct, type Product } from '@blood-connect/domain';
-import { actorHas, createAuditWriter, type UseCaseContext } from '@blood-connect/platform';
+import { err, ok, type Result } from '@obdm/result';
+import { centreSettings, productShelfLives } from '@obdm/db';
+import { isProduct, type Product } from '@obdm/domain';
+import { actorHas, createAuditWriter, type UseCaseContext } from '@obdm/platform';
 
 import { invalidBag, notAuthorized, type InvalidBag, type NotAuthorized } from '../errors.js';
 

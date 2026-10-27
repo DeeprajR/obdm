@@ -3,10 +3,10 @@ import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
-import { CONFIG_DEFAULTS } from '@blood-connect/config';
-import { accountUpdateRequests, auditLog, users } from '@blood-connect/db';
-import { idGenerator, newId } from '@blood-connect/ids';
-import { createFakeClock } from '@blood-connect/testing';
+import { CONFIG_DEFAULTS } from '@obdm/config';
+import { accountUpdateRequests, auditLog, users } from '@obdm/db';
+import { idGenerator, newId } from '@obdm/ids';
+import { createFakeClock } from '@obdm/testing';
 
 import type { Database } from '../db.js';
 import { argon2Hasher, nodeTokens } from '../adapters/crypto.js';
@@ -67,7 +67,7 @@ describe.skipIf(!testUrl)('the account update-request queue (§3, ADR 0011 §4)'
     await db.insert(users).values([
       {
         id: doctorId,
-        email: 'asking@blood-connect.invalid',
+        email: 'asking@obdm.invalid',
         fullName: 'Anitha Menon',
         role: 'doctor',
         status: 'active',
@@ -76,7 +76,7 @@ describe.skipIf(!testUrl)('the account update-request queue (§3, ADR 0011 §4)'
       },
       {
         id: adminId,
-        email: 'admin@blood-connect.invalid',
+        email: 'admin@obdm.invalid',
         fullName: 'The Administrator',
         role: 'admin',
         status: 'active',
@@ -84,7 +84,7 @@ describe.skipIf(!testUrl)('the account update-request queue (§3, ADR 0011 §4)'
       },
       {
         id: otherDoctorId,
-        email: 'other@blood-connect.invalid',
+        email: 'other@obdm.invalid',
         fullName: 'Someone Else',
         role: 'doctor',
         status: 'active',

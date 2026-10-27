@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 
-import { ProfileBody } from '@blood-connect/staff-web';
+import { ProfileBody } from '@obdm/staff-web';
 
 import { KitShell } from '../kit-shell';
 import {
@@ -11,14 +11,14 @@ import {
 } from '../actions';
 import { requireAccess } from '@/lib/guards';
 
-export const metadata: Metadata = { title: 'Your profile · Blood Connect' };
+export const metadata: Metadata = { title: 'Your profile · OBDM' };
 
 export default async function ProfilePage() {
   const actor = await requireAccess('/profile');
   if (actor.kind !== 'user') return null;
 
   return (
-    <KitShell role={actor.role} currentPath="/profile" currentTitle="Your profile">
+    <KitShell role={actor.role} userId={actor.userId} currentPath="/profile" currentTitle="Your profile">
       <ProfileBody
         actor={actor}
         actions={{

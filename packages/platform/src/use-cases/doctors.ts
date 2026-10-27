@@ -10,9 +10,9 @@
  * queues any email in the same transaction as the change that caused it.
  */
 
-import { and, count, desc, eq, ne } from 'drizzle-orm';
-import { err, ok, type Result } from '@blood-connect/result';
-import { objectRefs, userSeals, users, type UserStatus } from '@blood-connect/db';
+import { and, desc, eq, ne } from 'drizzle-orm';
+import { err, ok, type Result } from '@obdm/result';
+import { objectRefs, userSeals, users, type UserStatus } from '@obdm/db';
 
 import { appOrigin } from '../app-origins.js';
 import type { UseCaseContext } from '../context.js';
@@ -314,14 +314,18 @@ export async function setAccountStatus(
     if (account.status === status) return ok({});
 
     if (status === 'deactivated' && account.role === 'admin') {
-      // Row-locked count, so two concurrent demotions cannot both pass (§13).
-      const [remaining] = await tx
-        .select({ n: count() })
+      // Every active administrator's row is locked, this one's included, in a
+      // fixed order, so two concurrent demotions queue on the same rows and the
+      // second one counts after the first has landed (§13). Postgres refuses
+      // FOR UPDATE on an aggregate, so the count is taken from the locked rows.
+      const active = await tx
+        .select({ id: users.id })
         .from(users)
-        .where(and(eq(users.role, 'admin'), eq(users.status, 'active'), ne(users.id, userId)))
+        .where(and(eq(users.role, 'admin'), eq(users.status, 'active')))
+        .orderBy(users.id)
         .for('update');
 
-      if ((remaining?.n ?? 0) === 0) return err(lastAdministrator());
+      if (active.every((row) => row.id === userId)) return err(lastAdministrator());
     }
 
     // An account that never activated has no password, and the CHECK
@@ -334,14 +338,20 @@ export async function setAccountStatus(
 
     if (nextStatus === 'deactivated') {
       // Deactivating ends the sessions, which is what the word means to whoever
-      // clicked it.
+      // clicked it, and withdraws any invite still waiting to be opened.
       await revokeAllSessionsForUser(tx, userId, now);
-      await queueEmail(tx, {
-        kind: 'account_deactivated',
-        to: account.email,
-        userId,
-        vars: { fullName: account.fullName },
-      });
+      await supersedeLiveInvites(tx, userId, now);
+
+      // Someone who never activated never had access to lose; telling them it
+      // has ended would be the first they heard of it.
+      if (account.passwordHash !== null) {
+        await queueEmail(tx, {
+          kind: 'account_deactivated',
+          to: account.email,
+          userId,
+          vars: { fullName: account.fullName },
+        });
+      }
     }
 
     const audit = createAuditWriter(tx, ctx.actor, ctx.correlationId, now);

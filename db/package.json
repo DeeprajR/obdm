@@ -1,5 +1,5 @@
 {
-  "name": "@blood-connect/db",
+  "name": "@obdm/db",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -22,13 +22,14 @@
     "seed": "tsc -b && node dist/src/seed.js",
     "push": "tsc -b && node dist/src/push-guard.js && drizzle-kit push",
     "generate:bot": "drizzle-kit generate --config drizzle-bot.config.ts",
-    "migrate:bot": "tsc -b && node dist/src/migrate-bot.js"
+    "migrate:bot": "tsc -b && node dist/src/migrate-bot.js",
+    "bootstrap": "tsc -b && node dist/src/bootstrap.js"
   },
   "dependencies": {
-    "@blood-connect/config": "workspace:*",
-    "@blood-connect/contract": "workspace:*",
-    "@blood-connect/domain": "workspace:*",
-    "@blood-connect/ids": "workspace:*",
+    "@obdm/config": "workspace:*",
+    "@obdm/contract": "workspace:*",
+    "@obdm/domain": "workspace:*",
+    "@obdm/ids": "workspace:*",
     "@node-rs/argon2": "^2.2.0",
     "drizzle-orm": "^0.45.2",
     "postgres": "^3.4.9"

@@ -1,5 +1,5 @@
 {
-  "name": "@blood-connect/platform",
+  "name": "@obdm/platform",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -16,11 +16,11 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.937.0",
-    "@blood-connect/config": "workspace:*",
-    "@blood-connect/db": "workspace:*",
-    "@blood-connect/domain": "workspace:*",
-    "@blood-connect/ids": "workspace:*",
-    "@blood-connect/result": "workspace:*",
+    "@obdm/config": "workspace:*",
+    "@obdm/db": "workspace:*",
+    "@obdm/domain": "workspace:*",
+    "@obdm/ids": "workspace:*",
+    "@obdm/result": "workspace:*",
     "@node-rs/argon2": "^2.2.0",
     "drizzle-orm": "^0.45.2",
     "nodemailer": "^7.0.13",
@@ -28,7 +28,7 @@
     "zod": "^4.5.4"
   },
   "devDependencies": {
-    "@blood-connect/testing": "workspace:*",
+    "@obdm/testing": "workspace:*",
     "@types/nodemailer": "^7.0.4"
   }
 }

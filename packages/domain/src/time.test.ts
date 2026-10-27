@@ -9,6 +9,7 @@ import {
   daysBetween,
   endOfDay,
   parseCalendarDay,
+  parseLocalDateTime,
   startOfDay,
   subtractDays,
 } from './time.js';
@@ -127,5 +128,24 @@ describe('expiry arithmetic (§4)', () => {
   it('refuses a shelf life that is not a whole number of days', () => {
     expect(() => deriveExpiry(day('2026-09-08'), 35.5)).toThrow();
     expect(() => deriveExpiry(day('2026-09-08'), -1)).toThrow();
+  });
+});
+
+describe('parseLocalDateTime', () => {
+  it('reads a form time on the hospital clock, whatever the server runs on', () => {
+    // 14:00 in Kolkata is 08:30 UTC.
+    expect(parseLocalDateTime('2026-10-26T14:00')?.toISOString()).toBe('2026-10-26T08:30:00.000Z');
+    expect(parseLocalDateTime('2026-10-26T14:00:30')?.toISOString()).toBe('2026-10-26T08:30:30.000Z');
+    expect(parseLocalDateTime('2026-10-26T00:00')?.getTime()).toBe(
+      startOfDay(calendarDay(2026, 10, 26)).getTime(),
+    );
+  });
+
+  it('refuses what is not a wall-clock time', () => {
+    expect(parseLocalDateTime('')).toBeUndefined();
+    expect(parseLocalDateTime('2026-10-26')).toBeUndefined();
+    expect(parseLocalDateTime('2026-10-26T24:00')).toBeUndefined();
+    expect(parseLocalDateTime('2026-02-30T10:00')).toBeUndefined();
+    expect(parseLocalDateTime('2026-10-26T14:00Z')).toBeUndefined();
   });
 });

@@ -23,7 +23,7 @@ Modal, ConfirmDialog, form fields, Toast, StatusBadge, Timeline,
 AppShell, Sidebar — a light-only clinical palette, and medical red
 used only as an accent. Every piece of its visual language transfers
 cleanly. Its API layer (SWR, mock services, `hooks/`, `lib/api/`,
-`lib/auth/`) does **not** transfer, because Bloodconnect writes
+`lib/auth/`) does **not** transfer, because OBDM writes
 through server actions against real Postgres, and the boundary rules
 of §11.2 forbid a package reaching across the shape a service layer
 would create.
@@ -31,7 +31,7 @@ would create.
 ## Decision
 
 UX4G is removed from both apps. A new workspace package
-`@blood-connect/ui` holds design tokens, primitives, and the
+`@obdm/ui` holds design tokens, primitives, and the
 `AppShell` + `Sidebar` shell, sourced from `blood-connect-ui`. The
 kit is presentation-only: it may not import from `packages/domain`,
 `platform`, `hospital`, `centre`, `bot`, `contract`, `config`, `ids`,
@@ -92,7 +92,7 @@ install a Next PostCSS plugin into its consumers.
   (P10); a shared `linkButtonClasses` helper plus centre/donations,
   centre/quarantine, centre/tags, centre/demands + its roster view
   (P11–P14). No screen shipped with a feature regression: where the
-  ported blood-connect-ui screen was thinner than Bloodconnect's
+  ported blood-connect-ui screen was thinner than OBDM's
   reality (e.g. its integer inventory versus this system's
   `blood_bags` with expiry, RFID, quarantine and discards), the
   ported UI was redesigned to display the real data in the same
@@ -127,7 +127,7 @@ install a Next PostCSS plugin into its consumers.
   `theme.css`'s only still-referenced rule — `.app-skip-link` — was
   inlined as Tailwind utilities on the `<a href="#main">` in each
   `layout.tsx` rather than kept as a file for one rule. Both apps'
-  `tailwind.css` now also `@import`s `@blood-connect/ui/tokens/preflight.css`,
+  `tailwind.css` now also `@import`s `@obdm/ui/tokens/preflight.css`,
   wrapped in `layer(base)` so it ranks with Tailwind's own base layer
   rather than unlayered (the same cascade-layers reasoning as Progress
   note #1, applied here instead of assumed safe). `<body>`'s manual
@@ -192,8 +192,8 @@ this kit again:**
    dependency-free functions and a type — to grey out the impossible
    return outcome client-side. They lived in
    `packages/centre/src/use-cases/returns.ts`, alongside `returnBag`
-   and friends, which import `drizzle-orm`, `@blood-connect/db` and
-   `@blood-connect/platform` (and, transitively, `postgres` and
+   and friends, which import `drizzle-orm`, `@obdm/db` and
+   `@obdm/platform` (and, transitively, `postgres` and
    `@node-rs/argon2`). ES module evaluation does not skip a file's own
    imports just because the importer only uses one tree-shakeable
    export from it, so bundling `centre-collision-forms.tsx` for the
@@ -210,7 +210,7 @@ this kit again:**
    and `net`/`tls` module-not-found, with an import trace running
    through `centre-collision-forms.tsx`. Fixed by extracting the pure
    rule into `packages/centre/src/rules/returns.ts` (no DB or platform
-   imports) and a new `@blood-connect/centre/rules/returns` package
+   imports) and a new `@obdm/centre/rules/returns` package
    export; `use-cases/returns.ts` now imports and re-exports from
    there so its own public API is unchanged, and the client form
    imports the rules subpath directly instead of the package barrel.
@@ -274,7 +274,7 @@ ux4g pnpm-lock.yaml` returning nothing). `theme.css`'s one surviving
 rule, the `.app-skip-link` a11y skip link, was inlined as Tailwind
 utilities directly on the anchor in each `layout.tsx` rather than kept
 as a one-rule file. Both apps' `tailwind.css` now imports
-`@blood-connect/ui/tokens/preflight.css` — wrapped in `layer(base)`,
+`@obdm/ui/tokens/preflight.css` — wrapped in `layer(base)`,
 not left unlayered, per Progress note #1's lesson — and `<body>`'s
 manual `bg-canvas text-ink` classes came off now that preflight sets
 the same globally. Verified with `pnpm build` on both apps (clean) and
@@ -284,21 +284,21 @@ a client-heavy restyled screen on each app (`/centre/tags`,
 UX4G's removal. `pnpm verify` is green.
 
 **Not yet done**: nothing. This ADR's rollout is complete — both apps
-render entirely through `@blood-connect/ui`, and neither depends on
+render entirely through `@obdm/ui`, and neither depends on
 `ux4g-web-components`.
 
 ## What did NOT come across from blood-connect-ui
 
 - **`badges.tsx`** (domain-enum badge wrappers). Those depend on
-  enums that live in Bloodconnect's `packages/domain` and
+  enums that live in OBDM's `packages/domain` and
   `packages/contract`, not on any concept in the kit. They will land
   as a per-app file (e.g. `apps/web/src/ui/badges.tsx`) when the
   first screen needs them.
-- **`AuthProvider` / `SWRConfig` / `Providers`.** Bloodconnect has no
+- **`AuthProvider` / `SWRConfig` / `Providers`.** OBDM has no
   client auth context; the actor is a server-side read. The kit stays
   out of it.
 - **`hooks/`, `lib/api/`, `lib/api/mock/`, `lib/auth/`.** These are a
-  client-side service layer for a mocked backend, and Bloodconnect's
+  client-side service layer for a mocked backend, and OBDM's
   boundary rules forbid the shape they create.
 
 ## Supersedes
@@ -323,7 +323,7 @@ service-worker caching, icon regeneration) is unaffected.
   fixed in both.
 - The blood-connect-ui hackathon frontend becomes the visual
   reference from here on; its API/SWR/mock layer stays in that repo
-  and is not copied here, because Bloodconnect writes through server
+  and is not copied here, because OBDM writes through server
   actions.
 - The centre's richer domain (bag-level stock, RFID, quarantine,
   discards, walk-ins) is preserved: the ported UI adapts to it rather

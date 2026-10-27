@@ -1,4 +1,4 @@
-import type { StaffAudience } from '@blood-connect/platform';
+import type { StaffAudience } from '@obdm/platform';
 
 /**
  * Which staff application this is (§1, ADR 0016).

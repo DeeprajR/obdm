@@ -1,0 +1,21 @@
+# Build context for deploy/Dockerfile.* (docs/deployment.md). Everything the
+# build needs is source; everything here is either regenerated or must never
+# leave the machine it was written on.
+**/node_modules
+**/.next
+**/dist
+**/*.tsbuildinfo
+coverage
+.git
+.github
+.playwright-cli
+e2e/.auth
+e2e/test-results
+e2e/playwright-report
+OBDM Backend Plan_files
+
+# Secrets. A deployment supplies its environment to the container, never a file.
+.env
+.env.*
+!.env.example
+deploy/.env*

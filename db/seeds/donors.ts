@@ -13,8 +13,8 @@
  * including "just to test".
  */
 
-import { addDays, dayOf, type BloodGroup, type Sex, type WeightBand } from '@blood-connect/domain';
-import { newId } from '@blood-connect/ids';
+import { addDays, dayOf, type BloodGroup, type Sex, type WeightBand } from '@obdm/domain';
+import { newId } from '@obdm/ids';
 
 /** Marks every seeded donor, so synthetic data can never pass for real. */
 export const SYNTHETIC_DONOR_SUFFIX = '(seed)';

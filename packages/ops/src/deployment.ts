@@ -13,10 +13,10 @@
  */
 
 import { asc, sql } from 'drizzle-orm';
-import { CONTRACT_VERSION } from '@blood-connect/contract';
-import { CONFIG_KEYS, defaultFor } from '@blood-connect/config';
-import { appConfig } from '@blood-connect/db';
-import type { UseCaseContext } from '@blood-connect/platform';
+import { CONTRACT_VERSION } from '@obdm/contract';
+import { CONFIG_KEYS, defaultFor } from '@obdm/config';
+import { appConfig } from '@obdm/db';
+import type { UseCaseContext } from '@obdm/platform';
 
 export type ConfigRow = {
   readonly key: string;

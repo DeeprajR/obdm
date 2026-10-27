@@ -22,10 +22,10 @@
  * so that costs nothing in latency.
  */
 
-import { addDays } from '@blood-connect/domain';
+import { addDays } from '@obdm/domain';
 
 import type { BotContext } from './context.js';
-import { MESSAGES } from './messages.js';
+import { MESSAGES, screeningQuestion } from './messages.js';
 import { enqueue, type QueuedMessage } from './outbox.js';
 import {
   INERT_CHOICE,
@@ -310,8 +310,9 @@ export async function handleUpdate(ctx: BotContext, update: IncomingUpdate): Pro
   /**
    * A tap on an option that has already been answered.
    *
-   * Telegram delivers the tap whatever the button looks like, so a dimmed
-   * option still arrives here. It is answered with silence on purpose: the
+   * A platform with no disabled button delivers the tap whatever the button
+   * looks like, so a dimmed option can still arrive here. It is answered with
+   * silence on purpose: the
    * person tapped something visibly inert, and replying with their standing
    * situation would be a wall of text they did not ask for.
    */
@@ -519,7 +520,9 @@ async function handleJourneyChoice(
       [
         ...before,
         result.ok
-          ? question(argument, 0, result.value.nextQuestion ?? '')
+          ? result.value.kind === 'waitlisted'
+            ? { text: MESSAGES.waitlisted }
+            : question(argument, 0, result.value.nextQuestion ?? '')
           : { text: result.error.message },
       ],
       updateId,
@@ -565,13 +568,7 @@ async function handleJourneyChoice(
   await reply(ctx, address, [...before, message], updateId);
 }
 
-const question = (journeyId: string, index: number, text: string): OutgoingMessage => ({
-  text,
-  choices: [
-    { label: MESSAGES.answerYes, data: `screen:${journeyId}:${String(index)}:yes` },
-    { label: MESSAGES.answerNo, data: `screen:${journeyId}:${String(index)}:no` },
-  ],
-});
+const question = screeningQuestion;
 
 /* -------------------------------------------------------------------------- */
 /* The board, and the link that leads to it                                    */
@@ -580,9 +577,10 @@ const question = (journeyId: string, index: number, text: string): OutgoingMessa
 /**
  * The public id inside a deep link, if this is one.
  *
- * Telegram delivers `/start <payload>` when somebody opens `t.me/bot?start=x`,
- * which is why this is the one place a command word still matters. It is the
- * platform's wire format, not something a person is expected to type.
+ * Opening a request link (`/r/<public id>` on the donor application) arrives
+ * here as `start <payload>`, which is why this is the one place a command word
+ * still matters. It is the link's wire format, the same one Telegram's deep
+ * links used, not something a person is expected to type.
  */
 function deepLinkTarget(said: string): string | undefined {
   const match = /^\/?start[ =]([A-Za-z0-9_-]{4,64})$/.exec(said.trim());

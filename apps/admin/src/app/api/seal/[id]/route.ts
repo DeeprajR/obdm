@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { readSeal, s3Storage } from '@blood-connect/platform';
+import { readSeal, s3Storage } from '@obdm/platform';
 
 import { requireAccess, useCaseContext } from '@/lib/guards';
 

@@ -20,7 +20,7 @@ export function ForbiddenScreen() {
         >
           <h1 className="text-base font-semibold text-danger">Not available</h1>
           <p className="mt-2 text-sm text-ink">
-            This account does not have access to this part of Blood Connect.
+            This account does not have access to this part of OBDM.
           </p>
         </div>
       </main>

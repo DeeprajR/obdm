@@ -16,8 +16,8 @@
  * point, including "just to test".
  */
 
-import { type BloodGroup } from '@blood-connect/domain';
-import { newId } from '@blood-connect/ids';
+import { type BloodGroup } from '@obdm/domain';
+import { newId } from '@obdm/ids';
 
 export const SYNTHETIC_PATIENT_PREFIX = 'SYN-PT-';
 export const SYNTHETIC_IP_PREFIX = 'SYN-IP-';

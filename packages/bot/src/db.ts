@@ -12,7 +12,7 @@
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
-import * as botSchema from '@blood-connect/db/bot';
+import * as botSchema from '@obdm/db/bot';
 
 export type BotDatabase = PostgresJsDatabase<typeof botSchema>;
 
@@ -27,7 +27,7 @@ const connectionString = (): string => {
     // the wrong somewhere would be the web app's role.
     throw new Error(
       'BOT_DATABASE_URL is not set. From the workspace root: `cp .env.example .env`, ' +
-        'then `pnpm up` to start Postgres.',
+        'then `pnpm services:up` to start Postgres.',
     );
   }
   return url;

@@ -15,8 +15,8 @@
  * donation identifier enters this system at any point.
  */
 
-import { addDays, dayOf, type BloodGroup, type Product } from '@blood-connect/domain';
-import { newId } from '@blood-connect/ids';
+import { addDays, dayOf, type BloodGroup, type Product } from '@obdm/domain';
+import { newId } from '@obdm/ids';
 
 /** Marks every seeded unit, so synthetic stock can never be mistaken for real. */
 export const SYNTHETIC_UNIT_PREFIX = 'SYN-';

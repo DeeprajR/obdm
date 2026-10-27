@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
-import { db } from '@blood-connect/platform';
-import { decideAccess, nodeTokens, resolveActor } from '@blood-connect/platform';
+import { db } from '@obdm/platform';
+import { decideAccess, nodeTokens, resolveActor } from '@obdm/platform';
 
 import type { StaffApp } from './app.js';
 

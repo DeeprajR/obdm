@@ -26,7 +26,9 @@
  *     name, a ward or a diagnosis (§2.10).
  */
 
-import { bloodGroupLabel, type BloodGroup } from '@blood-connect/domain';
+import { bloodGroupLabel, type BloodGroup } from '@obdm/domain';
+
+import type { OutgoingMessage } from './ports/channel.js';
 
 /** Stored on every consent row, so "they agreed to *this text*" is answerable. */
 export const WORDING_VERSION = '2.0.0';
@@ -79,15 +81,6 @@ export const MESSAGES = {
   phoneInvalidAgain:
     'That is still not a phone number we can use. Type the ten digits of your ' +
     'mobile number, like 9847012345.',
-
-  /**
-   * Some chat clients cannot share a contact and send the button's caption as
-   * plain text instead. Left unexplained, the person taps it again and reads
-   * the same refusal for as long as they keep trying.
-   */
-  shareButtonSentAsText:
-    'The share button did not send your number on this app. Please type it ' +
-    'instead: ten digits, like 9847012345.',
 
   /* ------------------------------------- commands while mid-interview */
 
@@ -284,7 +277,7 @@ ${why}`;
    * question they stopped on.
    */
   signupReminder:
-    'You started registering with Blood Connect and did not finish. Your ' +
+    'You started registering with OBDM and did not finish. Your ' +
     'answers are still here.\n\n' +
     'Send anything to pick up where you left off. If you would rather not, ' +
     'just ignore this; we will not ask again.',
@@ -385,6 +378,15 @@ ${why}`;
     'so you are on the waiting list. We will message you straight away if a ' +
     'place opens.',
 
+  /**
+   * A place opened for somebody who was waitlisted the moment they said yes,
+   * before any question was asked. The place is not theirs until they have
+   * answered, the same as for anyone else (§7.4).
+   */
+  placeOpenedAnswerFirst:
+    'A place has opened up, if you can still give.\n\n' +
+    'A few quick questions about today first.',
+
   promoted: (hospital: HospitalSnapshot, neededBy: string): string =>
     'A place has opened up, if you can still give.\n\n' +
     `${hospital.hospitalName}\n${hospital.hospitalAddress}\n` +
@@ -428,6 +430,16 @@ ${why}`;
   noShowNoted:
     'The centre recorded that you could not come. That is completely fine, and ' +
     'we will ask again next time.',
+
+  /**
+   * The counter's third outcome (§5): the person let the centre know they
+   * could not make it. Their place goes to the next person, and nothing about
+   * it counts against them.
+   */
+  cancellationNoted:
+    'The centre recorded that you let them know you could not come. Thank you ' +
+    'for telling them; your place has gone to the next person, and we will ask ' +
+    'again next time.',
 
   /* ------------------------------------------------------------ controls */
 
@@ -568,3 +580,19 @@ ${why}`;
     'Thank you. We have noted that you would like to give.\n\n' + reason,
 
 } as const;
+
+/**
+ * One visit screening question with its two answers. Built here so the
+ * conversation and the waitlist promotion put the same data on the buttons.
+ */
+export const screeningQuestion = (
+  journeyId: string,
+  index: number,
+  text: string,
+): OutgoingMessage => ({
+  text,
+  choices: [
+    { label: MESSAGES.answerYes, data: `screen:${journeyId}:${String(index)}:yes` },
+    { label: MESSAGES.answerNo, data: `screen:${journeyId}:${String(index)}:no` },
+  ],
+});

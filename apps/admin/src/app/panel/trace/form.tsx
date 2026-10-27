@@ -1,6 +1,6 @@
 'use client';
 
-import { Button, FormField, TextInput } from '@blood-connect/ui';
+import { Button, FormField, TextInput } from '@obdm/ui';
 
 /**
  * Just the search field, in its own client boundary.

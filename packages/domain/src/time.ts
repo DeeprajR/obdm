@@ -191,3 +191,28 @@ export type Clock = {
   readonly now: () => Instant;
   readonly today: (timeZone?: string) => CalendarDay;
 };
+
+/**
+ * A wall-clock time typed into a form, as an instant in the application
+ * timezone.
+ *
+ * A `datetime-local` input posts `YYYY-MM-DDTHH:mm`, with no zone. Handing
+ * that to `new Date()` reads it in the server's zone, which in a container is
+ * UTC: a sample collected at 14:00 in the hospital would be recorded at 19:30
+ * its time, and anything within five and a half hours of now would be refused
+ * as the future. The hospital's clock is the only one a person at it means.
+ */
+export function parseLocalDateTime(
+  value: string,
+  timeZone: string = APP_TIMEZONE,
+): Instant | undefined {
+  const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(value.trim());
+  if (!match) return undefined;
+  const day = parseCalendarDay(match[1]);
+  if (!day) return undefined;
+  const hour = Number(match[2]);
+  const minute = Number(match[3]);
+  const second = Number(match[4] ?? '0');
+  if (hour > 23 || minute > 59 || second > 59) return undefined;
+  return zonedInstant(day, hour, minute, second, 0, timeZone);
+}

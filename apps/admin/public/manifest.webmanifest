@@ -1,6 +1,6 @@
 {
-  "name": "Blood Connect administration",
-  "short_name": "BC Admin",
+  "name": "OBDM administration",
+  "short_name": "OBDM Admin",
   "description": "Doctor records and their patient activity.",
   "start_url": "/doctors",
   "scope": "/",

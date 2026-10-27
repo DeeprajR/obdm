@@ -44,9 +44,6 @@
       "path": "db"
     },
     {
-      "path": "apps/bot"
-    },
-    {
       "path": "packages/staff-web"
     }
   ]

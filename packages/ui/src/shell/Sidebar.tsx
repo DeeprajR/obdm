@@ -10,7 +10,7 @@
  * via `usePathname()` in the AppShell) and passes it in as
  * `currentPath`, resolves the signed-in account and passes it in as
  * `user`, and renders whatever sign-out control fits the app —
- * typically a `<form action={signOutAction}>` on Bloodconnect —
+ * typically a `<form action={signOutAction}>` on OBDM —
  * through the `signOutSlot` prop.
  *
  * Uses plain `<a href>` rather than `next/link` on purpose: the kit
@@ -39,7 +39,7 @@ export interface SidebarProps {
   brand: { title: string; subtitle: string; letter: string };
   /**
    * The signed-in account. `email` is optional because not every
-   * application stores an email against its actor — Bloodconnect, for
+   * application stores an email against its actor — OBDM, for
    * instance, resolves an `Actor` with only `userId` and `role`.
    */
   user: { name: string; email?: string } | null;

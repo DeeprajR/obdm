@@ -13,9 +13,9 @@
  * `hospital` table is a permission error rather than a code review finding.
  */
 
-import type { AppConfig } from '@blood-connect/config';
-import type { Clock } from '@blood-connect/domain';
-import type { IdGenerator } from '@blood-connect/ids';
+import type { AppConfig } from '@obdm/config';
+import type { Clock } from '@obdm/domain';
+import type { IdGenerator } from '@obdm/ids';
 
 import type { BotDatabase, BotTransaction } from './db.js';
 import type { ChannelRegistry } from './ports/channel.js';

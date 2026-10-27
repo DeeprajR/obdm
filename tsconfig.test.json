@@ -3,19 +3,19 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "paths": {
-      "@blood-connect/platform": [
+      "@obdm/platform": [
         "./packages/platform/src/index.ts"
       ],
-      "@blood-connect/hospital": [
+      "@obdm/hospital": [
         "./packages/hospital/src/index.ts"
       ],
-      "@blood-connect/centre": [
+      "@obdm/centre": [
         "./packages/centre/src/index.ts"
       ],
-      "@blood-connect/bot": [
+      "@obdm/bot": [
         "./packages/bot/src/index.ts"
       ],
-      "@blood-connect/db/bot": [
+      "@obdm/db/bot": [
         "./db/src/schema-bot/index.ts"
       ]
     },
@@ -30,6 +30,7 @@
   "include": [
     "packages/**/*.test.ts",
     "db/**/*.test.ts",
+    "apps/worker/**/*.test.ts",
     "vitest.config.ts",
     "db/drizzle.config.ts",
     "db/vitest.setup.ts",

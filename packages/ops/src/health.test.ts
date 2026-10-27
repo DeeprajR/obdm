@@ -3,10 +3,10 @@ import { execFileSync } from 'node:child_process';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
-import { CONFIG_DEFAULTS } from '@blood-connect/config';
-import { CONTRACT_VERSION } from '@blood-connect/contract';
-import { idGenerator, newId } from '@blood-connect/ids';
-import { createFakeClock } from '@blood-connect/testing';
+import { CONFIG_DEFAULTS } from '@obdm/config';
+import { CONTRACT_VERSION } from '@obdm/contract';
+import { idGenerator, newId } from '@obdm/ids';
+import { createFakeClock } from '@obdm/testing';
 import {
   anonymousActor,
   argon2Hasher,
@@ -17,7 +17,7 @@ import {
   smtpEmailPort,
   type Database,
   type UseCaseContext,
-} from '@blood-connect/platform';
+} from '@obdm/platform';
 
 import { checkDependencies, type HealthTile } from './health.js';
 
@@ -193,8 +193,8 @@ describe.skipIf(!testUrl)('the dependency tiles (§11.9)', () => {
     });
 
     it('goes red on email when Mailpit is stopped', async () => {
-      container('stop', 'blood-connect-mailpit-1');
-      stopped.push('blood-connect-mailpit-1');
+      container('stop', 'obdm-mailpit-1');
+      stopped.push('obdm-mailpit-1');
 
       const tiles = await checkDependencies(context(), realPorts);
 
@@ -207,8 +207,8 @@ describe.skipIf(!testUrl)('the dependency tiles (§11.9)', () => {
     }, 40_000);
 
     it('goes red on storage when MinIO is stopped', async () => {
-      container('stop', 'blood-connect-minio-1');
-      stopped.push('blood-connect-minio-1');
+      container('stop', 'obdm-storage-1');
+      stopped.push('obdm-storage-1');
 
       const tiles = await checkDependencies(context(), realPorts);
 

@@ -1,0 +1,23 @@
+{
+  "name": "@obdm/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsc -b && node dist/main.js",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@obdm/centre": "workspace:*",
+    "@obdm/config": "workspace:*",
+    "@obdm/contract": "workspace:*",
+    "@obdm/db": "workspace:*",
+    "@obdm/domain": "workspace:*",
+    "@obdm/ids": "workspace:*",
+    "@obdm/platform": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "postgres": "^3.4.9"
+  }
+}

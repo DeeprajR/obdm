@@ -178,7 +178,7 @@ export const donors = botSchema.table(
  * One row per way of reaching a person (§2.11).
  *
  * The channel is swappable, so the donor's identity is this table's `donor_id`
- * and never a Telegram user id. Adding WhatsApp later is a row here, not a
+ * and never a platform user id. Adding WhatsApp later is a row here, not a
  * column on `donors`.
  */
 export const donorChannels = botSchema.table(
@@ -485,6 +485,80 @@ export const messageOutbox = botSchema.table(
       sql`status IN ('pending', 'sent', 'failed', 'abandoned')`,
     ),
     check('message_outbox_attempts_check', sql`attempts >= 0`),
+  ],
+);
+
+export const CHAT_DIRECTIONS = ['in', 'out'] as const;
+
+/**
+ * The transcript of a web conversation (§2.11, ADR 0017).
+ *
+ * The web channel has no platform holding the chat for it: nothing remembers
+ * what was said unless this does. One row per message, in either direction,
+ * keyed by the same `(channel, channel_user_id)` pair every other table uses
+ * for a person. The browser reads its own rows back, in order, and that is the
+ * whole chat screen.
+ *
+ * An outgoing row is written by the channel adapter when the outbox drains,
+ * so a message is on the transcript exactly when it counts as sent. Editing a
+ * card in place (§8) is an UPDATE of the row the earlier send returned, which
+ * is what lets an answered question lock its buttons without a second copy.
+ *
+ * The incoming rows hold what the person typed, which includes a name and a
+ * phone number before either reaches `donors`. Erasure (§12.1) deletes the
+ * transcript with the channel row, for that reason.
+ */
+export const chatMessages = botSchema.table(
+  'chat_messages',
+  {
+    /** UUIDv7, so ordering by id is ordering by when it was written. */
+    id: uuid('id').primaryKey(),
+    channel: text('channel').notNull(),
+    channelUserId: text('channel_user_id').notNull(),
+    direction: text('direction').notNull(),
+    text: text('text').notNull(),
+    /** The buttons under an outgoing message, if any. Null on incoming rows. */
+    choices: jsonb('choices'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // The read the chat screen makes: one person's rows, in order.
+    index('chat_messages_transcript_idx').on(table.channel, table.channelUserId, table.id),
+    check('chat_messages_direction_check', sql`direction IN ('in', 'out')`),
+  ],
+);
+
+export const CHAT_RATE_LIMIT_SCOPES = ['device', 'ip'] as const;
+export type ChatRateLimitScope = (typeof CHAT_RATE_LIMIT_SCOPES)[number];
+
+/**
+ * Throttling the chat route (§3, ADR 0017 §8).
+ *
+ * A chat platform imposed a rate limit on the bot's behalf; the web does not,
+ * and the chat route is public by design, so without this one device could
+ * write transcript rows as fast as it can post. The same shape as
+ * `hospital.auth_rate_limits`, for the same reasons: in the database so the
+ * limit survives a restart and applies across every instance, and a fixed
+ * window per row so the table stays small.
+ *
+ * Keyed by the device's channel user id or by the caller's address, never by
+ * anything that names a person.
+ */
+export const chatRateLimits = botSchema.table(
+  'chat_rate_limits',
+  {
+    scope: text('scope').notNull(),
+    key: text('key').notNull(),
+    windowStart: timestamp('window_start', { withTimezone: true }).notNull(),
+    attempts: integer('attempts').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('chat_rate_limits_window_idx').on(table.scope, table.key, table.windowStart),
+    check('chat_rate_limits_scope_check', sql`scope IN ('device', 'ip')`),
+    check('chat_rate_limits_attempts_check', sql`attempts >= 0`),
   ],
 );
 

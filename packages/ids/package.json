@@ -1,5 +1,5 @@
 {
-  "name": "@blood-connect/ids",
+  "name": "@obdm/ids",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -15,7 +15,7 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@blood-connect/result": "workspace:*",
+    "@obdm/result": "workspace:*",
     "uuid": "^14.0.2"
   }
 }

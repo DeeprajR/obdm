@@ -17,7 +17,7 @@
  */
 
 import { and, asc, eq, inArray, isNull, like, or, sql } from 'drizzle-orm';
-import { locationNodes } from '@blood-connect/db';
+import { locationNodes } from '@obdm/db';
 
 import type { BotContext } from '../context.js';
 

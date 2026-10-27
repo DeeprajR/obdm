@@ -1,0 +1,41 @@
+# The reverse proxy (docs/deployment.md, §13).
+#
+# Caddy terminates TLS with certificates it obtains itself, one per host, and
+# forwards each host to its application. Two properties of the configuration
+# are load-bearing and worth knowing before changing it:
+#
+#  - `reverse_proxy` passes the public `Host` header through unchanged. Every
+#    application refuses a mutating request whose `Origin` does not match its
+#    own `Host`, so a proxy that rewrote the header to the upstream's name
+#    would make every form fail with what looks like a CORS error (§13).
+#  - `X-Forwarded-For` is set by Caddy and read by the applications only as a
+#    throttle key, never as an identity. The applications are reachable only
+#    through this proxy on the compose network, so the header cannot be forged
+#    from outside.
+#
+# The five hosts come from the environment (deploy/.env.production).
+
+{$DOCTOR_HOST} {
+	reverse_proxy doctor:3000
+	encode gzip
+}
+
+{$ADMIN_HOST} {
+	reverse_proxy admin:3000
+	encode gzip
+}
+
+{$CENTRE_HOST} {
+	reverse_proxy centre:3000
+	encode gzip
+}
+
+{$VOLUNTEER_HOST} {
+	reverse_proxy volunteer:3000
+	encode gzip
+}
+
+{$DONOR_HOST} {
+	reverse_proxy donor:3000
+	encode gzip
+}

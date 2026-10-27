@@ -1,25 +1,25 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { Card, PageHeader } from '@blood-connect/ui';
+import { Card, PageHeader } from '@obdm/ui';
 
 import { KitShell } from '../kit-shell';
-import { LiveRefresh } from '@blood-connect/staff-web/client';
+import { LiveRefresh } from '@obdm/staff-web/client';
 import { PressureLegend, PressureTiles } from './pressure-tiles';
 import { ShareMessage } from './share-message';
 import { TrendStrip } from './trend-strip';
 import { requireAccess, useCaseContext } from '@/lib/guards';
-import { PRESSURE_LEVELS, shareMessageFor } from '@blood-connect/domain';
-import { appOrigin } from '@blood-connect/platform';
+import { PRESSURE_LEVELS, shareMessageFor } from '@obdm/domain';
+import { appOrigin } from '@obdm/platform';
 import {
   asBloodGroup,
   demandsForGroup,
   groupPressure,
   scopeFor,
   trend,
-} from '@blood-connect/volunteer';
+} from '@obdm/volunteer';
 
-export const metadata: Metadata = { title: 'Volunteer · Blood Connect' };
+export const metadata: Metadata = { title: 'Volunteer · OBDM' };
 
 /** Numbers that move on the scale of minutes are never worth caching (§6). */
 export const dynamic = 'force-dynamic';
@@ -77,7 +77,7 @@ export default async function VolunteerPage({
     : null;
 
   return (
-    <KitShell role={actor.role} currentPath="/volunteer" currentTitle="Volunteer">
+    <KitShell role={actor.role} userId={actor.userId} currentPath="/volunteer" currentTitle="Volunteer">
       <LiveRefresh />
 
       <PageHeader

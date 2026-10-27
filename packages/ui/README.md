@@ -1,4 +1,4 @@
-# @blood-connect/ui
+# @obdm/ui
 
 The in-repo clinical design system used by all four applications. Replaces
 UX4G ([ADR 0015](../../docs/adr/0015-ux4g-replaced-by-in-repo-clinical-kit.md)).
@@ -48,12 +48,12 @@ Presentation-only: this package may not import from `packages/domain`,
 
 - **Domain badge wrappers** (blood-connect-ui's `badges.tsx`). Those
   wire enums (`REQUEST_STATUSES`, `APPOINTMENT_STATUSES`, …) to the
-  kit's `StatusBadge` and belong in each app. Bloodconnect's enums
+  kit's `StatusBadge` and belong in each app. OBDM's enums
   live in `packages/domain` and `packages/contract`, so the wrappers
   will land in a per-app `src/ui/badges.tsx` when the first screen
   needs them.
 - **Auth context / SWR providers / mock API.** blood-connect-ui
-  wraps its app in `AuthProvider` + `SWRConfig`. Bloodconnect uses
+  wraps its app in `AuthProvider` + `SWRConfig`. OBDM uses
   server actions and server components; there is no client auth
   context. The kit stays out of it.
 
@@ -69,10 +69,10 @@ Expected `apps/web/src/app/layout.tsx` imports (added in PR-02b):
 import 'ux4g-web-components/styles.css'; // still there
 import './theme.css';                    // still there
 import './tailwind.css';                 // new: `@import "tailwindcss"; @source "…";`
-import '@blood-connect/ui/tokens/base.css';
-import '@blood-connect/ui/tokens/accent-medical.css';
-import '@blood-connect/ui/tokens/typography.css';
-import '@blood-connect/ui/tokens/preflight.css';
+import '@obdm/ui/tokens/base.css';
+import '@obdm/ui/tokens/accent-medical.css';
+import '@obdm/ui/tokens/typography.css';
+import '@obdm/ui/tokens/preflight.css';
 ```
 
 Admin gets the same treatment (with `accent-admin.css`) when its

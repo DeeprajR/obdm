@@ -1,4 +1,4 @@
-# Blood Connect: build plan
+# OBDM: build plan
 
 A sequenced, solo build of the system in [backend-architecture.md](backend-architecture.md),
 greenfield, toward an academic demonstration milestone, with tag readers and the fridge camera

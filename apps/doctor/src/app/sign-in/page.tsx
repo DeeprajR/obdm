@@ -1,14 +1,14 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
-import { SignInCard } from '@blood-connect/staff-web';
-import { landingFor } from '@blood-connect/platform';
+import { SignInCard } from '@obdm/staff-web';
+import { landingFor } from '@obdm/platform';
 
 import { signInAction } from '../actions';
 import { APP } from '@/lib/app';
 import { currentActor } from '@/lib/session';
 
-export const metadata: Metadata = { title: `Sign in · ${APP.name} · Blood Connect` };
+export const metadata: Metadata = { title: `Sign in · ${APP.name} · OBDM` };
 
 /**
  * This application's sign-in. Only its own role can sign in here (ADR 0016);

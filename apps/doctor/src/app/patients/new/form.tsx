@@ -3,20 +3,20 @@
 import { useActionState, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 
-import { Button, FormField, Select, TextArea, TextInput } from '@blood-connect/ui';
+import { Button, FormField, Select, TextArea, TextInput } from '@obdm/ui';
 
 import {
   BLOOD_GROUPS,
   WORDING,
   bloodGroupLabel,
-} from '@blood-connect/domain';
+} from '@obdm/domain';
 
 import {
   findDuplicatesAction,
   createPatientAction,
   type FormState,
 } from '../../hospital-actions';
-import type { PossibleDuplicate } from '@blood-connect/hospital';
+import type { PossibleDuplicate } from '@obdm/hospital';
 
 /**
  * The doctor's patient-recording form (ADR 0010's "record patient" side).

@@ -3,7 +3,7 @@
 import { useActionState, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 
-import { Button } from '@blood-connect/ui';
+import { Button } from '@obdm/ui';
 
 import {
   BLOOD_GROUPS,
@@ -13,7 +13,7 @@ import {
   WORDING,
   bloodGroupLabel,
   productLabel,
-} from '@blood-connect/domain';
+} from '@obdm/domain';
 
 import { raiseRequestAction, type FormState } from './hospital-actions';
 

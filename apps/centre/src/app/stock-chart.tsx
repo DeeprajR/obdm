@@ -6,7 +6,7 @@ import {
   stockFillFraction,
   type BloodGroup,
   type StockBand,
-} from '@blood-connect/domain';
+} from '@obdm/domain';
 
 /**
  * Stock against the floor, one bar per group (§4).

@@ -1,15 +1,15 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { Card, EmptyState, PageHeader, StatusBadge } from '@blood-connect/ui';
+import { Card, EmptyState, PageHeader, StatusBadge } from '@obdm/ui';
 
 import { CentreShell } from '../../centre-shell';
 import { QuarantineForm } from '../../centre-collision-forms';
 import { requireAccess, useCaseContext } from '@/lib/guards';
-import { listQuarantine } from '@blood-connect/centre';
-import { WORDING, bloodGroupLabel, productLabel } from '@blood-connect/domain';
+import { listQuarantine } from '@obdm/centre';
+import { WORDING, bloodGroupLabel, productLabel } from '@obdm/domain';
 
-export const metadata: Metadata = { title: 'Quarantine · Blood Connect' };
+export const metadata: Metadata = { title: 'Quarantine · OBDM' };
 
 /**
  * The waiting room, with how long each unit has been in it (§4).

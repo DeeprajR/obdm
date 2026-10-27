@@ -18,7 +18,7 @@
  * inert in the others even where they share a hostname.
  */
 
-import type { UserRole } from '@blood-connect/db';
+import type { UserRole } from '@obdm/db';
 
 export type { UserRole };
 

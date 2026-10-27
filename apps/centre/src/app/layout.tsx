@@ -8,7 +8,7 @@ import { GeistMono } from 'geist/font/mono';
 // separate `.tsx` CSS side-effect imports would bypass that pipeline (ADR 0015).
 import './tailwind.css';
 
-import { StaffDocument, staffMetadata, staffViewport } from '@blood-connect/staff-web';
+import { StaffDocument, staffMetadata, staffViewport } from '@obdm/staff-web';
 
 export const metadata = staffMetadata;
 

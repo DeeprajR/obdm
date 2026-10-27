@@ -1,6 +1,6 @@
-import { APP_TIMEZONE, dayOf } from '@blood-connect/domain';
-import { db } from '@blood-connect/platform';
-import { recordSample, type Surface } from '@blood-connect/ops';
+import { APP_TIMEZONE, dayOf } from '@obdm/domain';
+import { db } from '@obdm/platform';
+import { recordSample, type Surface } from '@obdm/ops';
 
 /**
  * A render that threw, recorded as a 500 (§11.9).

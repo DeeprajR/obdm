@@ -9,13 +9,13 @@ import {
   PageHeader,
   StatusBadge,
   type Column,
-} from '@blood-connect/ui';
+} from '@obdm/ui';
 
 import { KitShell } from '../../kit-shell';
 import { CancelRequestForm, SampleForm } from '../../hospital-forms';
 import { requireAccess, useCaseContext } from '@/lib/guards';
-import { getRequest, listSamples } from '@blood-connect/hospital';
-import { getDecisionForRequest } from '@blood-connect/centre';
+import { getRequest, listSamples } from '@obdm/hospital';
+import { getDecisionForRequest } from '@obdm/centre';
 import {
   URGENCY_LABELS,
   URGENCY_SHORT,
@@ -27,9 +27,9 @@ import {
   type BloodGroup,
   type Product,
   type Urgency,
-} from '@blood-connect/domain';
+} from '@obdm/domain';
 
-export const metadata: Metadata = { title: 'Blood request · Blood Connect' };
+export const metadata: Metadata = { title: 'Blood request · OBDM' };
 
 const STATUS_LABELS: Readonly<Record<string, string>> = {
   submitted: 'Submitted, waiting for the blood centre',
@@ -137,7 +137,7 @@ export default async function RequestPage({
 
   return (
     <KitShell
-      role={actor.role}
+      role={actor.role} userId={actor.userId}
       currentPath={`/requests/${id}`}
       currentTitle={request.requestId ?? 'Blood request'}
     >
@@ -325,6 +325,16 @@ export default async function RequestPage({
           <p>
             <span className="font-medium text-warning">Cancelled:</span>{' '}
             {request.cancelReason}
+          </p>
+          {/*
+            Said here rather than only by the cancel form: cancelling
+            revalidates this page, the request is no longer cancellable, and
+            the form that held its own confirmation is gone before it renders.
+          */}
+          <p className="mt-1 text-ink-muted">
+            The centre has been told
+            {decision !== undefined ? ', any units held for it went back on the shelf,' : ''}{' '}
+            and every donor who had agreed to come has been stood down.
           </p>
         </div>
       ) : null}

@@ -11,9 +11,9 @@
  * readable in a single file (§11.1).
  */
 
-import type { AppConfig } from '@blood-connect/config';
-import type { Clock } from '@blood-connect/domain';
-import type { IdGenerator } from '@blood-connect/ids';
+import type { AppConfig } from '@obdm/config';
+import type { Clock } from '@obdm/domain';
+import type { IdGenerator } from '@obdm/ids';
 
 import type { Database, Transaction } from './db.js';
 import type { Actor } from './domain/authorization.js';

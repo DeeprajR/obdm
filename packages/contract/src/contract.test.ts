@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { DEMAND_STATUSES, demandTransitions as domainDemand } from '@blood-connect/domain';
+import { DEMAND_STATUSES, demandTransitions as domainDemand } from '@obdm/domain';
 
 import {
   CONFIRMATION_STATUSES,

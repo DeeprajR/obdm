@@ -28,15 +28,15 @@
  */
 
 import { and, eq, isNull, sql } from 'drizzle-orm';
-import { err, ok, type Result } from '@blood-connect/result';
+import { err, ok, type Result } from '@obdm/result';
 import {
   bloodBags,
   rfidTags,
   tagAssignments,
   tagDiscrepancies,
-} from '@blood-connect/db';
-import type { BagStatus } from '@blood-connect/domain';
-import { actorHas, createAuditWriter, type UseCaseContext } from '@blood-connect/platform';
+} from '@obdm/db';
+import type { BagStatus } from '@obdm/domain';
+import { actorHas, createAuditWriter, type UseCaseContext } from '@obdm/platform';
 
 import {
   invalidBag,

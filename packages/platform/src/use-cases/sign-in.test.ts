@@ -3,10 +3,10 @@ import { and, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
-import { CONFIG_DEFAULTS } from '@blood-connect/config';
-import { auditLog, authRateLimits, sessions, users } from '@blood-connect/db';
-import { newId, idGenerator } from '@blood-connect/ids';
-import { createFakeClock } from '@blood-connect/testing';
+import { CONFIG_DEFAULTS } from '@obdm/config';
+import { auditLog, authRateLimits, sessions, users } from '@obdm/db';
+import { newId, idGenerator } from '@obdm/ids';
+import { createFakeClock } from '@obdm/testing';
 
 import type { Database } from '../db.js';
 import { argon2Hasher, nodeTokens } from '../adapters/crypto.js';
@@ -50,7 +50,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
     await db.insert(users).values([
       {
         id: activeUserId,
-        email: 'active@blood-connect.invalid',
+        email: 'active@obdm.invalid',
         fullName: 'Active Account',
         role: 'doctor',
         status: 'active',
@@ -58,7 +58,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
       },
       {
         id: newId(),
-        email: 'deactivated@blood-connect.invalid',
+        email: 'deactivated@obdm.invalid',
         fullName: 'Deactivated Account',
         role: 'doctor',
         status: 'deactivated',
@@ -66,7 +66,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
       },
       {
         id: newId(),
-        email: 'invited@blood-connect.invalid',
+        email: 'invited@obdm.invalid',
         fullName: 'Never Activated',
         role: 'doctor',
         status: 'pending_activation',
@@ -83,7 +83,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
 
   it('issues a session and lands the caller with their role', async () => {
     const result = await signIn(context(), {
-      email: 'active@blood-connect.invalid',
+      email: 'active@obdm.invalid',
       password: PASSWORD,
       audience: 'doctor',
     });
@@ -97,7 +97,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
 
   it('stores only the fingerprint of the token, never the token (§13)', async () => {
     const result = await signIn(context(), {
-      email: 'active@blood-connect.invalid',
+      email: 'active@obdm.invalid',
       password: PASSWORD,
       audience: 'doctor',
     });
@@ -114,7 +114,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
 
   it('accepts the address case-insensitively (§5.3)', async () => {
     const result = await signIn(context(), {
-      email: '  ACTIVE@Blood-Connect.INVALID ',
+      email: '  ACTIVE@OBDM.INVALID ',
       password: PASSWORD,
       audience: 'doctor',
     });
@@ -124,7 +124,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
   it('writes an audit row that carries no secret (§14)', async () => {
     const correlationId = newId();
     await signIn(context({ correlationId }), {
-      email: 'active@blood-connect.invalid',
+      email: 'active@obdm.invalid',
       password: PASSWORD,
       audience: 'doctor',
     });
@@ -146,7 +146,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
 
   it('resolves the issued token back to the same principal', async () => {
     const result = await signIn(context(), {
-      email: 'active@blood-connect.invalid',
+      email: 'active@obdm.invalid',
       password: PASSWORD,
       audience: 'doctor',
     });
@@ -172,7 +172,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
     // are not isolated by port. A doctor's token presented to the centre app
     // is somebody else's cookie, and must mean nothing there.
     const result = await signIn(context(), {
-      email: 'active@blood-connect.invalid',
+      email: 'active@obdm.invalid',
       password: PASSWORD,
       audience: 'doctor',
     });
@@ -188,7 +188,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
 
   it('stops resolving once the session is revoked, and again after that', async () => {
     const result = await signIn(context(), {
-      email: 'active@blood-connect.invalid',
+      email: 'active@obdm.invalid',
       password: PASSWORD,
       audience: 'doctor',
     });
@@ -209,7 +209,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
 
   it('stops resolving once the session has expired', async () => {
     const result = await signIn(context(), {
-      email: 'active@blood-connect.invalid',
+      email: 'active@obdm.invalid',
       password: PASSWORD,
       audience: 'doctor',
     });
@@ -225,7 +225,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
 
   it('stops resolving the moment the account is deactivated', async () => {
     const result = await signIn(context(), {
-      email: 'active@blood-connect.invalid',
+      email: 'active@obdm.invalid',
       password: PASSWORD,
       audience: 'doctor',
     });
@@ -247,19 +247,19 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
 
   it('answers identically for a wrong password, an unknown address, a deactivated account and one never activated (§15)', async () => {
     const attempts = await Promise.all([
-      signIn(context(), { email: 'active@blood-connect.invalid', password: 'wrong', audience: 'doctor' }),
+      signIn(context(), { email: 'active@obdm.invalid', password: 'wrong', audience: 'doctor' }),
       signIn(context({ request: { ip: '10.0.0.2', userAgent: 'vitest' } }), {
-        email: 'nobody@blood-connect.invalid',
+        email: 'nobody@obdm.invalid',
         password: PASSWORD,
         audience: 'doctor',
       }),
       signIn(context({ request: { ip: '10.0.0.3', userAgent: 'vitest' } }), {
-        email: 'deactivated@blood-connect.invalid',
+        email: 'deactivated@obdm.invalid',
         password: PASSWORD,
         audience: 'doctor',
       }),
       signIn(context({ request: { ip: '10.0.0.4', userAgent: 'vitest' } }), {
-        email: 'invited@blood-connect.invalid',
+        email: 'invited@obdm.invalid',
         password: PASSWORD,
         audience: 'doctor',
       }),
@@ -283,7 +283,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
   it('records why it refused in the audit log, and never in the response', async () => {
     const correlationId = newId();
     await signIn(context({ correlationId }), {
-      email: 'nobody@blood-connect.invalid',
+      email: 'nobody@obdm.invalid',
       password: PASSWORD,
       audience: 'doctor',
     });
@@ -304,7 +304,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
     for (const audience of ['centre', 'volunteer', 'admin'] as const) {
       const correlationId = newId();
       const result = await signIn(context({ correlationId }), {
-        email: 'active@blood-connect.invalid',
+        email: 'active@obdm.invalid',
         password: PASSWORD,
         audience,
       });
@@ -329,7 +329,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
 
   it('binds the session to the application that signed them in', async () => {
     const result = await signIn(context(), {
-      email: 'active@blood-connect.invalid',
+      email: 'active@obdm.invalid',
       password: PASSWORD,
       audience: 'doctor',
     });
@@ -346,7 +346,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
 
     for (let attempt = 0; attempt < max; attempt += 1) {
       const result = await signIn(context(), {
-        email: 'active@blood-connect.invalid',
+        email: 'active@obdm.invalid',
         password: 'wrong',
         audience: 'doctor',
       });
@@ -357,7 +357,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
     // The next attempt is refused before the password is even considered, and
     // the correct password does not get through either.
     const blocked = await signIn(context(), {
-      email: 'active@blood-connect.invalid',
+      email: 'active@obdm.invalid',
       password: PASSWORD,
       audience: 'doctor',
     });
@@ -372,7 +372,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
   });
 
   it('survives a restart, because the counter is a row and not memory (§3)', async () => {
-    await signIn(context(), { email: 'active@blood-connect.invalid', password: 'wrong', audience: 'doctor' });
+    await signIn(context(), { email: 'active@obdm.invalid', password: 'wrong', audience: 'doctor' });
 
     const rows = await db
       .select()
@@ -381,12 +381,12 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
 
     expect(rows).toHaveLength(1);
     expect(rows[0]?.attempts).toBe(1);
-    expect(rows[0]?.key).toBe('active@blood-connect.invalid');
+    expect(rows[0]?.key).toBe('active@obdm.invalid');
   });
 
   it('clears the account counter on success but never the IP counter', async () => {
-    await signIn(context(), { email: 'active@blood-connect.invalid', password: 'wrong', audience: 'doctor' });
-    await signIn(context(), { email: 'active@blood-connect.invalid', password: PASSWORD, audience: 'doctor' });
+    await signIn(context(), { email: 'active@obdm.invalid', password: 'wrong', audience: 'doctor' });
+    await signIn(context(), { email: 'active@obdm.invalid', password: PASSWORD, audience: 'doctor' });
 
     const account = await db
       .select()
@@ -404,7 +404,7 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
   });
 
   it('counts a failure against both the account and the IP', async () => {
-    await signIn(context(), { email: 'active@blood-connect.invalid', password: 'wrong', audience: 'doctor' });
+    await signIn(context(), { email: 'active@obdm.invalid', password: 'wrong', audience: 'doctor' });
 
     const rows = await db.select().from(authRateLimits);
     expect(rows.map((r) => r.scope).sort()).toEqual(['login_account', 'login_ip']);

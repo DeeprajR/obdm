@@ -12,7 +12,7 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
-import * as schema from '@blood-connect/db';
+import * as schema from '@obdm/db';
 
 const connectionString = (): string => {
   const url = process.env['DATABASE_URL'];
@@ -22,7 +22,7 @@ const connectionString = (): string => {
     // and the worst kind, because it would quietly connect somewhere.
     throw new Error(
       'DATABASE_URL is not set. From the workspace root: `cp .env.example .env`, ' +
-        'then `pnpm up` to start Postgres. The root .env is loaded by next.config.ts.',
+        'then `pnpm services:up` to start Postgres. The root .env is loaded by next.config.ts.',
     );
   }
   return url;
@@ -37,11 +37,11 @@ const createClient = (): postgres.Sql =>
   });
 
 declare global {
-  var __bloodConnectSql: postgres.Sql | undefined;
+  var __obdmSql: postgres.Sql | undefined;
 }
 
-const client = globalThis.__bloodConnectSql ?? createClient();
-if (process.env['NODE_ENV'] !== 'production') globalThis.__bloodConnectSql = client;
+const client = globalThis.__obdmSql ?? createClient();
+if (process.env['NODE_ENV'] !== 'production') globalThis.__obdmSql = client;
 
 export const db = drizzle(client, { schema });
 

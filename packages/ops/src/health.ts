@@ -13,8 +13,8 @@
  * reading this at 3am wants the actual error and not our paraphrase of it.
  */
 
-import { CONTRACT_VERSION, CONTRACT_VERSION_CONFIG_KEY, checkContractVersion } from '@blood-connect/contract';
-import { appConfig } from '@blood-connect/db';
+import { CONTRACT_VERSION, CONTRACT_VERSION_CONFIG_KEY, checkContractVersion } from '@obdm/contract';
+import { appConfig } from '@obdm/db';
 import { eq } from 'drizzle-orm';
 import {
   checkDatabase,
@@ -22,7 +22,7 @@ import {
   type EmailPort,
   type StoragePort,
   type UseCaseContext,
-} from '@blood-connect/platform';
+} from '@obdm/platform';
 
 import { type HealthStatus } from './types.js';
 
@@ -97,8 +97,8 @@ export type HealthPorts = {
 /**
  * The dependency tiles the web release can check for itself.
  *
- * The chat platform is not among them: reaching Telegram requires the bot
- * token, and §5 keeps that on the bot host. The panel learns the chat channel's
+ * The donor bot is not among them: it is a separate deployment on the bot role,
+ * and §5 keeps the two apart. The panel learns the bot's
  * state from the bot's published heartbeat instead, which is the same boundary
  * every other bot fact crosses.
  */

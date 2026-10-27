@@ -10,7 +10,7 @@
  * a page so that every surface makes it the same way.
  */
 
-import type { Actor } from '@blood-connect/platform';
+import type { Actor } from '@obdm/platform';
 
 import { UNSCOPED, type Scope } from './read.js';
 

@@ -1,8 +1,8 @@
 import Link from 'next/link';
 
-import { DataTable, type Column } from '@blood-connect/ui';
-import { bloodGroupLabel } from '@blood-connect/domain';
-import type { DonationRow } from '@blood-connect/centre';
+import { DataTable, type Column } from '@obdm/ui';
+import { bloodGroupLabel } from '@obdm/domain';
+import type { DonationRow } from '@obdm/centre';
 
 /**
  * Who is coming in, and who has already given.
@@ -18,7 +18,7 @@ import type { DonationRow } from '@blood-connect/centre';
  */
 
 const CHANNEL_LABELS: Readonly<Record<string, string>> = {
-  telegram: 'Telegram',
+  web: 'Donor app',
   whatsapp: 'WhatsApp',
   memory: 'Test channel',
   walk_in: 'Walked in',

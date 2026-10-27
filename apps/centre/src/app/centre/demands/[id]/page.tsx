@@ -2,15 +2,15 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import { Card, DataTable, PageHeader, type Column } from '@blood-connect/ui';
+import { Card, DataTable, PageHeader, type Column } from '@obdm/ui';
 
 import { CentreShell } from '../../../centre-shell';
 import { RosterMarkForm, WalkInForm } from '../../../centre-collision-forms';
 import { requireAccess, useCaseContext } from '@/lib/guards';
-import { getDemand, listRoster, listWalkIns } from '@blood-connect/centre';
-import { WORDING, bloodGroupLabel, productLabel } from '@blood-connect/domain';
+import { getDemand, listRoster, listWalkIns } from '@obdm/centre';
+import { WORDING, bloodGroupLabel, productLabel } from '@obdm/domain';
 
-export const metadata: Metadata = { title: 'Donors coming in · Blood Connect' };
+export const metadata: Metadata = { title: 'Donors coming in · OBDM' };
 
 const OUTCOME_LABELS: Readonly<Record<string, string>> = {
   confirmed: 'Expected',

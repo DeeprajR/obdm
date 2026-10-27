@@ -27,14 +27,14 @@
  */
 
 import { and, eq, inArray } from 'drizzle-orm';
-import { err, ok, type Result } from '@blood-connect/result';
-import { bloodBags, donorDemand } from '@blood-connect/db';
-import { doctorOf, markRequestCancelled } from '@blood-connect/hospital';
+import { err, ok, type Result } from '@obdm/result';
+import { bloodBags, donorDemand } from '@obdm/db';
+import { doctorOf, markRequestCancelled } from '@obdm/hospital';
 import {
   actorHas,
   createAuditWriter,
   type UseCaseContext,
-} from '@blood-connect/platform';
+} from '@obdm/platform';
 
 import {
   invalidBag,

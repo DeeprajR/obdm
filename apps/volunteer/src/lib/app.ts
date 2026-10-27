@@ -6,4 +6,4 @@
  * this, so a volunteer admin's session is the only kind this application
  * resolves.
  */
-export { VOLUNTEER_APP as APP } from '@blood-connect/staff-web';
+export { VOLUNTEER_APP as APP } from '@obdm/staff-web';

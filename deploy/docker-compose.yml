@@ -1,0 +1,232 @@
+# A single-host deployment (docs/deployment.md).
+#
+# Seven containers behind one proxy: the four staff applications, the donor
+# application, the worker, and the proxy. The proxy is chosen by profile:
+#
+#   --profile tunnel   Cloudflare Tunnel. No inbound port is opened; TLS ends
+#                      at Cloudflare, and the hostnames are routed to the
+#                      containers from the Cloudflare dashboard. The prototype
+#                      on one small server runs this (docs/deployment.md §6a).
+#   --profile caddy    Caddy on ports 80 and 443, a certificate per hostname.
+#
+# Exactly one of the two. The database is **not** here by
+# default: a managed PostgreSQL 16 with point-in-time recovery is the
+# expectation, and DATABASE_URL, BOT_DATABASE_URL and MIGRATION_DATABASE_URL
+# point at it. The `local-db` profile adds a Postgres container for a pilot
+# on one machine, and then the backups are yours to take.
+#
+# Every value comes from the environment file for the deployment being run:
+# deploy/.env.production for obdm.deeprajr.com, deploy/.env.development for
+# dev-obdm.deeprajr.com (copy the matching .example). Nothing in this file is
+# a secret. The stack is named after ENVIRONMENT, so the two never share a
+# container, a network or a volume. Behind Caddy they each want ports 80 and
+# 443, which is why they live on two machines; behind a tunnel neither opens a
+# port, and the two can share one.
+#
+#   docker compose --env-file .env.production --profile tunnel up -d
+#
+# A release, in order: pull, migrate, then roll the applications. The
+# `migrate` service is a one-shot that the `up` above does not start:
+#
+#   docker compose --env-file .env.production run --rm migrate
+#
+# and, exactly once per deployment, the bootstrap that creates the first
+# administrator:
+#
+#   docker compose --env-file .env.production run --rm \
+#     -e BOOTSTRAP_ADMIN_EMAIL=... -e BOOTSTRAP_ADMIN_NAME=... -e BOOTSTRAP_ADMIN_PASSWORD=... \
+#     bootstrap
+#
+# The development deployment is seeded instead, with the synthetic
+# demonstration records and their published password (never production):
+#
+#   docker compose --env-file .env.development --profile development run --rm seed
+
+name: obdm-${ENVIRONMENT:-production}
+
+x-web-env: &web-env
+  NODE_ENV: production
+  DATABASE_URL: ${DATABASE_URL}
+  S3_ENDPOINT: ${S3_ENDPOINT}
+  S3_REGION: ${S3_REGION}
+  S3_BUCKET: ${S3_BUCKET}
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+  S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-false}
+  SMTP_HOST: ${SMTP_HOST}
+  SMTP_PORT: ${SMTP_PORT:-587}
+  SMTP_SECURE: ${SMTP_SECURE:-false}
+  SMTP_USER: ${SMTP_USER}
+  SMTP_PASSWORD: ${SMTP_PASSWORD}
+  MAIL_FROM: ${MAIL_FROM}
+  DOCTOR_APP_URL: https://${DOCTOR_HOST}
+  ADMIN_APP_URL: https://${ADMIN_HOST}
+  CENTRE_APP_URL: https://${CENTRE_HOST}
+  VOLUNTEER_APP_URL: https://${VOLUNTEER_HOST}
+  BUILD_ID: ${BUILD_ID:-}
+
+x-web: &web
+  restart: unless-stopped
+  environment: *web-env
+  expose: ['3000']
+  logging:
+    driver: json-file
+    options: { max-size: '20m', max-file: '5' }
+
+services:
+  cloudflared:
+    # Cloudflare Tunnel: an outbound connection to Cloudflare, nothing
+    # listening here. Each public hostname is routed in the dashboard to a
+    # service on this network (doctor:3000, admin:3000, centre:3000,
+    # volunteer:3000, donor:3000). cloudflared passes the browser's `Host`
+    # through unchanged, which the same-origin check on every form needs
+    # (§13); never set "HTTP Host Header" on those routes.
+    image: cloudflare/cloudflared:latest
+    profiles: [tunnel]
+    restart: unless-stopped
+    command: ['tunnel', '--no-autoupdate', 'run']
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+    depends_on: [doctor, admin, centre, volunteer, donor]
+    logging:
+      driver: json-file
+      options: { max-size: '20m', max-file: '5' }
+
+  caddy:
+    image: caddy:2-alpine
+    profiles: [caddy]
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    environment:
+      DOCTOR_HOST: ${DOCTOR_HOST}
+      ADMIN_HOST: ${ADMIN_HOST}
+      CENTRE_HOST: ${CENTRE_HOST}
+      VOLUNTEER_HOST: ${VOLUNTEER_HOST}
+      DONOR_HOST: ${DONOR_HOST}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on: [doctor, admin, centre, volunteer, donor]
+
+  doctor:
+    <<: *web
+    image: ${IMAGE_PREFIX}/doctor:${IMAGE_TAG:-latest}
+
+  admin:
+    <<: *web
+    image: ${IMAGE_PREFIX}/admin:${IMAGE_TAG:-latest}
+
+  centre:
+    <<: *web
+    image: ${IMAGE_PREFIX}/centre:${IMAGE_TAG:-latest}
+
+  volunteer:
+    <<: *web
+    image: ${IMAGE_PREFIX}/volunteer:${IMAGE_TAG:-latest}
+
+  donor:
+    # The donor application is the bot (ADR 0017). It connects as app_bot and
+    # holds no other role's URL to reach for; its ticker runs in-process, so
+    # run exactly one.
+    image: ${IMAGE_PREFIX}/donor:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    expose: ['3000']
+    environment:
+      NODE_ENV: production
+      BOT_DATABASE_URL: ${BOT_DATABASE_URL}
+      BOT_TICK_INTERVAL_MS: ${BOT_TICK_INTERVAL_MS:-15000}
+      BOT_LOG: ${BOT_LOG:-on}
+      BUILD_ID: ${BUILD_ID:-}
+    logging:
+      driver: json-file
+      options: { max-size: '20m', max-file: '5' }
+
+  worker:
+    # Exactly one does the work; a second stands by on the advisory lock.
+    image: ${IMAGE_PREFIX}/worker:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment: *web-env
+    logging:
+      driver: json-file
+      options: { max-size: '20m', max-file: '5' }
+
+  migrate:
+    # One-shot, as the migrator. Both sets, in release order (§5.9).
+    image: ${IMAGE_PREFIX}/worker:${IMAGE_TAG:-latest}
+    profiles: [release]
+    environment:
+      NODE_ENV: production
+      MIGRATION_DATABASE_URL: ${MIGRATION_DATABASE_URL}
+    command: ['sh', '-c', 'node db/dist/src/migrate.js && node db/dist/src/migrate-bot.js']
+
+  bootstrap:
+    # One-shot, once per deployment: reference data, the contract version and
+    # the first administrator. Idempotent; never resets a password.
+    image: ${IMAGE_PREFIX}/worker:${IMAGE_TAG:-latest}
+    profiles: [release]
+    environment:
+      NODE_ENV: production
+      MIGRATION_DATABASE_URL: ${MIGRATION_DATABASE_URL}
+      CENTRE_DISTRICT_ID: ${CENTRE_DISTRICT_ID:-KL_KKD}
+      CENTRE_CITY_ID: ${CENTRE_CITY_ID:-KKD_T1}
+    command: ['node', 'db/dist/src/bootstrap.js']
+
+  seed:
+    # Development only: the synthetic demonstration records, four accounts
+    # with a published password among them. The seed refuses production
+    # unless told otherwise, and this is the one place it is told.
+    image: ${IMAGE_PREFIX}/worker:${IMAGE_TAG:-latest}
+    profiles: [development]
+    environment:
+      NODE_ENV: production
+      ALLOW_PRODUCTION_SEED: 'yes'
+      MIGRATION_DATABASE_URL: ${MIGRATION_DATABASE_URL}
+    command: ['node', 'db/dist/src/seed.js']
+
+  mailpit:
+    # Development only: a mail catcher instead of a provider, its inbox on
+    # port 8025 of the host's loopback (reach it over an SSH tunnel; never
+    # route a public hostname to it). It listens for SMTP on 2525
+    # because the boot check refuses 1025 as a development default.
+    image: axllent/mailpit:latest
+    profiles: [development]
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:8025:8025'
+    environment:
+      MP_SMTP_BIND_ADDR: 0.0.0.0:2525
+      MP_MAX_MESSAGES: 5000
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+
+  postgres:
+    # A pilot on one machine only. Roles are created by deploy/init-roles.sh
+    # with the passwords in the environment; back it up yourself. Start it
+    # and wait for its health before `run --rm migrate`.
+    image: postgres:16-alpine
+    profiles: [local-db]
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD}
+      POSTGRES_DB: obdm
+      MIGRATOR_PASSWORD: ${MIGRATOR_PASSWORD}
+      APP_WEB_PASSWORD: ${APP_WEB_PASSWORD}
+      APP_BOT_PASSWORD: ${APP_BOT_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-roles.sh:/docker-entrypoint-initdb.d/00-roles.sh:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d obdm']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  caddy-data:
+  caddy-config:
+  postgres-data:

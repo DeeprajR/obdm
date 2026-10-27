@@ -1,0 +1,11 @@
+{
+  "$comment": "Read only by dependency-cruiser. The worker has no path alias; this exists so it is cruised like the other applications, with the same compiler options.",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "baseUrl": ".",
+    "paths": {}
+  }
+}

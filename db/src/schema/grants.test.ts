@@ -143,7 +143,7 @@ describe.skipIf(!testUrl)('grants on the account update queue (§3, §5.1)', () 
 
     const [user] = await migrator`
       INSERT INTO hospital.users (id, email, full_name, role, status, password_hash)
-      VALUES (gen_random_uuid(), 'grants-probe@blood-connect.invalid', 'Grants Probe',
+      VALUES (gen_random_uuid(), 'grants-probe@obdm.invalid', 'Grants Probe',
               'doctor', 'active', 'x')
       RETURNING id`;
     userId = String(user?.['id']);

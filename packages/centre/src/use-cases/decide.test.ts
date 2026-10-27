@@ -3,7 +3,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
-import { CONFIG_DEFAULTS } from '@blood-connect/config';
+import { CONFIG_DEFAULTS } from '@obdm/config';
 import {
   admissions,
   bloodBags,
@@ -14,17 +14,17 @@ import {
   donorDemand,
   patients,
   users,
-} from '@blood-connect/db';
-import { addDays, type BloodGroup, type Product } from '@blood-connect/domain';
-import { idGenerator, newId } from '@blood-connect/ids';
-import { createFakeClock } from '@blood-connect/testing';
+} from '@obdm/db';
+import { addDays, subtractDays, type BloodGroup, type Product } from '@obdm/domain';
+import { idGenerator, newId } from '@obdm/ids';
+import { createFakeClock } from '@obdm/testing';
 import {
   argon2Hasher,
   nodeTokens,
   type Actor,
   type Database,
   type UseCaseContext,
-} from '@blood-connect/platform';
+} from '@obdm/platform';
 
 import { decideRequest } from './decide.js';
 import { recruitForFloor } from './demand.js';
@@ -90,7 +90,7 @@ describe.skipIf(!testUrl)('deciding a request (§7.2)', () => {
     await db.insert(users).values([
       {
         id: counterId,
-        email: `counter-${counterId}@blood-connect.invalid`,
+        email: `counter-${counterId}@obdm.invalid`,
         fullName: 'Counter Staff',
         role: 'blood_centre',
         status: 'active',
@@ -98,7 +98,7 @@ describe.skipIf(!testUrl)('deciding a request (§7.2)', () => {
       },
       {
         id: doctorId,
-        email: `doctor-${doctorId}@blood-connect.invalid`,
+        email: `doctor-${doctorId}@obdm.invalid`,
         fullName: 'Dr Test',
         role: 'doctor',
         provisionalReg: `REG-${doctorId.slice(0, 8)}`,
@@ -390,6 +390,28 @@ describe.skipIf(!testUrl)('deciding a request (§7.2)', () => {
       .from(bloodRequests)
       .where(eq(bloodRequests.id, requestId));
     expect(request?.status).toBe('partially_approved');
+  });
+
+  it('dates the demand today when the request is overdue', async () => {
+    await stock(1);
+    const requestId = await submittedRequest(4);
+    // Raised a week ago for a day that has passed; the patient is still here.
+    await db
+      .update(bloodRequests)
+      .set({ dateRequired: subtractDays(clock.today(), 7) })
+      .where(eq(bloodRequests.id, requestId));
+
+    const result = await decideRequest(context(), {
+      requestUuid: requestId,
+      action: 'issue',
+      note: null,
+    });
+    expect(result.ok).toBe(true);
+
+    // A demand dated last week would be expired by the bot before anybody was
+    // asked (§11.2); today is the earliest the blood can be needed.
+    const [demand] = await db.select().from(donorDemand);
+    expect(demand?.dateRequired).toBe(clock.today());
   });
 
   it('declines with a demand when the shelf is empty', async () => {

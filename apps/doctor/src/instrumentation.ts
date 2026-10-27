@@ -12,8 +12,20 @@
  * the runtime check is Next's documented shape for exactly this.
  */
 
-export function register(): void {
-  // Nothing to start. Present because Next expects it alongside the hook below.
+/**
+ * Refuses to start unconfigured (§13).
+ *
+ * Every adapter has a development default, and a production process that
+ * fell back to one would run and look fine: invites pointing at localhost,
+ * seals written to a MinIO that is not there. The rules are data in
+ * `@obdm/config`; the decision to refuse is taken here, once, and
+ * only in production, so a fresh checkout still starts with no configuration.
+ */
+export async function register(): Promise<void> {
+  if (process.env['NEXT_RUNTIME'] !== 'nodejs') return;
+
+  const { WEB_RUNTIME_RULES, refuseToStartUnconfigured } = await import('@obdm/config');
+  refuseToStartUnconfigured(WEB_RUNTIME_RULES);
 }
 
 export async function onRequestError(

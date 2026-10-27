@@ -9,7 +9,7 @@ import {
   Select,
   TextArea,
   TextInput,
-} from '@blood-connect/ui';
+} from '@obdm/ui';
 
 import {
   BLOOD_GROUPS,
@@ -17,11 +17,13 @@ import {
   WORDING,
   bloodGroupLabel,
   productLabel,
-} from '@blood-connect/domain';
+} from '@obdm/domain';
 
 import {
   cancelDemandAction,
   decideRequestAction,
+  handOverAction,
+  recruitForFloorAction,
   registerBagAction,
   setShelfLifeAction,
   updateSettingsAction,
@@ -310,7 +312,46 @@ export function CancelDemandForm({ demandId }: { demandId: string }) {
   );
 }
 
-export function RecruitButton({ shortGroups }: { shortGroups: number }) {
+/**
+ * Marks the units held for a request as having left the fridge. One press for
+ * all of them: they go together, to the one ward that asked.
+ */
+export function HandOverForm({ requestUuid, units }: { requestUuid: string; units: number }) {
+  const [state, action] = useActionState(handOverAction.bind(null, requestUuid), initial);
+
+  return (
+    <form action={action} className="space-y-2">
+      <Problem message={state.error} />
+      <Submit
+        label={`${units === 1 ? 'The unit has' : `All ${String(units)} units have`} left the fridge`}
+        busy="Recording…"
+      />
+    </form>
+  );
+}
+
+/**
+ * The button, with what came of pressing it. A refusal (the centre's district
+ * not set, say) has to be said out loud: a button that silently does nothing
+ * reads as recruitment having started.
+ */
+export function RecruitForm({ shortGroups }: { shortGroups: number }) {
+  const [state, action] = useActionState(recruitForFloorAction, initial);
+
+  return (
+    <form action={action} className="flex flex-col gap-2">
+      <Problem message={state.error} />
+      {state.notice ? (
+        <p role="status" className="text-sm text-ink-muted">
+          {state.notice}
+        </p>
+      ) : null}
+      <RecruitButton shortGroups={shortGroups} />
+    </form>
+  );
+}
+
+function RecruitButton({ shortGroups }: { shortGroups: number }) {
   const { pending } = useFormStatus();
 
   return (

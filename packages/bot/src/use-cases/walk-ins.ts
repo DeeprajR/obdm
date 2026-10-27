@@ -13,8 +13,8 @@
  */
 
 import { and, eq, inArray, sql } from 'drizzle-orm';
-import { botRequests } from '@blood-connect/db/bot';
-import { walkInDonations } from '@blood-connect/db';
+import { botRequests } from '@obdm/db/bot';
+import { walkInDonations } from '@obdm/db';
 
 import type { BotContext } from '../context.js';
 import { createEventWriter } from '../events.js';

@@ -1,0 +1,20 @@
+/*
+ * Tailwind v4 entry for the donor application.
+ *
+ * The same shape as the staff applications' entry (ADR 0015, ADR 0016): the
+ * kit's token files are `@import`ed here so their `@theme` blocks pass through
+ * Tailwind's PostCSS pipeline, and `@source` points at the kit so the classes
+ * its components use are generated. No `staff-web` source: this application
+ * has no staff frame, no session and no sign-in.
+ *
+ * On the medical-red accent, like the three staff applications. A donor and
+ * the counter that receives them are one clinical surface.
+ */
+
+@import 'tailwindcss';
+@source '../../../../packages/ui/src';
+
+@import '../../../../packages/ui/src/tokens/base.css';
+@import '../../../../packages/ui/src/tokens/accent-medical.css';
+@import '../../../../packages/ui/src/tokens/typography.css';
+@import '../../../../packages/ui/src/tokens/preflight.css' layer(base);

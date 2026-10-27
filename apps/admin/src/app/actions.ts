@@ -25,7 +25,7 @@ import {
   updateDoctor,
   uploadSeal,
   s3Storage,
-} from '@blood-connect/platform';
+} from '@obdm/platform';
 
 import { useCaseContext } from '@/lib/guards';
 import {

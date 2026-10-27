@@ -3,12 +3,12 @@ import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
-import { CONFIG_DEFAULTS } from '@blood-connect/config';
-import * as bot from '@blood-connect/db/bot';
-import { donorDemand } from '@blood-connect/db';
-import { addDays, subtractDays } from '@blood-connect/domain';
-import { idGenerator, newId } from '@blood-connect/ids';
-import { createFakeClock } from '@blood-connect/testing';
+import { CONFIG_DEFAULTS } from '@obdm/config';
+import * as bot from '@obdm/db/bot';
+import { donorDemand } from '@obdm/db';
+import { addDays, subtractDays } from '@obdm/domain';
+import { idGenerator, newId } from '@obdm/ids';
+import { createFakeClock } from '@obdm/testing';
 
 import { createMemoryChannel, type MemoryChannel } from './adapters/memory-channel.js';
 import { createChannelRegistry } from './ports/channel.js';
@@ -202,22 +202,22 @@ describe.skipIf(!testUrl)('the ticker', () => {
     await openDemand(2);
     await makeDonor(1);
 
-    // The donors above are on `memory`. This process runs `telegram` only,
+    // The donors above are on `memory`. This process runs another channel only,
     // which is exactly what happened the first time the bot was pointed at a
     // real token with a seeded pool behind it.
-    const telegramOnly: BotContext = {
+    const otherChannelOnly: BotContext = {
       ...context(),
       channel: createChannelRegistry({
-        name: 'telegram',
+        name: 'other',
         send: () => {
-          throw new Error('a memory-channel message was routed to Telegram');
+          throw new Error('a memory-channel message was routed to another channel');
         },
         receive: () => Promise.resolve([]),
         check: () => Promise.resolve({ ok: true, detail: 'stub' }),
       }),
     };
 
-    const result = await tick(telegramOnly);
+    const result = await tick(otherChannelOnly);
 
     expect(result.drain.sent).toBe(0);
     // Left pending, not abandoned: the message is fine, the platform is simply
@@ -235,15 +235,15 @@ describe.skipIf(!testUrl)('the ticker', () => {
   it('does not let another channel’s backlog starve the one it is running', async () => {
     /*
       What happened on the demo machine: a few hundred pending rows for the
-      in-memory pool, older than anything else, and a Telegram-only process
+      in-memory pool, older than anything else, and a process on another channel
       whose every batch was filled with them. A person's reply sat at attempt
       zero for as long as the stale leases kept expiring.
     */
     const delivered: string[] = [];
-    const telegramOnly: BotContext = {
+    const otherChannelOnly: BotContext = {
       ...context(),
       channel: createChannelRegistry({
-        name: 'telegram',
+        name: 'other',
         send: (to, message) => {
           delivered.push(`${to.channelUserId}:${message.text}`);
           return Promise.resolve({ ok: true as const, messageRef: 'm1' });
@@ -271,7 +271,7 @@ describe.skipIf(!testUrl)('the ticker', () => {
         idGenerator,
         [
           {
-            to: { channel: 'telegram', channelUserId: '404' },
+            to: { channel: 'other', channelUserId: '404' },
             kind: 'reply' as const,
             message: { text: 'What is your name?' },
             dedupeKey: 'real:1',
@@ -283,7 +283,7 @@ describe.skipIf(!testUrl)('the ticker', () => {
 
     // A batch of one, smaller than the stale backlog. It must still be the
     // real message that goes.
-    const result = await drainOutbox(telegramOnly, 1);
+    const result = await drainOutbox(otherChannelOnly, 1);
 
     expect(result.sent).toBe(1);
     expect(result.skipped).toBe(5);

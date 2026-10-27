@@ -16,8 +16,8 @@
  *    cookie never touches a column.
  */
 
-import { err, ok, type Result } from '@blood-connect/result';
-import type { UserRole } from '@blood-connect/db';
+import { err, ok, type Result } from '@obdm/result';
+import type { UserRole } from '@obdm/db';
 
 import type { UseCaseContext } from '../context.js';
 import {

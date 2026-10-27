@@ -24,7 +24,7 @@ export async function setup(): Promise<void> {
   const url = process.env['TEST_DATABASE_URL'];
   if (!url) {
     process.stdout.write(
-      'TEST_DATABASE_URL is not set. Database suites will skip. Run `pnpm up` to include them.\n',
+      'TEST_DATABASE_URL is not set. Database suites will skip. Run `pnpm services:up` to include them.\n',
     );
     return;
   }

@@ -3,23 +3,23 @@ import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
-import { CONFIG_DEFAULTS } from '@blood-connect/config';
+import { CONFIG_DEFAULTS } from '@obdm/config';
 import {
   auditLog,
   donorDemand,
   donorDemandConfirmations,
   users,
   walkInDonations,
-} from '@blood-connect/db';
-import { idGenerator, newId } from '@blood-connect/ids';
-import { createFakeClock } from '@blood-connect/testing';
+} from '@obdm/db';
+import { idGenerator, newId } from '@obdm/ids';
+import { createFakeClock } from '@obdm/testing';
 import {
   argon2Hasher,
   nodeTokens,
   type Actor,
   type Database,
   type UseCaseContext,
-} from '@blood-connect/platform';
+} from '@obdm/platform';
 
 import {
   countUnmarked,
@@ -63,7 +63,7 @@ describe.skipIf(!testUrl)('the counter roster (§4, §8.3)', () => {
     counter = { kind: 'user', userId: counterId, role: 'blood_centre', districtScopeId: null };
     await db.insert(users).values({
       id: counterId,
-      email: `counter-${counterId}@blood-connect.invalid`,
+      email: `counter-${counterId}@obdm.invalid`,
       fullName: 'Counter Staff',
       role: 'blood_centre',
       status: 'active',
@@ -98,7 +98,7 @@ describe.skipIf(!testUrl)('the counter roster (§4, §8.3)', () => {
       id,
       demandId,
       donorId: newId(),
-      channel: 'telegram',
+      channel: 'web',
       donorName: `Synthetic Donor ${String(seq)}`,
       donorPhone: `+9199000000${String(seq).padStart(2, '0')}`,
       bloodGroup,

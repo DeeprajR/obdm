@@ -2,7 +2,7 @@
 
 import { useFormStatus } from 'react-dom';
 
-import { Button } from '@blood-connect/ui';
+import { Button } from '@obdm/ui';
 
 import { dischargeAction, startRequestAction } from './hospital-actions';
 

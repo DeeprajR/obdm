@@ -24,7 +24,7 @@ export function testDatabaseUrl(): string {
   const url = process.env['TEST_DATABASE_URL'];
   if (!url) {
     throw new Error(
-      'TEST_DATABASE_URL is not set. Run `pnpm up` for local Postgres, then copy .env.example to .env.',
+      'TEST_DATABASE_URL is not set. Run `pnpm services:up` for local Postgres, then copy .env.example to .env.',
     );
   }
   // A guard, not a courtesy: pointing a suite that truncates every table at a

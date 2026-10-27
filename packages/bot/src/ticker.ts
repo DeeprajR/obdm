@@ -29,6 +29,7 @@
 
 import type { BotContext } from './context.js';
 import { drainOutbox, type DrainResult } from './outbox.js';
+import { pruneChatRateLimits } from './rate-limit.js';
 import {
   closeDemand,
   findCancelledDemands,
@@ -126,7 +127,10 @@ export async function tick(ctx: BotContext): Promise<TickResult> {
   }
 
   /* --- 6. what happened at the counter ---------------------------------- */
+  // Touched, so a freed place is promoted into below and the new counts reach
+  // the centre in this pass rather than the next time something else moves.
   const outcomes = await applyCounterOutcomes(ctx);
+  for (const id of outcomes.touched) touched.add(id);
 
   /* --- 7. a freed place goes to the waitlist ---------------------------- */
   // After the outcomes, because a no-show is what frees one.
@@ -164,6 +168,16 @@ export async function tick(ctx: BotContext): Promise<TickResult> {
   for (const id of touched) await writeBackProgress(ctx, id);
 
   const drain = await drainOutbox(ctx);
+
+  // Throttle windows a day old have no reader. The table is one row per
+  // device per minute, so this costs nothing and keeps it that size. Caught,
+  // because a failed prune must not skip the heartbeat below and read on the
+  // panel as a bot that has gone quiet.
+  try {
+    await pruneChatRateLimits(ctx.db, new Date(ctx.clock.now().getTime() - 24 * 60 * 60 * 1000));
+  } catch (error) {
+    process.stderr.write(`prune of chat throttle windows failed: ${String(error)}\n`);
+  }
 
   /* --- 12. tell the other half how it went ------------------------------ */
   /*

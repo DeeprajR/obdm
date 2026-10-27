@@ -32,6 +32,10 @@ export default tseslint.config(
       '**/.next/**',
       'db/migrations/**',
       'coverage/**',
+      // Playwright's output, ignored by git too. A failed run copies the trace
+      // viewer's bundled scripts in here.
+      'e2e/playwright-report/**',
+      'e2e/test-results/**',
     ],
   },
 
@@ -54,7 +58,9 @@ export default tseslint.config(
           './apps/centre/tsconfig.json',
           './apps/volunteer/tsconfig.json',
           './apps/admin/tsconfig.json',
-          './apps/bot/tsconfig.json',
+          './apps/donor/tsconfig.json',
+          './apps/worker/tsconfig.json',
+          './e2e/tsconfig.json',
         ],
         tsconfigRootDir: import.meta.dirname,
       },

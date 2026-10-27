@@ -14,7 +14,7 @@ they do: §11.2 forbids one module reading another's tables, and both applicatio
 them.
 
 **The problem dependency-cruiser cannot solve.** Both modules legitimately import
-`@blood-connect/db` for their own schema. The tool sees one allowed edge and has no way to tell
+`@obdm/db` for their own schema. The tool sees one allowed edge and has no way to tell
 `blood_bags` from `blood_requests` inside it. So the boundary would have been a convention, and
 §11.2 is explicit that conventions are what fail here.
 

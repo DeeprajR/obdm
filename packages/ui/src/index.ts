@@ -1,4 +1,4 @@
-// @blood-connect/ui — the in-repo clinical design system (ADR 0015).
+// @obdm/ui — the in-repo clinical design system (ADR 0015).
 //
 // Presentation-only. The kit imports from React and next/link and
 // nothing else. It may not reach into `packages/domain`, `platform`,

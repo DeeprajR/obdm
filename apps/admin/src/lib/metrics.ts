@@ -1,8 +1,8 @@
 import { after } from 'next/server';
 
-import { APP_TIMEZONE, dayOf } from '@blood-connect/domain';
-import { db } from '@blood-connect/platform';
-import { recordSample, type MetricsContext, type Surface } from '@blood-connect/ops';
+import { APP_TIMEZONE, dayOf } from '@obdm/domain';
+import { db } from '@obdm/platform';
+import { recordSample, type MetricsContext, type Surface } from '@obdm/ops';
 
 /**
  * Recording what the application served (§11.9).
