@@ -12,15 +12,16 @@
 
 import { and, eq } from 'drizzle-orm';
 import {
+  chatMessages,
   conversationState,
   donorChannels,
   donorConsents,
   donorPhones,
   donorScreeningAnswers,
   donors,
-} from '@blood-connect/db/bot';
-import { donorDemandConfirmations } from '@blood-connect/db';
-import type { CalendarDay, Sex } from '@blood-connect/domain';
+} from '@obdm/db/bot';
+import { donorDemandConfirmations } from '@obdm/db';
+import type { CalendarDay, Sex } from '@obdm/domain';
 
 import type { BotContext } from '../context.js';
 import { createEventWriter } from '../events.js';
@@ -163,6 +164,30 @@ export async function deleteDonorData(
       .where(eq(donors.id, donorId));
 
     await tx.delete(donorPhones).where(eq(donorPhones.donorId, donorId));
+
+    /**
+     * The transcript goes with the channel (ADR 0017).
+     *
+     * On the web channel the chat is a table of ours, not the platform's, and
+     * its incoming rows hold the name and number as the person typed them.
+     * Leaving it behind would be an erasure that kept a copy of what it erased.
+     * Read the addresses first: the channel rows are what name the transcript.
+     */
+    const addresses = await tx
+      .select({ channel: donorChannels.channel, channelUserId: donorChannels.channelUserId })
+      .from(donorChannels)
+      .where(eq(donorChannels.donorId, donorId));
+    for (const address of addresses) {
+      await tx
+        .delete(chatMessages)
+        .where(
+          and(
+            eq(chatMessages.channel, address.channel),
+            eq(chatMessages.channelUserId, address.channelUserId),
+          ),
+        );
+    }
+
     await tx.delete(donorChannels).where(eq(donorChannels.donorId, donorId));
     // Health data, and nothing depends on it once the donor is gone (§12).
     await tx.delete(donorScreeningAnswers).where(eq(donorScreeningAnswers.donorId, donorId));

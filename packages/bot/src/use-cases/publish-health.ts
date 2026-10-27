@@ -17,10 +17,10 @@
  */
 
 import { and, count, eq, inArray, isNotNull, lt, min, sql } from 'drizzle-orm';
-import { CONTRACT_VERSION } from '@blood-connect/contract';
-import { processHealth } from '@blood-connect/db';
-import { botJobs, botRequests, messageOutbox } from '@blood-connect/db/bot';
-import type { Alert, AlertLevel } from '@blood-connect/domain';
+import { CONTRACT_VERSION } from '@obdm/contract';
+import { processHealth } from '@obdm/db';
+import { botJobs, botRequests, messageOutbox } from '@obdm/db/bot';
+import type { Alert, AlertLevel } from '@obdm/domain';
 
 import type { BotContext } from '../context.js';
 

@@ -16,9 +16,9 @@
  */
 
 import { and, count, eq, inArray, lte, notInArray, sql } from 'drizzle-orm';
-import { messageOutbox } from '@blood-connect/db/bot';
+import { messageOutbox } from '@obdm/db/bot';
 
-import type { IdGenerator } from '@blood-connect/ids';
+import type { IdGenerator } from '@obdm/ids';
 
 import type { BotContext } from './context.js';
 import type { BotTransaction } from './db.js';
@@ -35,6 +35,7 @@ export const MESSAGE_KINDS = [
   'stand_down',
   'thanks',
   'no_show',
+  'cancelled',
   'reply',
   /** The one nudge an abandoned signup gets, ever (§5). */
   'signup_reminder',
@@ -143,7 +144,7 @@ export async function drainOutbox(
    * Before this, every due row was selected oldest-first and the foreign
    * ones were leased, skipped and left to come due again. A seeded pool of
    * in-memory donors left a few hundred such rows, older than anything real,
-   * and a process pointed at Telegram spent every batch leasing them: the
+   * and a process pointed at a real channel spent every batch leasing them: the
    * reply a person was waiting on sat at attempt zero behind a queue it could
    * never reach, and whether it went out depended on how many stale leases
    * had expired that second. Rows for other channels are now not touched at
@@ -226,8 +227,8 @@ export async function drainOutbox(
     /**
      * Route by the row's own channel (§2.11).
      *
-     * One global adapter would send a message queued for Telegram through
-     * whatever this process happens to be polling, to a stranger, or to
+     * One global adapter would send a message queued for one platform through
+     * whatever this process happens to be running, to a stranger, or to
      * nobody. The channel is on the row precisely so this is a lookup.
      */
     const port = ctx.channel.for(row.channel);

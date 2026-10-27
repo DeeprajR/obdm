@@ -11,10 +11,10 @@ import {
   type Actor,
   type Permission,
   type UseCaseContext,
-} from '@blood-connect/platform';
-import { db } from '@blood-connect/platform';
-import { idGenerator } from '@blood-connect/ids';
-import { APP_TIMEZONE, dayOf } from '@blood-connect/domain';
+} from '@obdm/platform';
+import { db } from '@obdm/platform';
+import { idGenerator } from '@obdm/ids';
+import { APP_TIMEZONE, dayOf } from '@obdm/domain';
 
 import type { StaffApp } from './app.js';
 import { currentActor, requestMetadata } from './session.js';

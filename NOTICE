@@ -1,5 +1,5 @@
-Blood Connect
-Copyright 2026 The Blood Connect Contributors
+OBDM
+Copyright 2026 The OBDM Contributors
 
 This product is licensed under the Apache License, Version 2.0. See the
 LICENSE file for the full text.
@@ -8,8 +8,8 @@ LICENSE file for the full text.
 
 PLACEHOLDER COPYRIGHT HOLDER.
 
-"The Blood Connect Contributors" is a placeholder, not a confirmed legal
-name. §12.7 of docs/blood-connect-spec.md is explicit that the licence
+"The OBDM Contributors" is a placeholder, not a confirmed legal
+name. §12.7 of docs/obdm-spec.md is explicit that the licence
 choice, and by extension the copyright line, needs confirming with the
 hospital or university this is built for, or with whoever else holds
 the copyright before any real deployment or public release: an

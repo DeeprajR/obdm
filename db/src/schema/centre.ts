@@ -521,7 +521,13 @@ export const centreDecisions = hospitalSchema.table(
   ],
 );
 
-/** Which bags went to which decision. A bag is issued once (§5.5). */
+/**
+ * Which bags went to which decision (§5.5). A bag can appear under more than
+ * one: a cancelled request puts its reserved bags back on the shelf, and a
+ * returned unit can be restocked, and either may then go to a later decision.
+ * What stops one bag going to two requests at once is its status, not this
+ * table.
+ */
 export const decisionBags = hospitalSchema.table(
   'decision_bags',
   {
@@ -534,7 +540,7 @@ export const decisionBags = hospitalSchema.table(
   },
   (table) => [
     primaryKey({ columns: [table.decisionId, table.bagId] }),
-    uniqueIndex('decision_bags_bag_idx').on(table.bagId),
+    index('decision_bags_bag_idx').on(table.bagId),
   ],
 );
 
@@ -641,7 +647,7 @@ export const donorDemand = hospitalSchema.table(
  * The roster (§5.6). The bot creates a row; the counter records what happened.
  *
  * `donor_id` is the bot's **internal** donor id, not a platform user id (§2.11)
- *, which is what lets the same person be reached on Telegram today and
+ *, which is what lets the same person be reached on the web today and
  * WhatsApp tomorrow without the centre's roster changing shape. There is
  * deliberately no foreign key: the donor table lives in the `bot` schema, which
  * this application cannot see at all.

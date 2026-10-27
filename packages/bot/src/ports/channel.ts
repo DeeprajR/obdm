@@ -1,14 +1,16 @@
 /**
  * The messaging channel, as a port (§2.11).
  *
- * §2.11 is unambiguous: the channel is swappable, and "no Telegram type appears
- * above the adapter". So this file defines conversation in terms the domain
+ * §2.11 is unambiguous: the channel is swappable, and no platform type appears
+ * above the adapter. So this file defines conversation in terms the domain
  * already has, a person to reach, a message, some choices, and the adapter
- * turns that into whatever the platform wants.
+ * turns that into whatever the platform wants. The launch adapter was
+ * Telegram's; the one that replaced it is a web chat (ADR 0017), and nothing
+ * above this file changed for the swap.
  *
  * Two consequences that are the point of doing it this way:
  *
- *  - **A donor's identity is never a Telegram user id.** It is a `donor_id` with
+ *  - **A donor's identity is never a platform user id.** It is a `donor_id` with
  *    rows in `donor_channels`, so reaching the same person on WhatsApp later is
  *    a row rather than a migration.
  *  - **The whole loop is testable with no network.** The in-memory adapter is
@@ -145,7 +147,7 @@ export type ChannelPort = {
  * The channels this process can actually reach.
  *
  * §2.11 stores a channel **per donor** and **per queued message**, because one
- * person may be reachable on Telegram today and WhatsApp tomorrow, and both
+ * person may be reachable on the web today and WhatsApp tomorrow, and both
  * kinds of row can be in the outbox at once. So delivery is a lookup, not a
  * single adapter: sending a message queued for one platform through another
  * delivers it to a stranger, or to nobody.

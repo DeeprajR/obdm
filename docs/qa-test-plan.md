@@ -7,7 +7,7 @@ Work top to bottom the first time. The modules build on each other, and the end-
 in §7 needs records the earlier sections create. Tick a box when a check passes; when one
 fails, leave the box empty and write the outcome on the line beneath it.
 
-Section references in square brackets point at [the specification](blood-connect-spec.md).
+Section references in square brackets point at [the specification](obdm-spec.md).
 
 ---
 
@@ -16,19 +16,20 @@ Section references in square brackets point at [the specification](blood-connect
 Run these one at a time. Windows PowerShell does not accept `&&` as a statement separator.
 
 ```
-pnpm up
+pnpm services:up
 pnpm db:migrate
 pnpm db:migrate:bot
 pnpm db:seed
 pnpm dev
 ```
 
-In a second terminal, for the donor bot. Without a Telegram token it runs on the in-memory
-channel, so the whole conversation can be driven from the terminal:
+The donor bot is the donor app on <http://localhost:3004>, started by `pnpm dev` with the
+others. Drive the conversation from a browser; a second browser profile, or a private
+window, is a second donor. Its terminal lines show every message in and out.
 
-```
-pnpm bot
-```
+`pnpm dev` also starts the worker, which has no screen: it retries queued email every fifteen
+seconds and runs the hourly sweeps (ADR 0018). Its terminal says what it did and when, and
+is quiet otherwise.
 
 ### Where things live
 
@@ -41,14 +42,14 @@ Six of these open in a browser:
 | Blood centre app | <http://localhost:3002> |
 | Volunteer app, and the public board | <http://localhost:3003> |
 | Mailpit inbox | <http://localhost:8025> |
-| MinIO console | <http://localhost:9001>, `minioadmin` / `minioadmin` |
+| The storage bucket | `curl http://localhost:9090/obdm` lists it; S3Mock has no console |
 
 **Postgres is not one of them.** It speaks its own protocol on port 5433, so a browser
 pointed at it will simply fail to connect. Reach it with a database client, or with `psql`
 inside the container:
 
 ```
-docker exec -it blood-connect-postgres-1 psql -U migrator -d blood_connect
+docker exec -it obdm-postgres-1 psql -U migrator -d obdm
 ```
 
 For a graphical client, fill the fields in rather than pasting a URL. Every client accepts
@@ -58,7 +59,7 @@ these, and the two URL formats are not interchangeable:
 |---|---|
 | Host | `localhost` |
 | Port | `5433` |
-| Database | `blood_connect` |
+| Database | `obdm` |
 | User | one of the three below |
 | Password | the same word as the user |
 
@@ -68,8 +69,8 @@ format, used by `psql` and by this project's own Node driver. Both are correct, 
 different clients:
 
 ```
-psql and Node:   postgres://migrator:migrator@localhost:5433/blood_connect
-JDBC clients:    jdbc:postgresql://localhost:5433/blood_connect
+psql and Node:   postgres://migrator:migrator@localhost:5433/obdm
+JDBC clients:    jdbc:postgresql://localhost:5433/obdm
 ```
 
 The JDBC form carries no credentials. Put the user and password in the client's own fields.
@@ -94,8 +95,8 @@ production creates these roles outside the release.
 
 ### Who to sign in as
 
-Every seeded account uses the password `BloodConnect!Demo2026`. All four addresses end
-`@blood-connect.invalid`, a domain reserved so it can never resolve.
+Every seeded account uses the password `OBDM!Demo2026`. All four addresses end
+`@obdm.invalid`, a domain reserved so it can never resolve.
 
 | Account | Does |
 |---|---|
@@ -113,7 +114,7 @@ To wipe everything and rebuild, including the database roles:
 
 ```
 docker compose down -v
-pnpm up
+pnpm services:up
 pnpm db:migrate
 pnpm db:migrate:bot
 pnpm db:seed
@@ -231,9 +232,9 @@ collision cases carefully. They are the ones that never appear in a demo. [§4]
     with a hand and the state is still readable.
 - [ ] **M2-2** Register a blood bag through the intake form.
   - Expect: expiry derived from the product's shelf life, not typed.
-- [ ] **M2-3** Open the blood requests tab and type in the identifier from M1-1. The date
-      should be prefilled.
-  - Expect: five digits finds it. A four-digit sequence is **refused, not guessed at**.
+- [ ] **M2-3** Open the blood requests tab and find the identifier from M1-1 in the queue.
+  - Expect: the row carries the identifier the doctor read out, and its button says **Take
+    details** until a patient is attached, then **Answer**.
 - [ ] **M2-4** Attach a patient to that request.
   - Expect: four required fields, the rest behind a disclosure. Age or date of birth, either
     one, not both.
@@ -358,12 +359,12 @@ Administrator only, at `:3001/panel`. [§11.9, §14]
 
 - [ ] **M5-1** Open `/panel` with everything running.
   - Expect: four dependency tiles, all green, each with a latency and a last-checked time.
-- [ ] **M5-2** Run `docker stop blood-connect-mailpit-1` and reload.
+- [ ] **M5-2** Run `docker stop obdm-mailpit-1` and reload.
   - Expect: the email tile red with the **actual connection error** and what it blocks.
     **The other three stay green.**
   - Why: a probe that reported everything down whenever anything was would be no more useful
     than one that reported everything up.
-- [ ] **M5-3** Do the same with `blood-connect-minio-1`.
+- [ ] **M5-3** Do the same with `obdm-storage-1`.
   - Expect: storage red, the rest green. Start both containers again afterwards.
 - [ ] **M5-4** Stop the bot and wait five minutes.
   - Expect: its heartbeat reads **Silent**, and the page says nothing on it about the bot is

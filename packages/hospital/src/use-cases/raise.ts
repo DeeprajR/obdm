@@ -21,7 +21,7 @@ import {
   bloodRequestCounters,
   bloodRequests,
   users,
-} from '@blood-connect/db';
+} from '@obdm/db';
 import {
   formatRequestNumber,
   isBloodGroup,
@@ -30,14 +30,14 @@ import {
   neededByFor,
   type RequestNumber,
   type Urgency,
-} from '@blood-connect/domain';
-import { err, ok, type Result } from '@blood-connect/result';
+} from '@obdm/domain';
+import { err, ok, type Result } from '@obdm/result';
 import {
   actorHas,
   createAuditWriter,
   type Transaction,
   type UseCaseContext,
-} from '@blood-connect/platform';
+} from '@obdm/platform';
 
 import { notAuthorized, type NotAuthorized } from '../errors.js';
 import {

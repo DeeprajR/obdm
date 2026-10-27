@@ -14,19 +14,19 @@
  */
 
 import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
-import { err, ok, type Result } from '@blood-connect/result';
+import { err, ok, type Result } from '@obdm/result';
 import {
   bloodBags,
   donorDemand,
   donorDemandConfirmations,
   walkInDonations,
-} from '@blood-connect/db';
-import { isBloodGroup, type BloodGroup } from '@blood-connect/domain';
+} from '@obdm/db';
+import { isBloodGroup, type BloodGroup } from '@obdm/domain';
 import {
   actorHas,
   createAuditWriter,
   type UseCaseContext,
-} from '@blood-connect/platform';
+} from '@obdm/platform';
 
 import {
   demandNotFound,

@@ -13,8 +13,8 @@
  * what is logged is that a question was answered, not what the answer was.
  */
 
-import { eventLog } from '@blood-connect/db/bot';
-import { newId } from '@blood-connect/ids';
+import { eventLog } from '@obdm/db/bot';
+import { newId } from '@obdm/ids';
 
 import type { BotTransaction } from './db.js';
 

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-import { Button } from '@blood-connect/ui';
+import { Button } from '@obdm/ui';
 
 /**
  * The message a volunteer pastes into a community group (§6).

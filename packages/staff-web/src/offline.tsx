@@ -21,7 +21,7 @@ export function OfflineScreen() {
         >
           <h1 className="text-base font-semibold text-warning">You are offline</h1>
           <p className="mt-2 text-sm text-ink">
-            Blood Connect needs a connection. Nothing is shown from a stored
+            OBDM needs a connection. Nothing is shown from a stored
             copy, because stock figures and request statuses are only safe
             when they come from the server.
           </p>

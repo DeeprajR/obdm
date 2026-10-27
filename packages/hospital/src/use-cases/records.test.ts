@@ -2,17 +2,17 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
-import { CONFIG_DEFAULTS } from '@blood-connect/config';
-import { admissions, bloodRequests, patients, users } from '@blood-connect/db';
-import { idGenerator, newId } from '@blood-connect/ids';
-import { createFakeClock } from '@blood-connect/testing';
+import { CONFIG_DEFAULTS } from '@obdm/config';
+import { admissions, bloodRequests, patients, users } from '@obdm/db';
+import { idGenerator, newId } from '@obdm/ids';
+import { createFakeClock } from '@obdm/testing';
 import {
   argon2Hasher,
   nodeTokens,
   type Actor,
   type Database,
   type UseCaseContext,
-} from '@blood-connect/platform';
+} from '@obdm/platform';
 
 import {
   findPossibleDuplicates,
@@ -47,7 +47,7 @@ describe.skipIf(!testUrl)('the duplicate-patient warning (§3)', () => {
     doctor = { kind: 'user', userId: doctorId, role: 'doctor', districtScopeId: null };
     await db.insert(users).values({
       id: doctorId,
-      email: `doctor-${doctorId}@blood-connect.invalid`,
+      email: `doctor-${doctorId}@obdm.invalid`,
       fullName: 'Dr Test',
       role: 'doctor',
       status: 'active',
@@ -198,7 +198,7 @@ describe.skipIf(!testUrl)('the compatibility testing sample (§3, §15)', () => 
     doctor = { kind: 'user', userId: doctorId, role: 'doctor', districtScopeId: null };
     await db.insert(users).values({
       id: doctorId,
-      email: `doctor-${doctorId}@blood-connect.invalid`,
+      email: `doctor-${doctorId}@obdm.invalid`,
       fullName: 'Dr Sample',
       role: 'doctor',
       status: 'active',

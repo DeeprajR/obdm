@@ -1,4 +1,4 @@
-# Blood Connect: backend architecture plan
+# OBDM: backend architecture plan
 
 How the backend of the four modules is built: the deployable units, the code
 boundaries, the database, the transactions that decide correctness, the machine
@@ -110,8 +110,10 @@ horizontally scalable (§10). A stateless replica must not run `setInterval`: wi
 every scheduled sweep fires three times, and the quarantine-ageing escalation mails three times.
 The worker runs the same use-case packages with a different entrypoint, so it adds no new
 codebase. It is a process count, not a component. It takes a Postgres advisory lock at boot so a
-rolling deploy never runs two. **Not yet built**: until it is, the email drain runs after the
-request that queued the mail ([ADR 0003](adr/0003-administration-as-a-separate-application.md) §6).
+rolling deploy never runs two. Built as `apps/worker`
+([ADR 0018](adr/0018-what-a-public-deployment-needed.md)). The applications still drain the email
+outbox after the request that queued the mail ([ADR 0003](adr/0003-administration-as-a-separate-application.md) §6),
+so an invite goes out at once; the worker is what sends it when that attempt did not.
 
 **Why `vision` never touches the database.** §2.12 makes the camera observational. A process
 with no database credentials cannot write the register even by mistake. The trust model is
@@ -136,7 +138,7 @@ One repository, pnpm workspaces. The spec requires one implementation of the cli
 them to live in one workspace.
 
 ```
-blood-connect/
+obdm/
   apps/
     doctor/                    # A: Next.js. Module 1 screens               (:3000 in dev)
     admin/                     # E: Next.js. Doctor records, control panel   (:3001)
@@ -393,7 +395,7 @@ retrofit (§13), even though v1 runs one centre.
 | `bag_discards` | id, bag_id, reason, note, disposal_route, discarded_by, discarded_at | `disposal_route` required: a status change is not the end of the bag (§12.1) |
 | `tag_discrepancies` | id, tag_uid, presented_at, presented_by, conflicting_bag_id, status, finding (`duplicate_tag`/`bag_missing`/`mis_scan`), note, resolved_by, resolved_at | **Never auto-resolves and never expires** (§4): no job touches this table, and that absence is deliberate and commented. Index `(status, presented_at)` |
 | `centre_decisions` | id, request_id **unique**, decision, units_issued, note, decided_by, decided_at, demand_id | The unique constraint is what actually prevents a request being decided twice (§11.5) |
-| `decision_bags` | decision_id, bag_id | `PRIMARY KEY (decision_id, bag_id)`, plus unique on `bag_id`: a bag is issued once |
+| `decision_bags` | decision_id, bag_id | `PRIMARY KEY (decision_id, bag_id)`, plus an index on `bag_id`. Not unique: a bag released by a cancelled request, or restocked after a return, can go to a later decision |
 | `storage_devices` | id, name, storage_unit, kind (`camera`/`reader`), token_hash unique, revoked_at, last_seen_at | Token shown once, stored hashed (§15); `last_seen_at` drives the "camera stopped reporting" alert |
 | `camera_calibrations` | id, device_id, version, reference_frame_ref, activated_at, activated_by, retired_at | Unique `(device_id, version)`; partial unique `(device_id) WHERE activated_at IS NOT NULL AND retired_at IS NULL` |
 | `calibration_regions` | id, calibration_id, label, polygon jsonb, blood_group, product, expected_capacity | The group comes from geometry, never from the pixels (§4) |
@@ -859,6 +861,11 @@ RETURNING *;
 | `purge-frames` | daily | Deletes camera frames past `delete_after`, reports what it removed | §12.3 |
 | `retention-sweep` | daily | Per-class deletion from §12.3, with a **dry-run mode and a report** | §12.5 |
 | `session-otp-cleanup` | hourly | Deletes expired sessions, OTPs and invites: deleted, not merely marked used | §12.3 |
+
+Three of these run today, in `apps/worker/src/main.ts`: `drain-email-outbox`, `expire-bags`,
+and `session-otp-cleanup` under the name `sweep-credentials`, which also prunes day-old throttle
+windows ([ADR 0018](adr/0018-what-a-public-deployment-needed.md)). The rest wait on the use case
+each needs; adding one is a row in that file's schedule once the use case exists.
 
 Note what is **not** here: nothing touches `tag_discrepancies`. §4 says a case-3 discrepancy
 never auto-resolves and never expires; the absence of a job is how that is implemented, and it

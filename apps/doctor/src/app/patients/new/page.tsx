@@ -1,13 +1,13 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { Card } from '@blood-connect/ui';
+import { Card } from '@obdm/ui';
 
 import { KitShell } from '../../kit-shell';
 import { PatientForm } from './form';
 import { requireAccess } from '@/lib/guards';
 
-export const metadata: Metadata = { title: 'New patient · Blood Connect' };
+export const metadata: Metadata = { title: 'New patient · OBDM' };
 
 export default async function NewPatientPage() {
   const actor = await requireAccess('/patients/new');
@@ -15,7 +15,7 @@ export default async function NewPatientPage() {
 
   return (
     <KitShell
-      role={actor.role}
+      role={actor.role} userId={actor.userId}
       currentPath="/patients/new"
       currentTitle="New patient"
     >

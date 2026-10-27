@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { Card, PageHeader, linkButtonClasses } from '@blood-connect/ui';
+import { Card, PageHeader, linkButtonClasses } from '@obdm/ui';
 
 import { CentreShell } from '../../centre-shell';
 import {
@@ -12,10 +12,10 @@ import {
   TagLookupForm,
 } from '../../centre-collision-forms';
 import { requireAccess, useCaseContext } from '@/lib/guards';
-import { listOpenDiscrepancies, resolveTag, returnTimeLimitMinutes } from '@blood-connect/centre';
-import { WORDING, bloodGroupLabel, productLabel } from '@blood-connect/domain';
+import { listOpenDiscrepancies, resolveTag, returnTimeLimitMinutes } from '@obdm/centre';
+import { WORDING, bloodGroupLabel, productLabel } from '@obdm/domain';
 
-export const metadata: Metadata = { title: 'Scan a tag · Blood Connect' };
+export const metadata: Metadata = { title: 'Scan a tag · OBDM' };
 
 const LINK_PRIMARY = linkButtonClasses({ variant: 'primary' });
 

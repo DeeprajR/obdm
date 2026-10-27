@@ -2,24 +2,18 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import {
-  Button,
   Card,
   DataTable,
   PageHeader,
   StatusBadge,
   type Column,
-} from '@blood-connect/ui';
+} from '@obdm/ui';
 
 import { CentreShell } from '../../centre-shell';
-import { LiveRefresh } from '@blood-connect/staff-web/client';
+import { LiveRefresh } from '@obdm/staff-web/client';
 import { requireAccess, useCaseContext } from '@/lib/guards';
-import { stockByGroup } from '@blood-connect/centre';
-import {
-  findRequestByNumber,
-  listRequestsAwaitingDecision,
-} from '@blood-connect/hospital';
-import { requestDatePart } from '@blood-connect/domain';
-import { RequestLookupForm } from '../../request-lookup-form';
+import { stockByGroup } from '@obdm/centre';
+import { listRequestsAwaitingDecision } from '@obdm/hospital';
 import {
   URGENCY_SHORT,
   WORDING,
@@ -30,9 +24,9 @@ import {
   productLabel,
   waitingLabel,
   type Urgency,
-} from '@blood-connect/domain';
+} from '@obdm/domain';
 
-export const metadata: Metadata = { title: 'Request queue · Blood Connect' };
+export const metadata: Metadata = { title: 'Request queue · OBDM' };
 
 type QueueRow = Awaited<
   ReturnType<typeof listRequestsAwaitingDecision>
@@ -50,32 +44,14 @@ type QueueRow = Awaited<
  * record. That is what the doctor told the centre, and it is what the
  * centre answers.
  */
-export default async function QueuePage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
+export default async function QueuePage() {
   const actor = await requireAccess('/centre/requests');
   const ctx = await useCaseContext(actor);
-  const query = await searchParams;
 
   const [queue, stock] = await Promise.all([
     listRequestsAwaitingDecision(ctx),
     stockByGroup(ctx),
   ]);
-
-  /**
-   * The bystander read out an ID and the counter typed it (ADR 0010).
-   *
-   * A GET rather than an action, so the result is a URL somebody can
-   * keep open on a second monitor while they work through the request.
-   */
-  const one = (key: string): string =>
-    typeof query[key] === 'string' ? query[key].trim() : '';
-  // Two fields, one identifier: the date is prefilled and the sequence
-  // is what gets typed, so they arrive apart and are joined here.
-  const typed = one('n') === '' ? '' : `${one('d')}-${one('n')}`;
-  const found = typed === '' ? undefined : await findRequestByNumber(ctx, typed);
 
   const today = ctx.clock.today();
   const now = ctx.clock.now();
@@ -210,54 +186,6 @@ export default async function QueuePage({
           'Most urgent first, then longest waiting. The stock column is red cells and whole blood held for that group, which is not the same as units of the exact component asked for. Open a request to see that.'
         }
       />
-
-      <Card title="Somebody is here with an ID">
-        <p className="mb-4 text-xs text-ink-subtle">
-          {/*
-            The date is prefilled because almost every request brought to
-            the counter was raised today, leaving five digits to type
-            (ADR 0010).
-          */}
-          Type the five digits they read out. Today&rsquo;s date is filled in.
-        </p>
-
-        <RequestLookupForm
-          datePart={requestDatePart(today)}
-          defaultValue={typed}
-        />
-
-        {typed !== '' && !found ? (
-          <div
-            role="status"
-            className="mt-4 rounded-control border border-warning/30 bg-warning-soft px-3 py-2 text-sm text-ink"
-          >
-            {/*
-              No guessing at a near miss: a wrong digit is a different
-              request, not this one. There is a person standing there
-              who can read it again.
-            */}
-            No request with that ID. Ask them to read it again, every
-            digit matters.
-          </div>
-        ) : null}
-
-        {found ? (
-          <div
-            role="status"
-            className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-control border border-info/30 bg-info-soft px-3 py-2 text-sm text-ink"
-          >
-            <span className="font-mono tabular-nums">
-              {found.requestId}: {found.units} × {productLabel(found.product)}{' '}
-              {bloodGroupLabel(found.bloodGroup)}
-            </span>
-            <Link href={`/centre/requests/${found.id}`}>
-              <Button size="sm">
-                {found.awaitingPatient ? 'Take their details' : 'Open it'}
-              </Button>
-            </Link>
-          </div>
-        ) : null}
-      </Card>
 
       {needPatient > 0 ? (
         <div

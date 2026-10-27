@@ -458,8 +458,8 @@ for example: "4 units wanted by 2026-09-23. 2 collected from the donors we asked
 1 from people who simply came in."
 
 **Expected at the counter.** One card per confirmed donor with their name, phone, group
-and channel. If the donor typed their number instead of sharing it through Telegram,
-the phone reads "not verified". When the donor arrives and has given, or did not come:
+and channel. A number typed into the donor app cannot be checked by the app, so the
+phone reads "not verified": confirm it with the donor when they arrive. When the donor arrives and has given, or did not come:
 
 1. Choose the outcome: **Donated**, **No-show** or **Cancelled**.
 2. For Donated, type the **unit number** collected and choose the **group the unit
@@ -467,8 +467,9 @@ the phone reads "not verified". When the donor arrives and has given, or did not
    their group for future requests.
 3. Press **Record**.
 
-A no-show frees the place, and the bot offers it to the next person on the waiting
-list. Each donor is marked once. After Donated, the bot thanks the donor and tells them
+A no-show frees the place, and so does Cancelled, which is for a donor who let you know
+they could not come. The bot offers the place to the next person on the waiting list,
+and if nobody is waiting it starts asking donors again. Each donor is marked once. After Donated, the bot thanks the donor and tells them
 when they can give again. Until then, the card notes "The bot has not thanked this
 donor yet." When nobody is expected, the section says "Nobody is expected right now."
 
@@ -591,6 +592,6 @@ can say how long. Quarantine it and let a named person decide.
 bag cannot be edited. Discard it with a reason and register it again with the right
 group.
 
-**"Not available. This account does not have access to this part of Blood Connect."**
+**"Not available. This account does not have access to this part of OBDM."**
 You opened a page your account cannot use. The page has no link back, so use the
 browser's back button or the menu.

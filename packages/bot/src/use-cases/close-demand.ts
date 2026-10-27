@@ -25,10 +25,10 @@
  */
 
 import { and, eq, inArray, sql } from 'drizzle-orm';
-import { botRequests, donorChannels, donorRequests } from '@blood-connect/db/bot';
-import { donorDemand } from '@blood-connect/db';
-import { STANDS_DOWN_ON_CLOSURE } from '@blood-connect/domain';
-import { err, ok, type Result } from '@blood-connect/result';
+import { botRequests, donorChannels, donorRequests } from '@obdm/db/bot';
+import { donorDemand } from '@obdm/db';
+import { STANDS_DOWN_ON_CLOSURE } from '@obdm/domain';
+import { err, ok, type Result } from '@obdm/result';
 
 import type { BotContext } from '../context.js';
 import { createEventWriter } from '../events.js';

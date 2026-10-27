@@ -19,14 +19,14 @@
  */
 
 import { and, eq, isNull, lt, sql } from 'drizzle-orm';
-import { err, ok, type Result } from '@blood-connect/result';
+import { err, ok, type Result } from '@obdm/result';
 import {
   bagDiscards,
   bagQuarantines,
   bagReturns,
   bloodBags,
   centreSettings,
-} from '@blood-connect/db';
+} from '@obdm/db';
 import {
   allowedOutcomes,
   bagTransitions,
@@ -35,12 +35,12 @@ import {
   type BagStatus,
   type ReturnOutcome,
   type StorageBand,
-} from '@blood-connect/domain';
+} from '@obdm/domain';
 import {
   actorHas,
   createAuditWriter,
   type UseCaseContext,
-} from '@blood-connect/platform';
+} from '@obdm/platform';
 
 import {
   invalidBag,
@@ -50,7 +50,7 @@ import {
 } from '../errors.js';
 
 /**
- * The outcome rules are pure and live in `@blood-connect/domain`, where the
+ * The outcome rules are pure and live in `@obdm/domain`, where the
  * return form in the browser can import them too. Re-exported here so this
  * module's callers keep one import for everything about a return.
  */
@@ -113,8 +113,10 @@ export async function returnBag(
 
     if (!bag) return err(invalidBag('That bag is not in the register.'));
 
+    // `reserved` comes back too: §4 puts "issued or reserved" in case 1, since
+    // a held unit can leave the fridge before anyone records the hand-over.
     const from = bag.status as BagStatus;
-    if (!canTransition(bagTransitions, from, 'returned')) {
+    if (from !== 'reserved' && !canTransition(bagTransitions, from, 'returned')) {
       return err(
         invalidBag(`A bag that is ${from} has not been issued, so it cannot come back.`),
       );

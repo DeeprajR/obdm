@@ -17,8 +17,8 @@
  */
 
 const BASE = process.argv[2] ?? process.env.SMOKE_BASE_URL ?? 'http://localhost:3000';
-const EMAIL = process.env.SMOKE_EMAIL ?? 'doctor@blood-connect.invalid';
-const PASSWORD = process.env.SMOKE_PASSWORD ?? 'BloodConnect!Demo2026';
+const EMAIL = process.env.SMOKE_EMAIL ?? 'doctor@obdm.invalid';
+const PASSWORD = process.env.SMOKE_PASSWORD ?? 'OBDM!Demo2026';
 // Each application names its own cookie (ADR 0016). The defaults are the doctor app's.
 const COOKIE = process.env.SMOKE_COOKIE ?? 'bc_doctor_session';
 
@@ -80,7 +80,7 @@ check('no session cookie', bad.token, undefined);
 check('no redirect', bad.location, null);
 
 console.log('\nunknown address');
-const unknown = await post('nobody@blood-connect.invalid', PASSWORD);
+const unknown = await post('nobody@obdm.invalid', PASSWORD);
 check('no session cookie', unknown.token, undefined);
 check('answers like a wrong password', unknown.status, bad.status);
 
@@ -108,7 +108,7 @@ if (good.token) {
   // §14: the refusal must be in the body, not only in the status.
   check(
     'refusal carries no data',
-    ['Doctor', 'Administration', '@blood-connect'].every((w) => !forbiddenBody.includes(w)),
+    ['Doctor', 'Administration', '@obdm'].every((w) => !forbiddenBody.includes(w)),
     true,
   );
 }

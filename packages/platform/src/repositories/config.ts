@@ -11,13 +11,13 @@
  * is safe; applying half of an edit is not.
  */
 
-import { appConfig } from '@blood-connect/db';
+import { appConfig } from '@obdm/db';
 import {
   CONFIG_DEFAULTS,
   createConfigCache,
   resolveConfig,
   type AppConfig,
-} from '@blood-connect/config';
+} from '@obdm/config';
 
 import { db, type Database } from '../db.js';
 

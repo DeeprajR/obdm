@@ -2,8 +2,14 @@ import 'server-only';
 
 import { cookies, headers } from 'next/headers';
 
-import { db } from '@blood-connect/platform';
-import { isSameOrigin, nodeTokens, resolveActor, type Actor } from '@blood-connect/platform';
+import { db } from '@obdm/platform';
+import {
+  clientAddress,
+  isSameOrigin,
+  nodeTokens,
+  resolveActor,
+  type Actor,
+} from '@obdm/platform';
 
 import type { StaffApp } from './app.js';
 
@@ -94,11 +100,10 @@ export async function requestMetadata(): Promise<{
   userAgent: string | null;
 }> {
   const headerList = await headers();
-  // Behind a proxy the socket address is the proxy's, so the forwarded chain is
-  // read first. Its leftmost entry is client-supplied and therefore only ever
-  // used as a throttle key, never as an identity or an access decision.
-  const forwarded = headerList.get('x-forwarded-for');
-  const ip = forwarded?.split(',')[0]?.trim() ?? headerList.get('x-real-ip') ?? null;
+  // Behind a proxy the socket address is the proxy's. The entry the nearest
+  // proxy wrote is read, validated as an address, and used only as a throttle
+  // key, never as an identity or an access decision (`clientAddress`).
+  const ip = clientAddress(headerList.get('x-forwarded-for'), headerList.get('x-real-ip'));
 
   return { ip, userAgent: headerList.get('user-agent') };
 }

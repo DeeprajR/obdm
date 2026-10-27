@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
 
-import { InviteCard } from '@blood-connect/staff-web';
-import { currentConfig } from '@blood-connect/platform';
+import { InviteCard } from '@obdm/staff-web';
+import { currentConfig } from '@obdm/platform';
 
 import { activateAction } from '../../actions';
 import { APP } from '@/lib/app';
 
-export const metadata: Metadata = { title: 'Set your password · Blood Connect' };
+export const metadata: Metadata = { title: 'Set your password · OBDM' };
 
 /** The invite link (§2.3, §8). Public by necessity: there is no account yet. */
 export default async function InvitePage({

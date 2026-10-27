@@ -1,6 +1,6 @@
 # Hospital demo plan
 
-A plan for showing Blood Connect to the hospital: what to show, in what order, what to
+A plan for showing OBDM to the hospital: what to show, in what order, what to
 say, and what to prepare so the live run works first time.
 
 The demo tells one story: a patient needs blood, the shelf is short, a donor is found,
@@ -41,9 +41,12 @@ Total: about 45 minutes. Keep the live loop under 25.
 with four tabs works for all four staff roles. You do not need incognito windows. Keep
 the tabs in this order: Doctor, Blood centre, Volunteer, Administration.
 
-**Phone.** Your phone, registered with the Telegram bot, mirrored to the projector if
+**Phone.** Your phone, with the donor app installed from http://localhost:3004 (or the
+machine's address on the demo network) and registered, mirrored to the projector if
 you can. If mirroring is not possible, hold it up and read the messages aloud. Ask a
 colleague to bring a second registered phone so the "stand down" message can be seen.
+A second browser profile on the laptop works as a second donor too: the donor app
+knows a person by the browser's cookie.
 
 ---
 
@@ -54,13 +57,13 @@ Do all of this the day before, then rehearse the loop once from start to finish.
 ### 3.1 Start the stack
 
 ```
-pnpm up
+pnpm services:up
 pnpm dev
-pnpm bot
 ```
 
 Docker Desktop does not start on its own on this machine. Launch it first. Check
-`docker compose ps -a` shows postgres, mailpit and minio as Up.
+`docker compose ps -a` shows postgres, mailpit and storage as Up. `pnpm dev` starts all
+five applications; the donor app on :3004 is the bot, and its ticker starts with it.
 
 ### 3.2 Check the seed data is what you expect
 
@@ -71,18 +74,20 @@ something is broken.
 |---|---|
 | Centre settings | Hospital name, address and district (Kozhikode) are set. Floor 25 |
 | Stock | B- has 3 units on the shelf. A- has 4. AB- has 0. Everything else is higher |
-| Donors | 123 seeded, all on the in-memory channel. They never receive a Telegram message |
+| Donors | 123 seeded, all on the in-memory channel. They never receive a message in the donor app |
 | Open demands | None. Every old demand is expired or cancelled |
 
 **Use B- for the story.** It is short on the shelf, and only 10 seeded donors have a
 group that can be given to a B- patient, so your phone is guaranteed to be in the
 first wave of 20.
 
-### 3.3 Register the demo phones with the bot
+### 3.3 Register the demo phones with the donor app
 
-On your phone, open `cmck_blood_donor_bot` in Telegram and register:
+On your phone, open the donor app (http://localhost:3004, or the laptop's address on
+the demo network), add it to the home screen, and register:
 
-- Share your number with the button, not by typing, so the roster shows it as verified
+- Type your number carefully; the roster will show it as not verified, which is the
+  honest reading for a number typed into a web page, and the counter confirms it
 - Blood group **B-**
 - Location in Kozhikode district, ideally the hospital's own locality
 - Weight 50 or more, all health answers No, never donated
@@ -99,7 +104,7 @@ The board is behind a feature flag with no button in any app. Run this once agai
 Docker Postgres on port 5433:
 
 ```
-docker exec -it blood-connect-postgres-1 psql -U postgres -d blood_connect
+docker exec -it obdm-postgres-1 psql -U postgres -d obdm
 ```
 
 ```sql
@@ -112,11 +117,11 @@ now."
 
 ### 3.5 Clear the bot's backlog
 
-The bot's outbox has over 200 pending messages left from earlier runs. With the bot
-running on Telegram, check the administration control panel. If the row "Messages
-queued to donors and not sent" is still there after a few minutes, those are messages
-to seeded in-memory donors that cannot be delivered over Telegram. Either run the bot
-against a clean database, or clear the pending rows:
+The bot's outbox may hold pending messages left from earlier runs. With the donor app
+running, check the administration control panel. If the row "Messages queued to donors
+and not sent" is still there after a few minutes, those are messages to seeded
+in-memory donors, which the donor app does not deliver (it runs the web channel only).
+Either run against a clean database, or clear the pending rows:
 
 ```sql
 DELETE FROM bot.message_outbox WHERE status = 'pending';
@@ -127,14 +132,15 @@ your own message is not behind two hundred others.
 
 ### 3.6 Check the control panel
 
-Sign in to http://localhost:3001 as `admin@blood-connect.invalid` and open **Control
+Sign in to http://localhost:3001 as `admin@obdm.invalid` and open **Control
 panel**. Before you go home:
 
 - Database, SMTP, storage and contract tiles all say **Working**
 - Web release and Donor bot both say **Reporting**
 - "What is waiting on somebody" says nothing is waiting
 
-If the bot says **Silent**, `pnpm bot` is not running or has crashed. Read its terminal.
+If the bot says **Silent**, the donor app is not running or its ticker has stopped. Read
+its lines in the `pnpm dev` terminal.
 
 ### 3.7 Rehearse once, end to end
 
@@ -143,8 +149,9 @@ leave the demand closed. Afterwards, B- will have fewer units on the shelf, whic
 fine. Note the request ID you used so you can show it on the trace screen if the live
 run fails.
 
-**Record the phone screen during the rehearsal.** If Telegram is unreachable on the day,
-you play the recording at the moment the phone should buzz and continue the rest live.
+**Record the phone screen during the rehearsal.** If the phone cannot reach the laptop
+on the day, you play the recording at the moment the message should appear and continue
+the rest live, or open the donor app in a second browser window on the laptop itself.
 The centre roster, volunteer tiles and admin trace do not depend on the phone.
 
 ---
@@ -152,15 +159,15 @@ The centre roster, volunteer tiles and admin trace do not depend on the phone.
 ## 4. The morning of the demo
 
 - [ ] Docker Desktop running, `docker compose ps -a` shows all three services Up
-- [ ] `pnpm dev` running, all four apps answer at their ports
-- [ ] `pnpm bot` running on Telegram, terminal shows no errors
+- [ ] `pnpm dev` running, all five apps answer at their ports, the donor app's terminal
+      lines show "bot ticking" and no errors
 - [ ] Control panel: all tiles Working, both heartbeats Reporting, nothing waiting
 - [ ] Four browser tabs signed in: doctor, centre, volunteer, admin
-- [ ] Both phones charged, Telegram open on the bot, `needs` shows nothing open
+- [ ] Both phones charged, the donor app open, **What is needed now** shows nothing open
 - [ ] Mailpit at http://localhost:8025 open in a fifth tab, for the invite email
 - [ ] Phone recording from the rehearsal on the laptop, ready to play
 - [ ] Laptop on mains power, notifications and screen lock off
-- [ ] The password `BloodConnect!Demo2026` on a card in your pocket
+- [ ] The password `OBDM!Demo2026` on a card in your pocket
 
 ---
 
@@ -171,7 +178,7 @@ room is following.
 
 ### Step 1. The doctor raises a request (Doctor tab, 2 minutes)
 
-Sign in as `doctor@blood-connect.invalid`. Press **New request**.
+Sign in as `doctor@obdm.invalid`. Press **New request**.
 
 Choose **B-**, **Packed Red Blood Cells**, **5** units, **Urgent, today**. Press **Send
 to the blood centre**.
@@ -187,7 +194,7 @@ the centre is asked to answer within 4 hours."
 
 ### Step 2. The bystander arrives at the counter (Centre tab, 3 minutes)
 
-Sign in as `centre@blood-connect.invalid`. The dashboard button says **Answer 1
+Sign in as `centre@obdm.invalid`. The dashboard button says **Answer 1
 waiting**. Press it.
 
 Show the queue: "Most urgent first. This one has no patient yet, so the button says
@@ -257,7 +264,7 @@ is the desk that has to ring them."
 
 ### Step 7. The volunteer and the public see the need (Volunteer tab, 2 minutes)
 
-Sign in as `volunteer@blood-connect.invalid`. The B- tile shows the outstanding units
+Sign in as `volunteer@obdm.invalid`. The B- tile shows the outstanding units
 and its state. Tap it. Show the table and the **Message to forward**. Press **Copy the
 message** and paste it into a notes app or a chat window.
 
@@ -295,7 +302,7 @@ flagged."
 
 ### Step 10. Follow the unit end to end (Administration tab, 2 minutes)
 
-Sign in as `admin@blood-connect.invalid`. Open **Control panel**, then **Follow one
+Sign in as `admin@obdm.invalid`. Open **Control panel**, then **Follow one
 request**. Paste the request ID from step 1 and press **Follow it**.
 
 Show the timeline: request raised, patient identified, centre decided, bags issued,
@@ -359,8 +366,9 @@ from a link that works once."
   demands and will not match the tiles.
 - **Do not open the doctor's Patients card in the admin app** casually. It is audited
   by record and you will be asked why it exists. If asked, show it and explain that.
-- **Do not promise Telegram timing.** Say "within about fifteen seconds" and keep
-  talking while you wait.
+- **Do not promise the timing.** The ticker runs every fifteen seconds and the phone
+  refreshes every few seconds. Say "within about fifteen seconds" and keep talking
+  while you wait.
 
 ---
 
@@ -383,9 +391,11 @@ an old stock figure, because an old stock figure is a wrong one. The bot queues
 messages and sends them when the platform is back. The control panel shows a queue
 building and a silent bot.
 
-**What if Telegram is blocked or the donors do not use it?** The bot talks to the chat
-platform through one adapter. The system runs and is demonstrable without any chat
-platform. A second channel is a matter of writing another adapter.
+**Why a web app and not WhatsApp or Telegram?** It started on Telegram. A donor
+needed that app and an account before they could say hello, and the hospital depended
+on a platform it does not control. The web app needs a browser and nothing else, and
+the conversation is identical because the bot talks to its channel through one
+adapter. WhatsApp, when wanted, is another adapter behind the same port.
 
 **Can it substitute O- for a B- patient?** No. It issues the exact group and product
 requested. Substitution is a clinical decision. It does ask O- donors for a B- patient,
@@ -419,7 +429,8 @@ the name replaced.
 | "Somebody answered this request a moment ago" | You double-clicked. Reload |
 | Volunteer tile does not move | It refreshes every minute. Reload the tab |
 | Board says "not published" | The flag was not set, section 3.4. Skip the board and show the volunteer message instead |
-| Control panel shows bot Silent | Restart `pnpm bot` and say what the tile just did: it told you |
+| Control panel shows bot Silent | Restart `pnpm dev` (the donor app carries the ticker) and say what the tile just did: it told you |
+| Phone shows "Could not reach OBDM" | The phone cannot reach the laptop. Check both are on the demo network, or open the donor app in a second browser window on the laptop |
 
 Say what happened, plainly. A system that shows its own failure on a panel is part of
 what you are demonstrating.

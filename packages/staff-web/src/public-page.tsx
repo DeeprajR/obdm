@@ -37,7 +37,8 @@ export function PublicPage({
             B
           </span>
           <div>
-            <p className="text-base font-semibold text-ink">Blood Connect · {app.name}</p>
+            <p className="text-base font-semibold text-ink">OBDM · {app.name}</p>
+            <p className="text-xs text-ink-subtle">Open Blood Donation Management</p>
             <p className="text-xs text-ink-subtle">{subtitle}</p>
           </div>
         </div>

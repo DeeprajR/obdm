@@ -162,6 +162,20 @@
       "when": 1789809416795,
       "tag": "0022_sessions_name_their_application",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1793091478029,
+      "tag": "0023_users_deactivated_before_activation",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793091564175,
+      "tag": "0024_a_released_bag_can_be_decided_again",
+      "breakpoints": true
     }
   ]
 }

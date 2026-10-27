@@ -24,7 +24,7 @@ import {
   demandTransitions as demandStateMachine,
   type DemandStatus,
   type Transitions,
-} from '@blood-connect/domain';
+} from '@obdm/domain';
 import { z } from 'zod';
 
 /**
@@ -121,7 +121,7 @@ export const donorDemandConfirmationRowSchema = z.object({
 
   /**
    * The bot's **internal** donor id, not a platform user id (§7, §2.11). That is
-   * what lets the same person be reached on Telegram today and WhatsApp
+   * what lets the same person be reached on the web today and WhatsApp
    * tomorrow without the centre's roster changing shape.
    */
   donorId: uuid,

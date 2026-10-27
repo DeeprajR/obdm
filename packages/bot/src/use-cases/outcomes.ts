@@ -13,15 +13,15 @@
  */
 
 import { and, eq, isNull, ne, sql } from 'drizzle-orm';
-import { botRequests, donorChannels, donorRequests, donors } from '@blood-connect/db/bot';
-import { donorDemandConfirmations } from '@blood-connect/db';
+import { botRequests, donorChannels, donorRequests, donors } from '@obdm/db/bot';
+import { donorDemandConfirmations } from '@obdm/db';
 import {
   nextEligibleOn,
   parseBloodGroup,
   qualifyDonor,
   type CalendarDay,
   type Sex,
-} from '@blood-connect/domain';
+} from '@obdm/domain';
 
 import type { BotContext } from '../context.js';
 import { createEventWriter } from '../events.js';
@@ -32,6 +32,13 @@ export type OutcomeResult = {
   readonly processed: number;
   readonly completed: number;
   readonly noShows: number;
+  readonly cancelled: number;
+  /**
+   * The bot requests whose counts moved, so the ticker can promote into a
+   * freed place and write the new counts back to the centre in the same pass
+   * rather than whenever something else happens to touch the request.
+   */
+  readonly touched: readonly string[];
 };
 
 /**
@@ -68,16 +75,20 @@ export async function applyCounterOutcomes(
   let processed = 0;
   let completed = 0;
   let noShows = 0;
+  let cancelled = 0;
+  const touched = new Set<string>();
 
   for (const row of pending) {
-    const done = await applyOne(ctx, row);
-    if (!done) continue;
+    const applied = await applyOne(ctx, row);
+    if (!applied) continue;
     processed += 1;
     if (row.status === 'completed') completed += 1;
     if (row.status === 'no_show') noShows += 1;
+    if (row.status === 'cancelled') cancelled += 1;
+    if (applied.botRequestId !== null) touched.add(applied.botRequestId);
   }
 
-  return { processed, completed, noShows };
+  return { processed, completed, noShows, cancelled, touched: [...touched] };
 }
 
 async function applyOne(
@@ -91,7 +102,7 @@ async function applyOne(
     bagIdentifier: string | null;
     donatedBloodGroup: string | null;
   },
-): Promise<boolean> {
+): Promise<{ readonly botRequestId: string | null } | false> {
   const now = ctx.clock.now();
 
   return ctx.db.transaction(async (tx) => {
@@ -275,10 +286,18 @@ async function applyOne(
       });
     }
 
-    if (row.status === 'no_show' && request) {
+    /**
+     * The two outcomes that free a place (§5): the person did not come, or
+     * let the centre know they could not. They differ only in what the
+     * journey records and what the person is told; what happens to the place
+     * is the same, and it is the part that matters.
+     */
+    if ((row.status === 'no_show' || row.status === 'cancelled') && request) {
+      const cancelled = row.status === 'cancelled';
+
       await tx
         .update(donorRequests)
-        .set({ status: 'NO_SHOW', terminalAt: now })
+        .set({ status: cancelled ? 'CANCELLED' : 'NO_SHOW', terminalAt: now })
         .where(
           and(
             eq(donorRequests.botRequestId, request.id),
@@ -294,17 +313,36 @@ async function applyOne(
         .set({ confirmedCount: sql`greatest(0, ${botRequests.confirmedCount} - 1)` })
         .where(eq(botRequests.id, request.id));
 
+      /**
+       * And recruitment starts again if the place is still empty. A request
+       * that filled stopped its waves; a freed place on it with nobody waiting
+       * would otherwise never be asked for again, and the demand would sit
+       * "fulfilled" with a unit outstanding until it expired. The promotion
+       * that runs after this fills the place from the waitlist first, and
+       * marks the request full again when it does.
+       */
+      await tx
+        .update(botRequests)
+        .set({ status: 'open', nextWaveAt: now })
+        .where(
+          and(
+            eq(botRequests.id, request.id),
+            eq(botRequests.status, 'fulfilled'),
+            sql`${botRequests.confirmedCount} + ${botRequests.walkInUnits} < ${botRequests.unitsNeeded}`,
+          ),
+        );
+
       if (channel) {
         messages.push({
           to: channel,
-          kind: 'no_show',
-          message: { text: MESSAGES.noShowNoted },
-          dedupeKey: `no_show:${row.id}`,
+          kind: cancelled ? 'cancelled' : 'no_show',
+          message: { text: cancelled ? MESSAGES.cancellationNoted : MESSAGES.noShowNoted },
+          dedupeKey: `${row.status}:${row.id}`,
         });
       }
 
       await event({
-        event: 'donor.no_show',
+        event: cancelled ? 'donor.cancelled' : 'donor.no_show',
         subjectType: 'donor',
         subjectId: row.donorId,
         metadata: { demandId: row.demandId },
@@ -313,7 +351,7 @@ async function applyOne(
 
     if (messages.length > 0) await enqueue(tx, ctx.ids, messages, now);
 
-    return true;
+    return { botRequestId: request?.id ?? null };
   });
 }
 

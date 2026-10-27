@@ -20,16 +20,16 @@
  */
 
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
-import { admissions, bloodRequests } from '@blood-connect/db';
-import { actorHas, createAuditWriter } from '@blood-connect/platform';
-import type { Transaction, UseCaseContext } from '@blood-connect/platform';
-import { err, ok, type Result } from '@blood-connect/result';
+import { admissions, bloodRequests } from '@obdm/db';
+import { actorHas, createAuditWriter } from '@obdm/platform';
+import type { Transaction, UseCaseContext } from '@obdm/platform';
+import { err, ok, type Result } from '@obdm/result';
 import {
   formatRequestNumber,
   parseRequestNumber,
   type BloodGroup,
   type Product,
-} from '@blood-connect/domain';
+} from '@obdm/domain';
 
 import { notAuthorized, type NotAuthorized } from './errors.js';
 import {

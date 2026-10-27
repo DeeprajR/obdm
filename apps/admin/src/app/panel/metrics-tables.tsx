@@ -1,5 +1,5 @@
-import { DataTable, EmptyState, StatusBadge, type Column } from '@blood-connect/ui';
-import type { RouteMetric, SurfaceMetric } from '@blood-connect/ops';
+import { DataTable, EmptyState, StatusBadge, type Column } from '@obdm/ui';
+import type { RouteMetric, SurfaceMetric } from '@obdm/ops';
 
 /**
  * Counters and latency, split the way §11.9 asks for (§11.9).

@@ -9,14 +9,14 @@ import {
   PageHeader,
   StatusBadge,
   type Column,
-} from '@blood-connect/ui';
+} from '@obdm/ui';
 
 import { KitShell } from '../../kit-shell';
 import { ChangeEmailForm, EditDoctorForm, SealForm } from '../../forms';
 import { removeSealAction, resendInviteAction, setStatusAction } from '../../actions';
 import { requireAccess, useCaseContext } from '@/lib/guards';
-import { getDoctor } from '@blood-connect/platform';
-import { getPatientsForDoctor } from '@blood-connect/hospital';
+import { getDoctor } from '@obdm/platform';
+import { getPatientsForDoctor } from '@obdm/hospital';
 
 export const metadata: Metadata = { title: 'Doctor · Administration' };
 
@@ -82,7 +82,7 @@ export default async function DoctorPage({
   ];
 
   return (
-    <KitShell currentPath="/doctors" currentTitle={doctor.fullName}>
+    <KitShell actor={actor} currentPath="/doctors" currentTitle={doctor.fullName}>
       <PageHeader
         title={doctor.fullName}
         description={

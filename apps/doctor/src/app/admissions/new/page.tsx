@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
 
-import { Card } from '@blood-connect/ui';
+import { Card } from '@obdm/ui';
 
 import { KitShell } from '../../kit-shell';
 import { AdmissionForm } from '../../hospital-forms';
 import { requireAccess } from '@/lib/guards';
 
-export const metadata: Metadata = { title: 'New admission · Blood Connect' };
+export const metadata: Metadata = { title: 'New admission · OBDM' };
 
 export default async function NewAdmissionPage({
   searchParams,
@@ -19,7 +19,7 @@ export default async function NewAdmissionPage({
 
   if (!patientId) {
     return (
-      <KitShell role={actor.role} currentPath="/admissions/new" currentTitle="New admission">
+      <KitShell role={actor.role} userId={actor.userId} currentPath="/admissions/new" currentTitle="New admission">
         <p
           role="alert"
           className="rounded-control border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger"
@@ -31,7 +31,7 @@ export default async function NewAdmissionPage({
   }
 
   return (
-    <KitShell role={actor.role} currentPath="/admissions/new" currentTitle="New admission">
+    <KitShell role={actor.role} userId={actor.userId} currentPath="/admissions/new" currentTitle="New admission">
       <div className="mx-auto w-full max-w-2xl">
         <Card title="Admit the patient">
           <AdmissionForm patientId={patientId} />

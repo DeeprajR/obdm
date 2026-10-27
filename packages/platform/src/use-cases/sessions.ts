@@ -2,7 +2,7 @@
  * Ending a session, and resolving one (§3, §8.1).
  */
 
-import { ok, okVoid, type Result } from '@blood-connect/result';
+import { ok, okVoid, type Result } from '@obdm/result';
 
 import type { Database } from '../db.js';
 import type { UseCaseContext } from '../context.js';

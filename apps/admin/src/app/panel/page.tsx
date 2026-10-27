@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { after } from 'next/server';
 
-import { PageHeader, linkButtonClasses } from '@blood-connect/ui';
+import { PageHeader, linkButtonClasses } from '@obdm/ui';
 
 import { KitShell } from '../kit-shell';
 import { AlertRows } from './alert-rows';
@@ -17,8 +17,8 @@ import {
   routeMetrics,
   statusBreakdown,
   surfaceMetrics,
-} from '@blood-connect/ops';
-import { s3Storage, smtpEmailPort } from '@blood-connect/platform';
+} from '@obdm/ops';
+import { s3Storage, smtpEmailPort } from '@obdm/platform';
 
 export const metadata: Metadata = { title: 'Control panel · Administration' };
 
@@ -88,7 +88,7 @@ export default async function PanelPage() {
   const now = ctx.clock.now();
 
   return (
-    <KitShell currentPath="/panel" currentTitle="Control panel">
+    <KitShell actor={actor} currentPath="/panel" currentTitle="Control panel">
       <PageHeader
         title="Control panel"
         description={`Checked at ${timeFormat.format(now)}. This screen reads. It cannot answer a request, resolve a quarantine or change a threshold.`}

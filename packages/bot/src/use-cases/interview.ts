@@ -32,7 +32,7 @@ import {
   type CalendarDay,
   type Sex,
   type WeightBand,
-} from '@blood-connect/domain';
+} from '@obdm/domain';
 
 import type { BotContext } from '../context.js';
 import { MESSAGES } from '../messages.js';

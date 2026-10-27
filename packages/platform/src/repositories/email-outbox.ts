@@ -15,8 +15,8 @@
  */
 
 import { and, eq, inArray, lte, sql } from 'drizzle-orm';
-import { emailDeliveries, type EmailKind } from '@blood-connect/db';
-import { newId } from '@blood-connect/ids';
+import { emailDeliveries, type EmailKind } from '@obdm/db';
+import { newId } from '@obdm/ids';
 
 import type { Database, Transaction } from '../db.js';
 import { TEMPLATE_VERSION, renderEmail, type EmailPort, type TemplateVars } from '../ports/email.js';
@@ -50,6 +50,18 @@ const backoffSeconds = (attempts: number): number =>
   Math.min(15 * 60, 30 * 2 ** Math.max(0, attempts - 1));
 
 const MAX_ATTEMPTS = 6;
+
+/**
+ * How long a claimed row is held before another drain may take it (§7.6).
+ *
+ * `SKIP LOCKED` keeps two drains apart only while the claim's transaction is
+ * open, and the send happens after it commits. Pushing `next_attempt_at` out
+ * as part of the claim is what keeps the row out of the next drain's select
+ * while this one is talking to the provider: the worker's drain and the one an
+ * application runs after a request overlap every day. A crash mid-send retries
+ * after the lease rather than never.
+ */
+const LEASE_SECONDS = 120;
 
 export type DrainResult = {
   readonly sent: number;
@@ -89,10 +101,14 @@ export async function drainEmailOutbox(
       .for('update', { skipLocked: true });
 
     if (rows.length > 0) {
-      // Mark them taken inside the claim, so a second drain passes over them.
+      // Mark them taken inside the claim, and lease them past the send, so a
+      // second drain passes over them whether it runs now or in a minute.
       await tx
         .update(emailDeliveries)
-        .set({ attempts: sql`${emailDeliveries.attempts} + 1` })
+        .set({
+          attempts: sql`${emailDeliveries.attempts} + 1`,
+          nextAttemptAt: new Date(now.getTime() + LEASE_SECONDS * 1000),
+        })
         .where(
           inArray(
             emailDeliveries.id,

@@ -1,4 +1,4 @@
-import type { TrendPoint } from '@blood-connect/volunteer';
+import type { TrendPoint } from '@obdm/volunteer';
 
 /**
  * Units asked for against units met, by week (§6).

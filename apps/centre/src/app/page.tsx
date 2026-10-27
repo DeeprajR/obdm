@@ -1,4 +1,4 @@
-import { Landing } from '@blood-connect/staff-web';
+import { Landing } from '@obdm/staff-web';
 
 import { APP } from '@/lib/app';
 import { currentActor } from '@/lib/session';

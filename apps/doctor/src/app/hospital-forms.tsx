@@ -8,9 +8,9 @@ import {
   FormField,
   TextArea,
   TextInput,
-} from '@blood-connect/ui';
+} from '@obdm/ui';
 
-import { WORDING } from '@blood-connect/domain';
+import { WORDING } from '@obdm/domain';
 
 import {
   cancelRequestAction,

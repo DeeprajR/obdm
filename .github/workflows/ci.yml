@@ -16,16 +16,16 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  MIGRATION_DATABASE_URL: postgres://postgres:postgres@localhost:5432/blood_connect
-  DATABASE_URL: postgres://app_web:app_web@localhost:5432/blood_connect
-  BOT_DATABASE_URL: postgres://app_bot:app_bot@localhost:5432/blood_connect
+  MIGRATION_DATABASE_URL: postgres://postgres:postgres@localhost:5432/obdm
+  DATABASE_URL: postgres://app_web:app_web@localhost:5432/obdm
+  BOT_DATABASE_URL: postgres://app_bot:app_bot@localhost:5432/obdm
   # The suite's own globalSetup connects with this URL's literal role (unlike
   # db:migrate, which always substitutes `migrator` regardless of what's in
   # MIGRATION_DATABASE_URL). Postgres's `ALTER DEFAULT PRIVILEGES FOR ROLE
   # migrator` only fires for objects `migrator` itself creates, so migrating
   # here as the postgres superuser silently drops the base grants app_web and
   # app_bot depend on — this must match .env.example's convention.
-  TEST_DATABASE_URL: postgres://migrator:migrator@localhost:5432/blood_connect_test
+  TEST_DATABASE_URL: postgres://migrator:migrator@localhost:5432/obdm_test
 
 jobs:
   verify:
@@ -39,7 +39,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: blood_connect
+          POSTGRES_DB: obdm
         ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U postgres"
@@ -49,6 +49,19 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The secret scan reads history, not only the checkout.
+          fetch-depth: 0
+
+      # §11.7: every push is scanned for a committed secret. The development
+      # passwords in db/docker/init.sql and .env.example are known and listed
+      # in .gitleaks.toml; anything else that looks like a credential fails
+      # the build before it is reviewed, because on a solo build it would not
+      # be.
+      - name: Secret scan (§11.7)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: pnpm/action-setup@v4
 
@@ -78,13 +91,12 @@ jobs:
 
       # packages/ops/src/health.test.ts proves a health tile goes red by
       # stopping the real container (P10), not a mock, so the suite needs
-      # Mailpit and MinIO actually running under the exact container names
-      # docker-compose.yml's `name: blood-connect` produces. Postgres is
+      # Mailpit and S3Mock actually running under the exact container names
+      # docker-compose.yml's `name: obdm` produces. Postgres is
       # already covered by the `services:` block above.
       - name: Start mail and storage stand-ins
         run: |
-          docker compose up --detach --wait mailpit minio
-          docker compose up minio-init
+          docker compose up --detach --wait mailpit storage
 
       - name: Migrations apply cleanly to an empty database (§5.9)
         run: |

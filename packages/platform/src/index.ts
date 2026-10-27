@@ -42,6 +42,7 @@ export {
 } from './domain/authorization.js';
 
 export { appOrigin } from './app-origins.js';
+export { clientAddress } from './domain/client-address.js';
 
 export {
   OTP_LENGTH,
@@ -120,6 +121,8 @@ export {
 
 export { resolveActor, revokeAllSessions, signOut } from './use-cases/sessions.js';
 
+export { sweepExpiredCredentials, type SweepResult } from './use-cases/housekeeping.js';
+
 export {
   cancelPendingEmailChange,
   confirmEmailChange,
@@ -146,7 +149,7 @@ export {
   UPDATE_REQUEST_STATUSES,
   type UpdateRequestField,
   type UpdateRequestStatus,
-} from '@blood-connect/db';
+} from '@obdm/db';
 
 export {
   UPDATE_REQUEST_LABELS,

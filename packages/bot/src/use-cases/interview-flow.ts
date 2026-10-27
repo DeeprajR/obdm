@@ -19,7 +19,7 @@ import {
   donorPhones,
   donorScreeningAnswers,
   donors,
-} from '@blood-connect/db/bot';
+} from '@obdm/db/bot';
 import {
   WEIGHT_BANDS,
   ageOn,
@@ -31,7 +31,7 @@ import {
   subtractDays,
   type CalendarDay,
   type WeightBand,
-} from '@blood-connect/domain';
+} from '@obdm/domain';
 
 import type { BotContext } from '../context.js';
 import { createEventWriter } from '../events.js';
@@ -307,7 +307,7 @@ export const DEFAULT_COUNTRY_CODE = '+91';
 /**
  * To E.164. A leading plus is trusted as typed. Ten bare digits, or eleven
  * with the trunk zero, are an Indian mobile. Anything longer already carries
- * its country code: a shared Telegram contact arrives as "919847012345".
+ * its country code: a contact a platform vouches for arrives as "919847012345".
  */
 export const normalisePhone = (value: string): string => {
   const trimmed = value.trim();
@@ -319,10 +319,6 @@ export const normalisePhone = (value: string): string => {
   }
   return `+${digits}`;
 };
-
-/** The caption of the contact button, arriving as text because the client could not share. */
-const isShareButtonCaption = (value: string): boolean =>
-  value.trim().toLowerCase().replace(/[^a-z ]/g, '') === 'share my number';
 
 /**
  * A refused phone answer, with the refusal count written to the draft so the
@@ -358,9 +354,6 @@ async function handleAnswer(
 
   switch (step) {
     case 'phone': {
-      if (isShareButtonCaption(value)) {
-        return refusePhone(ctx, address, state, MESSAGES.shareButtonSentAsText);
-      }
       const digits = value.replace(/\D/g, '');
       if (digits.length < 10 || digits.length > 15) {
         const attempts = (state.draft.phoneAttempts ?? 0) + 1;

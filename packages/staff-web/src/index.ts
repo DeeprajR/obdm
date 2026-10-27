@@ -6,14 +6,14 @@
  * they have in common is everything around their own screens: the proxy, the
  * page guard, the session, the shell, and the account pages that every role
  * has. That lives here, once, parameterised by a `StaffApp`, and is drawn with
- * the kit in `@blood-connect/ui` (ADR 0015).
+ * the kit in `@obdm/ui` (ADR 0015).
  *
  * What does **not** live here is anything that belongs to one role. A doctor's
  * request form, the centre's shelf and the volunteer board stay in their own
  * application, so this package can never become the place a role's rule is
  * quietly shared with another.
  *
- * Server-side only. The browser half is `@blood-connect/staff-web/client`.
+ * Server-side only. The browser half is `@obdm/staff-web/client`.
  */
 
 export {

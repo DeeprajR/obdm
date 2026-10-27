@@ -30,7 +30,7 @@
  *     short form asks the same thing and can be answered without re-reading.
  */
 
-import type { Sex } from '@blood-connect/domain';
+import type { Sex } from '@obdm/domain';
 
 export type ScreeningQuestion = {
   readonly key: string;

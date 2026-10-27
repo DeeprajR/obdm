@@ -8,11 +8,18 @@ coverage/
 .env
 .env.local
 .env.*.local
+# A deployment's environment, never committed; the example beside it is.
+deploy/.env*
+!deploy/.env.*.example
 
 .DS_Store
 Thumbs.db
 
 # saved copy of the plan, not source
-Blood Connect Backend Plan_files/
+OBDM Backend Plan_files/
 # Playwright CLI output (may contain credentials)
 .playwright-cli/
+# The browser suite's saved sessions, results and recordings
+e2e/.auth/
+e2e/test-results/
+e2e/playwright-report/

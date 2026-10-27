@@ -1,7 +1,7 @@
 # Local stand-ins for every production dependency (build plan, "Prerequisites").
 # A demo needs none of the real services, provided each stays behind its port
 # (§10) so it can be swapped later without touching a use case.
-name: blood-connect
+name: obdm
 
 services:
   postgres:
@@ -12,7 +12,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: blood_connect
+      POSTGRES_DB: obdm
     ports:
       # 5433, not 5432: a natively installed PostgreSQL commonly holds 5432, and
       # a connection that silently reaches the wrong server is a bad hour.
@@ -24,7 +24,7 @@ services:
       # outside the release. Migrations own schemas, tables and grants.
       - ./db/docker/init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d blood_connect']
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d obdm']
       interval: 5s
       timeout: 5s
       retries: 20
@@ -42,41 +42,34 @@ services:
       MP_SMTP_AUTH_ACCEPT_ANY: 1
       MP_SMTP_AUTH_ALLOW_INSECURE: 1
 
-  minio:
+  storage:
     # S3-compatible object storage for seals (§3) and, later, camera frames (§4).
     # Private bucket; objects are only ever served through an authenticated route.
-    # quay.io, not Docker Hub: Docker Hub's minio/minio now denies anonymous
-    # pulls ("requested access to the resource is denied"), which is where
-    # MinIO itself publishes going forward.
-    image: quay.io/minio/minio:latest
+    #
+    # S3Mock, not MinIO. In October 2026 MinIO's images stopped being pullable
+    # without an account from both Docker Hub ("pull access denied") and
+    # quay.io (401), which broke every fresh checkout at `pnpm up`. S3Mock is
+    # Apache-2.0, maintained by Adobe, speaks the S3 API the adapter uses
+    # (HeadBucket, PutObject, GetObject, DeleteObject, path-style) and creates
+    # the bucket itself at start. No console: list what is in the bucket with
+    # `curl http://localhost:9090/obdm`.
+    image: adobe/s3mock:latest
     restart: unless-stopped
-    command: server /data --console-address ":9001"
     ports:
-      - '9000:9000'
-      - '9001:9001'
+      - '9090:9090'
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    volumes:
-      - minio-data:/data
+      # Spring property names; the short `initialBuckets` form of older
+      # releases is ignored by this one. Files live inside the container and
+      # survive a stop and start, which is what the health test does to it; a
+      # `down` loses development seals, which is fine.
+      COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: obdm
+      COM_ADOBE_TESTING_S3MOCK_STORE_RETAIN_FILES_ON_EXIT: 'true'
     healthcheck:
-      test: ['CMD', 'mc', 'ready', 'local']
-      interval: 10s
+      # The root answers ListBuckets once the server is up.
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:9090/ || exit 1']
+      interval: 5s
       timeout: 5s
-      retries: 10
-
-  minio-init:
-    image: quay.io/minio/mc:latest
-    depends_on:
-      minio:
-        condition: service_healthy
-    entrypoint: >
-      /bin/sh -c "
-      mc alias set local http://minio:9000 minioadmin minioadmin &&
-      mc mb --ignore-existing local/blood-connect &&
-      mc anonymous set none local/blood-connect
-      "
+      retries: 20
 
 volumes:
   postgres-data:
-  minio-data:

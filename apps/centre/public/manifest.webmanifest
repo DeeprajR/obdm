@@ -1,6 +1,6 @@
 {
-  "name": "Blood Connect · Blood centre",
-  "short_name": "BC Centre",
+  "name": "OBDM · Blood centre",
+  "short_name": "OBDM Centre",
   "description": "Blood requests, centre inventory and donor recruitment.",
   "start_url": "/",
   "scope": "/",

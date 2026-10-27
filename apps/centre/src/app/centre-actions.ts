@@ -7,6 +7,7 @@ import {
   cancelDemand,
   decideRequest,
   discardBag,
+  handOverBags,
   markRosterOutcome,
   raiseTagDiscrepancy,
   recordWalkIn,
@@ -23,8 +24,8 @@ import {
   type ReturnOutcome,
   type RosterOutcome,
   type StorageBand,
-} from '@blood-connect/centre';
-import { attachPatient } from '@blood-connect/hospital';
+} from '@obdm/centre';
+import { attachPatient } from '@obdm/hospital';
 
 import { useCaseContext } from '@/lib/guards';
 import { assertSameOrigin, currentActor } from '@/lib/session';
@@ -52,6 +53,8 @@ export type FormState = {
    * them and stored nowhere.
    */
   readonly values?: Readonly<Record<string, string>>;
+  /** What happened, when it worked but the person still needs telling. */
+  readonly notice?: string;
 };
 
 /**
@@ -146,11 +149,30 @@ export async function decideRequestAction(
   redirect(`/centre/requests/${requestUuid}`);
 }
 
+/**
+ * The held units leave the fridge. Until this is pressed they are `reserved`,
+ * and a reserved unit cannot be returned or have its tag released (§4).
+ */
+export async function handOverAction(
+  requestUuid: string,
+  _previous: FormState,
+): Promise<FormState> {
+  await assertSameOrigin();
+
+  const ctx = await useCaseContext(await currentActor());
+  const result = await handOverBags(ctx, requestUuid);
+  if (!result.ok) return { error: result.error.message };
+
+  revalidatePath(`/centre/requests/${requestUuid}`);
+  revalidatePath('/centre/stock');
+  return { error: null, done: true };
+}
+
 /* -------------------------------------------------------------------------- */
 /* Demand                                                                      */
 /* -------------------------------------------------------------------------- */
 
-export async function recruitForFloorAction(): Promise<void> {
+export async function recruitForFloorAction(_previous: FormState): Promise<FormState> {
   await assertSameOrigin();
 
   const ctx = await useCaseContext(await currentActor());
@@ -168,10 +190,28 @@ export async function recruitForFloorAction(): Promise<void> {
       short: row.short,
     }));
 
-  await recruitForFloor(ctx, shortfalls);
+  const result = await recruitForFloor(ctx, shortfalls);
+  if (!result.ok) return { error: result.error.message };
 
   revalidatePath('/centre');
   revalidatePath('/centre/demands');
+
+  const { raised, alreadyOpen } = result.value;
+  if (raised.length === 0) {
+    return {
+      error: null,
+      done: true,
+      notice:
+        alreadyOpen.length > 0
+          ? 'Every short group already has an open demand, so nobody new was asked.'
+          : 'No group is below the floor any more, so nobody was asked.',
+    };
+  }
+  return {
+    error: null,
+    done: true,
+    notice: `Recruiting for ${raised.length} ${raised.length === 1 ? 'group' : 'groups'}.`,
+  };
 }
 
 export async function cancelDemandAction(

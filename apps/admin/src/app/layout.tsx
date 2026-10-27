@@ -14,12 +14,12 @@ import './tailwind.css';
 import { ServiceWorker } from './service-worker';
 
 export const metadata: Metadata = {
-  title: 'Blood Connect administration',
+  title: 'OBDM administration',
   description: 'Doctor records and their patient activity.',
 
   manifest: '/manifest.webmanifest',
-  applicationName: 'Blood Connect administration',
-  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'Blood Connect administration' },
+  applicationName: 'OBDM administration',
+  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'OBDM administration' },
   icons: {
     icon: [
       { url: '/icons/favicon-32.png', sizes: '32x32', type: 'image/png' },

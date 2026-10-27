@@ -10,11 +10,13 @@ import {
 import type { StoragePort, StoredObject } from '../ports/storage.js';
 
 /**
- * S3-compatible object storage, pointed at MinIO in development (§10).
+ * S3-compatible object storage, pointed at S3Mock in development (§10).
  *
- * Path-style addressing, because MinIO on `localhost:9000` has no per-bucket
- * DNS. The bucket is private and nothing here ever produces a public URL.
- * Objects are read back through an authenticated route.
+ * Path-style addressing, because a server on `localhost:9090` has no
+ * per-bucket DNS. The bucket is private and nothing here ever produces a
+ * public URL. Objects are read back through an authenticated route. The
+ * development credentials are placeholders S3Mock does not check; the
+ * production boot check refuses them.
  */
 
 let client: S3Client | undefined;
@@ -22,17 +24,22 @@ let client: S3Client | undefined;
 const getClient = (): S3Client => {
   client ??= new S3Client({
     region: process.env['S3_REGION'] ?? 'ap-south-1',
-    endpoint: process.env['S3_ENDPOINT'] ?? 'http://localhost:9000',
+    endpoint: process.env['S3_ENDPOINT'] ?? 'http://localhost:9090',
     forcePathStyle: process.env['S3_FORCE_PATH_STYLE'] !== 'false',
+    // Checksums only where an operation requires one. The SDK otherwise adds
+    // its own to every upload, and S3-compatible stores (Cloudflare R2 among
+    // them) have refused writes over headers they did not implement.
+    requestChecksumCalculation: 'WHEN_REQUIRED',
+    responseChecksumValidation: 'WHEN_REQUIRED',
     credentials: {
-      accessKeyId: process.env['S3_ACCESS_KEY_ID'] ?? 'minioadmin',
-      secretAccessKey: process.env['S3_SECRET_ACCESS_KEY'] ?? 'minioadmin',
+      accessKeyId: process.env['S3_ACCESS_KEY_ID'] ?? 'local',
+      secretAccessKey: process.env['S3_SECRET_ACCESS_KEY'] ?? 'local-dev-only',
     },
   });
   return client;
 };
 
-const bucket = (): string => process.env['S3_BUCKET'] ?? 'blood-connect';
+const bucket = (): string => process.env['S3_BUCKET'] ?? 'obdm';
 
 export const s3Storage: StoragePort = {
   /**

@@ -50,7 +50,7 @@ The header shows your name and email and has three links:
 | **Update requests** | Staff asking to change their name or registration number |
 | **Control panel** | Whether the system is working, and what is waiting on somebody |
 
-The app title "Blood Connect administration" also takes you to the Doctors list.
+The app title "OBDM administration" also takes you to the Doctors list.
 
 ---
 
@@ -87,7 +87,7 @@ Press **Add a doctor**.
 There is no password field. You never choose, see or know a doctor's password.
 
 Press **Create and send invite**. The account is created and an email with the subject
-"Set up your Blood Connect account" goes to the doctor. The link in it works once and
+"Set up your OBDM account" goes to the doctor. The link in it works once and
 expires after 48 hours. The doctor opens it, chooses a password, and is signed in to the
 doctor app.
 
@@ -129,7 +129,7 @@ seal must be 1 MB or smaller." or "That file could not be read as a PNG image."
 **Access.**
 
 - **Send the invite again** appears while the doctor has not set a password. It sends a
-  new link with the subject "Your Blood Connect sign-up link". The earlier link stops
+  new link with the subject "Your OBDM sign-up link". The earlier link stops
   working.
 - **Deactivate** ends every session at once and emails the doctor. The record is kept.
   Nothing is ever deleted, because the audit history must survive.
@@ -318,5 +318,5 @@ process is running on its host.
 reactivate and remove seal do not show an error message if they fail. Reload the page
 and check the status line. If it has not changed, check the control panel for an alert.
 
-**"Not available. This account does not have access to this part of Blood Connect."**
+**"Not available. This account does not have access to this part of OBDM."**
 You opened a page your account cannot use. Use the header links to go back.

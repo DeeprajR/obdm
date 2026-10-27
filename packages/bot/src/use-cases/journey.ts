@@ -13,19 +13,19 @@
  * longer exists.
  */
 
-import { and, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import {
   botRequests,
   donorChannels,
   donorRequests,
   donors,
-} from '@blood-connect/db/bot';
-import { donorDemandConfirmations } from '@blood-connect/db';
-import { err, ok, type Result } from '@blood-connect/result';
+} from '@obdm/db/bot';
+import { donorDemandConfirmations } from '@obdm/db';
+import { err, ok, type Result } from '@obdm/result';
 
 import type { BotContext } from '../context.js';
 import { createEventWriter } from '../events.js';
-import { MESSAGES, type HospitalSnapshot } from '../messages.js';
+import { MESSAGES, screeningQuestion, type HospitalSnapshot } from '../messages.js';
 import { enqueue, type QueuedMessage } from '../outbox.js';
 import {
   QUESTION_COUNT,
@@ -77,13 +77,21 @@ async function addressFor(
 /* Accept and decline                                                          */
 /* -------------------------------------------------------------------------- */
 
-export type AcceptResult = {
-  readonly nextQuestion: string | null;
-  readonly questionIndex: number;
-};
+export type AcceptResult =
+  | {
+      readonly kind: 'screening';
+      readonly nextQuestion: string | null;
+      readonly questionIndex: number;
+    }
+  /**
+   * The request filled while the card sat unanswered (§5): waitlisted at
+   * once, and spared six questions for a place that no longer exists.
+   */
+  | { readonly kind: 'waitlisted' };
 
 /**
- * `NOTIFIED → ACCEPTED → SCREENING`, in one step (§7.4).
+ * `NOTIFIED → ACCEPTED → SCREENING`, in one step (§7.4), or `NOTIFIED →
+ * REQUEST_FILLED` when there is no place left to screen for.
  *
  * A redelivered tap matches nothing and is reported as `AlreadyMoved`, which the
  * adapter turns into "you have already answered this one" rather than restarting
@@ -96,15 +104,71 @@ export async function acceptRequest(
   const now = ctx.clock.now();
 
   return ctx.db.transaction(async (tx) => {
+    const [journey] = await tx
+      .select({ botRequestId: donorRequests.botRequestId, status: donorRequests.status })
+      .from(donorRequests)
+      .where(eq(donorRequests.id, journeyId));
+
+    if (!journey) return err(journeyNotFound);
+    if (journey.status !== 'NOTIFIED') return err(alreadyMoved);
+
+    const [request] = await tx
+      .select({
+        status: botRequests.status,
+        confirmedCount: botRequests.confirmedCount,
+        walkInUnits: botRequests.walkInUnits,
+        unitsNeeded: botRequests.unitsNeeded,
+      })
+      .from(botRequests)
+      .where(eq(botRequests.id, journey.botRequestId));
+
+    if (!request) return err(journeyNotFound);
+    if (request.status !== 'open' && request.status !== 'fulfilled') return err(requestClosed);
+
+    const event = createEventWriter(tx, ctx.correlationId, now);
+
+    /*
+      Full already, by the last unit being claimed or a walk-in at the counter
+      since the card went out. The stand-by notice of the next tick would say
+      so; a person who answered first is told now, and waitlisted rather than
+      asked six questions for nothing. A place that frees later is theirs in
+      order, like any other waitlisted journey.
+    */
+    const full =
+      request.status === 'fulfilled' ||
+      request.confirmedCount + request.walkInUnits >= request.unitsNeeded;
+    if (full) {
+      const moved = await tx
+        .update(donorRequests)
+        .set({ status: 'REQUEST_FILLED', respondedAt: now })
+        .where(and(eq(donorRequests.id, journeyId), eq(donorRequests.status, 'NOTIFIED')))
+        .returning({ id: donorRequests.id });
+
+      if (moved.length === 0) return err(alreadyMoved);
+
+      await tx
+        .update(botRequests)
+        .set({ waitlistedCount: sql`${botRequests.waitlistedCount} + 1` })
+        .where(eq(botRequests.id, journey.botRequestId));
+
+      await event({
+        event: 'journey.waitlisted',
+        subjectType: 'donor_request',
+        subjectId: journeyId,
+        metadata: { onAccept: true },
+      });
+
+      return ok({ kind: 'waitlisted' as const });
+    }
+
     const moved = await tx
       .update(donorRequests)
       .set({ status: 'SCREENING', respondedAt: now, screeningIndex: 0 })
       .where(and(eq(donorRequests.id, journeyId), eq(donorRequests.status, 'NOTIFIED')))
-      .returning({ id: donorRequests.id, botRequestId: donorRequests.botRequestId });
+      .returning({ id: donorRequests.id });
 
     if (moved.length === 0) return err(alreadyMoved);
 
-    const event = createEventWriter(tx, ctx.correlationId, now);
     await event({
       event: 'journey.accepted',
       subjectType: 'donor_request',
@@ -112,7 +176,7 @@ export async function acceptRequest(
     });
 
     const question = questionAt(0);
-    return ok({ nextQuestion: question?.text ?? null, questionIndex: 0 });
+    return ok({ kind: 'screening' as const, nextQuestion: question?.text ?? null, questionIndex: 0 });
   });
 }
 
@@ -477,8 +541,20 @@ export async function promoteFromWaitlist(
     if (!request) return { promoted: 0 };
     if (request.status !== 'open' && request.status !== 'fulfilled') return { promoted: 0 };
 
+    /*
+      Two kinds of people wait here. One finished the visit questions and lost
+      the race for the last unit (`screeningIndex` at the end). The other said
+      yes when the request was already full and was waitlisted before any
+      question was asked. Only the first can be confirmed outright; the second
+      is asked the questions now, and takes a place only by answering them, as
+      anyone does. Screened first, then in the order they said yes.
+    */
     const waiting = await tx
-      .select({ id: donorRequests.id, donorId: donorRequests.donorId })
+      .select({
+        id: donorRequests.id,
+        donorId: donorRequests.donorId,
+        screeningIndex: donorRequests.screeningIndex,
+      })
       .from(donorRequests)
       .where(
         and(
@@ -486,12 +562,61 @@ export async function promoteFromWaitlist(
           eq(donorRequests.status, 'REQUEST_FILLED'),
         ),
       )
-      .orderBy(donorRequests.createdAt);
+      .orderBy(desc(donorRequests.screeningIndex), donorRequests.respondedAt);
 
     const messages: QueuedMessage[] = [];
     let promoted = 0;
+    let free = request.unitsNeeded - request.confirmedCount - request.walkInUnits;
 
     for (const candidate of waiting) {
+      if (free <= 0) break;
+
+      if (candidate.screeningIndex < QUESTION_COUNT) {
+        const asked = await tx
+          .update(donorRequests)
+          .set({ status: 'SCREENING', screeningIndex: 0 })
+          .where(
+            and(
+              eq(donorRequests.id, candidate.id),
+              eq(donorRequests.status, 'REQUEST_FILLED'),
+            ),
+          )
+          .returning({ id: donorRequests.id });
+        if (asked.length === 0) continue;
+
+        await tx
+          .update(botRequests)
+          .set({ waitlistedCount: sql`greatest(0, ${botRequests.waitlistedCount} - 1)` })
+          .where(eq(botRequests.id, botRequestId));
+
+        const [channel] = await tx
+          .select({ channel: donorChannels.channel, channelUserId: donorChannels.channelUserId })
+          .from(donorChannels)
+          .where(eq(donorChannels.donorId, candidate.donorId));
+        const first = questionAt(0);
+        if (channel && first) {
+          messages.push(
+            {
+              to: channel,
+              kind: 'promoted',
+              message: { text: MESSAGES.placeOpenedAnswerFirst },
+              dedupeKey: `promoted:${botRequestId}:${candidate.donorId}`,
+            },
+            {
+              to: channel,
+              kind: 'promoted',
+              message: screeningQuestion(candidate.id, 0, first.text),
+              dedupeKey: `promoted-question:${botRequestId}:${candidate.donorId}`,
+            },
+          );
+        }
+
+        // Not a place taken, so not counted as promoted: the unit is claimed,
+        // or lost to somebody quicker, at the end of their questions.
+        free -= 1;
+        continue;
+      }
+
       const claimed = await tx
         .update(botRequests)
         .set({ confirmedCount: sql`${botRequests.confirmedCount} + 1` })
@@ -575,11 +700,29 @@ export async function promoteFromWaitlist(
       }
 
       promoted += 1;
+      free -= 1;
     }
 
     if (messages.length > 0) await enqueue(tx, ctx.ids, messages, now);
 
     if (promoted > 0) {
+      /*
+        Full again once the last place went to somebody waiting. A request
+        reopened by a no-show stops its waves here, exactly as it would had
+        the place been claimed at the end of a questionnaire; without this it
+        would wave a request with nothing left to give.
+      */
+      await tx
+        .update(botRequests)
+        .set({ status: 'fulfilled', nextWaveAt: null })
+        .where(
+          and(
+            eq(botRequests.id, botRequestId),
+            eq(botRequests.status, 'open'),
+            sql`${botRequests.confirmedCount} + ${botRequests.walkInUnits} >= ${botRequests.unitsNeeded}`,
+          ),
+        );
+
       const event = createEventWriter(tx, ctx.correlationId, now);
       await event({
         event: 'waitlist.promoted',

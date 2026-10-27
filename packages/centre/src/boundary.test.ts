@@ -6,7 +6,7 @@ import path from 'node:path';
  * The module boundary, checked mechanically (§11.2).
  *
  * §11.2 forbids one module reading another's tables. Nothing else in the build
- * can catch that: both modules legitimately import `@blood-connect/db` for
+ * can catch that: both modules legitimately import `@obdm/db` for
  * their *own* schema, so dependency-cruiser sees one allowed edge and cannot
  * tell `blood_bags` from `blood_requests` inside it.
  *
@@ -15,7 +15,7 @@ import path from 'node:path';
  * and it is here for the same reason: a boundary nobody checks is a boundary
  * that has already been crossed somewhere, in a commit that looked reasonable.
  *
- * The centre reaches Module 1 through `@blood-connect/hospital`'s narrow read
+ * The centre reaches Module 1 through `@obdm/hospital`'s narrow read
  * API, and that is deliberately the only door.
  */
 

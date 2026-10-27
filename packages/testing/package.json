@@ -1,5 +1,5 @@
 {
-  "name": "@blood-connect/testing",
+  "name": "@obdm/testing",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -15,8 +15,8 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@blood-connect/domain": "workspace:*",
-    "@blood-connect/ids": "workspace:*",
+    "@obdm/domain": "workspace:*",
+    "@obdm/ids": "workspace:*",
     "postgres": "^3.4.9"
   }
 }

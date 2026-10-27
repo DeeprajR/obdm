@@ -3,16 +3,16 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 
-import { Card, DescList, PageHeader } from '@blood-connect/ui';
+import { Card, DescList, PageHeader } from '@obdm/ui';
 
 import { KitShell } from '../../kit-shell';
 import { StartRequestButton, DischargeButton } from '../../request-buttons';
 import { requireAccess } from '@/lib/guards';
-import { db } from '@blood-connect/platform';
-import { admissions, patients } from '@blood-connect/db';
-import { WORDING, bloodGroupLabel, type BloodGroup } from '@blood-connect/domain';
+import { db } from '@obdm/platform';
+import { admissions, patients } from '@obdm/db';
+import { WORDING, bloodGroupLabel, type BloodGroup } from '@obdm/domain';
 
-export const metadata: Metadata = { title: 'Admission · Blood Connect' };
+export const metadata: Metadata = { title: 'Admission · OBDM' };
 
 export default async function AdmissionPage({
   params,
@@ -35,7 +35,7 @@ export default async function AdmissionPage({
 
   return (
     <KitShell
-      role={actor.role}
+      role={actor.role} userId={actor.userId}
       currentPath={`/admissions/${id}`}
       currentTitle={row.patient.name}
     >

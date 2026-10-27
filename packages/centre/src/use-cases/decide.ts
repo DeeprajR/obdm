@@ -34,22 +34,22 @@
  */
 
 import { inArray, sql } from 'drizzle-orm';
-import { err, ok, type Result } from '@blood-connect/result';
-import { bloodBags, centreDecisions, decisionBags } from '@blood-connect/db';
+import { err, ok, type Result } from '@obdm/result';
+import { bloodBags, centreDecisions, decisionBags } from '@obdm/db';
 import {
   mayDecideWithoutPatient,
   recruitsDonors,
   type BloodGroup,
   type Product,
   type Urgency,
-} from '@blood-connect/domain';
-import { getRequestForDecision, markRequestDecided } from '@blood-connect/hospital';
+} from '@obdm/domain';
+import { getRequestForDecision, markRequestDecided } from '@obdm/hospital';
 import {
   actorHas,
   createAuditWriter,
   type Transaction,
   type UseCaseContext,
-} from '@blood-connect/platform';
+} from '@obdm/platform';
 
 import {
   notAuthorized,
@@ -250,7 +250,14 @@ export async function decideRequest(
             bloodGroup: request.bloodGroup,
             product: request.product,
             units: shortfall,
-            dateRequired: request.dateRequired,
+            /*
+              The day it is needed, and never a day that has passed. The bot
+              expires a demand dated yesterday before anyone is asked (§11.2),
+              and the patient of an overdue request still needs the blood
+              today. Both are ISO days, so the comparison is the calendar's.
+            */
+            dateRequired:
+              request.dateRequired < ctx.clock.today() ? ctx.clock.today() : request.dateRequired,
             notes: `Shortfall on ${request.requestId}: ${unitsIssued} of ${request.units} issued.`,
           })) ?? null;
       }

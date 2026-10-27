@@ -12,7 +12,7 @@ import {
 /**
  * The shipped defaults for `stock.low_fraction` and `stock.critical_fraction`,
  * written out rather than imported: this package may not depend on
- * `@blood-connect/config` (§12, and the `domain-is-pure` boundary rule). A test
+ * `@obdm/config` (§12, and the `domain-is-pure` boundary rule). A test
  * that reached for the config package would also stop proving that the
  * thresholds arrive as parameters.
  */

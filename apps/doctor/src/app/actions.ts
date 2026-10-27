@@ -4,14 +4,14 @@ import {
   accountActions,
   type FormState,
   type SignInFormState,
-} from '@blood-connect/staff-web';
+} from '@obdm/staff-web';
 
 import { APP } from '@/lib/app';
 
 /**
  * The account actions, bound to this application (§9.1).
  *
- * The work is shared and lives in `@blood-connect/staff-web`. These are the
+ * The work is shared and lives in `@obdm/staff-web`. These are the
  * server actions the forms post to, and binding them here is what makes a
  * sign-in on this application issue this application's session and cookie.
  */

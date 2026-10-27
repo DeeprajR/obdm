@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
-import { Card } from '@blood-connect/ui';
+import { Card } from '@obdm/ui';
 import { currentActor } from '@/lib/session';
-import { landingFor } from '@blood-connect/platform';
+import { landingFor } from '@obdm/platform';
 import { SignInForm } from './form';
 
 export const metadata: Metadata = { title: 'Sign in · Administration' };
@@ -33,14 +33,14 @@ export default async function SignInPage() {
             aria-hidden
             className="flex size-9 items-center justify-center rounded-control bg-primary text-base font-bold text-white"
           >
-            B
+            O
           </span>
           <div>
             <p className="text-base font-semibold text-ink">
-              Blood Connect administration
+              OBDM administration
             </p>
             <p className="text-xs text-ink-subtle">
-              Administrator accounts only. Clinical accounts sign in to the
+              Open Blood Donation Management. Administrator accounts only. Clinical accounts sign in to the
               main application.
             </p>
           </div>

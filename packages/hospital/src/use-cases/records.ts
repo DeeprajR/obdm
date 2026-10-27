@@ -8,15 +8,15 @@
  */
 
 import { and, desc, eq, sql } from 'drizzle-orm';
-import { err, ok, type Result } from '@blood-connect/result';
-import { admissions, bloodRequests, bloodSamples, patients, users } from '@blood-connect/db';
+import { err, ok, type Result } from '@obdm/result';
+import { admissions, bloodRequests, bloodSamples, patients, users } from '@obdm/db';
 import {
   isBloodGroup,
   parseCalendarDay,
   type BloodGroup,
   type Product,
-} from '@blood-connect/domain';
-import { actorHas, createAuditWriter, type UseCaseContext } from '@blood-connect/platform';
+} from '@obdm/domain';
+import { actorHas, createAuditWriter, type UseCaseContext } from '@obdm/platform';
 
 import {
   admissionNotFound,

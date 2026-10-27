@@ -42,7 +42,7 @@ export function databaseUrl(role: Role): string {
   const value = process.env[name];
   if (!value) {
     throw new Error(
-      `${name} is not set. Copy .env.example to .env, then run \`pnpm up\` to start Postgres.`,
+      `${name} is not set. Copy .env.example to .env, then run \`pnpm services:up\` to start Postgres.`,
     );
   }
   return value;

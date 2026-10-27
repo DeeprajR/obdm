@@ -1,4 +1,4 @@
-import type { NavItem } from '@blood-connect/ui';
+import type { NavItem } from '@obdm/ui';
 
 /**
  * The nav rail's contents.

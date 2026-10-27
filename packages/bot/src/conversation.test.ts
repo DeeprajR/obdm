@@ -3,12 +3,12 @@ import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
-import { CONFIG_DEFAULTS } from '@blood-connect/config';
-import * as bot from '@blood-connect/db/bot';
-import { donorDemand, donorDemandConfirmations } from '@blood-connect/db';
-import { idGenerator, newId } from '@blood-connect/ids';
-import { addDays } from '@blood-connect/domain';
-import { createFakeClock } from '@blood-connect/testing';
+import { CONFIG_DEFAULTS } from '@obdm/config';
+import * as bot from '@obdm/db/bot';
+import { donorDemand, donorDemandConfirmations } from '@obdm/db';
+import { idGenerator, newId } from '@obdm/ids';
+import { addDays } from '@obdm/domain';
+import { createFakeClock } from '@obdm/testing';
 
 import { createMemoryChannel, type MemoryChannel } from './adapters/memory-channel.js';
 import { createChannelRegistry } from './ports/channel.js';
@@ -267,17 +267,6 @@ describe.skipIf(!testUrl)('the conversation', () => {
    * which words would have worked.
    */
   describe('stuck on the phone question', () => {
-    it('explains when the share button arrived as text, and asks again', async () => {
-      await say('hi');
-      // A client that cannot share a contact sends the button's caption.
-      const said = await say('Share my number');
-
-      expect(said).toHaveLength(2);
-      expect(said[0]).toContain('did not send your number');
-      expect(said[0]).toContain('9847012345');
-      expect(said[1]).toContain('phone number');
-    });
-
     it('shows an example after the second refusal', async () => {
       await say('hi');
       const first = await say('hello?');
@@ -1631,7 +1620,7 @@ describe('normalisePhone', () => {
   });
 
   it('treats a longer bare number as already carrying its country code', () => {
-    // How a shared Telegram contact arrives.
+    // How a contact a platform vouches for arrives.
     expect(normalisePhone('919847012345')).toBe('+919847012345');
     expect(normalisePhone('12025550123')).toBe('+12025550123');
   });

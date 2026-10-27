@@ -1,6 +1,6 @@
-import { EmptyState, StatusBadge } from '@blood-connect/ui';
-import type { Alert } from '@blood-connect/domain';
-import { appOrigin } from '@blood-connect/platform';
+import { EmptyState, StatusBadge } from '@obdm/ui';
+import type { Alert } from '@obdm/domain';
+import { appOrigin } from '@obdm/platform';
 
 /**
  * The silent-failure board (§11.9).

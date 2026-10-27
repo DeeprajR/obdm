@@ -11,7 +11,7 @@
  * is an account nobody can ever sign in to, and the person is never told.
  */
 
-import type { EmailKind } from '@blood-connect/db';
+import type { EmailKind } from '@obdm/db';
 
 export type OutgoingEmail = {
   readonly to: string;
@@ -63,11 +63,11 @@ const TEMPLATES: Readonly<
   Record<EmailKind, (vars: TemplateVars) => { subject: string; text: string }>
 > = {
   invite: (v) => ({
-    subject: 'Set up your Blood Connect account',
+    subject: 'Set up your OBDM account',
     text: [
       `Hello ${v['fullName'] ?? 'there'},`,
       '',
-      'An account has been created for you on Blood Connect.',
+      'An account has been created for you on OBDM.',
       'Open the link below to choose a password. It signs you in straight away.',
       '',
       v['link'] ?? '',
@@ -80,11 +80,11 @@ const TEMPLATES: Readonly<
   }),
 
   invite_resent: (v) => ({
-    subject: 'Your Blood Connect sign-up link',
+    subject: 'Your OBDM sign-up link',
     text: [
       `Hello ${v['fullName'] ?? 'there'},`,
       '',
-      'Here is a new link to set up your Blood Connect account.',
+      'Here is a new link to set up your OBDM account.',
       '',
       v['link'] ?? '',
       '',
@@ -94,9 +94,9 @@ const TEMPLATES: Readonly<
   }),
 
   password_otp: (v) => ({
-    subject: 'Your Blood Connect reset code',
+    subject: 'Your OBDM reset code',
     text: [
-      'Someone asked to reset the password on this Blood Connect account.',
+      'Someone asked to reset the password on this OBDM account.',
       '',
       `Your code is ${v['otp'] ?? ''}`,
       '',
@@ -107,9 +107,9 @@ const TEMPLATES: Readonly<
   }),
 
   password_changed: () => ({
-    subject: 'Your Blood Connect password was changed',
+    subject: 'Your OBDM password was changed',
     text: [
-      'The password on your Blood Connect account has just been changed,',
+      'The password on your OBDM account has just been changed,',
       'and every signed-in session has been ended.',
       '',
       'If this was you, there is nothing to do.',
@@ -119,11 +119,11 @@ const TEMPLATES: Readonly<
   }),
 
   email_change_confirm: (v) => ({
-    subject: 'Confirm your new Blood Connect address',
+    subject: 'Confirm your new OBDM address',
     text: [
       `Hello ${v['fullName'] ?? 'there'},`,
       '',
-      'You asked to change the address on your Blood Connect account to this one.',
+      'You asked to change the address on your OBDM account to this one.',
       'Open the link below to confirm it.',
       '',
       v['link'] ?? '',
@@ -138,7 +138,7 @@ const TEMPLATES: Readonly<
   // Goes to the OLD address. Someone losing control of an account must hear
   // about it at the address they still read (§3).
   email_change_notice: (v) => ({
-    subject: 'The address on your Blood Connect account is being changed',
+    subject: 'The address on your OBDM account is being changed',
     text: [
       `Hello ${v['fullName'] ?? 'there'},`,
       '',
@@ -151,11 +151,11 @@ const TEMPLATES: Readonly<
   }),
 
   account_deactivated: (v) => ({
-    subject: 'Your Blood Connect account has been deactivated',
+    subject: 'Your OBDM account has been deactivated',
     text: [
       `Hello ${v['fullName'] ?? 'there'},`,
       '',
-      'Your Blood Connect account has been deactivated and you have been signed out.',
+      'Your OBDM account has been deactivated and you have been signed out.',
       '',
       'If you think this is a mistake, contact your administrator.',
     ].join('\n'),

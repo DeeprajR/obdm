@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { db } from '@blood-connect/platform';
+import { db } from '@obdm/platform';
 import { sql } from 'drizzle-orm';
 
 /**

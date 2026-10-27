@@ -9,7 +9,7 @@ import {
   StatusBadge,
   linkButtonClasses,
   type Column,
-} from '@blood-connect/ui';
+} from '@obdm/ui';
 
 import { KitShell } from '../kit-shell';
 import { requireAccess, useCaseContext } from '@/lib/guards';
@@ -17,7 +17,7 @@ import {
   isOverdue,
   listAdmissions,
   listRequestsForDoctor,
-} from '@blood-connect/hospital';
+} from '@obdm/hospital';
 import {
   URGENCY_SHORT,
   WORDING,
@@ -26,10 +26,10 @@ import {
   productLabel,
   type BloodGroup,
   type Urgency,
-} from '@blood-connect/domain';
+} from '@obdm/domain';
 import { StartRequestButton } from '../request-buttons';
 
-export const metadata: Metadata = { title: 'Dashboard · Blood Connect' };
+export const metadata: Metadata = { title: 'Dashboard · OBDM' };
 
 const STATUS_LABELS: Readonly<Record<string, string>> = {
   draft: 'Draft',
@@ -157,7 +157,7 @@ export default async function DashboardPage() {
   ];
 
   return (
-    <KitShell role={actor.role} currentPath="/dashboard" currentTitle="Dashboard">
+    <KitShell role={actor.role} userId={actor.userId} currentPath="/dashboard" currentTitle="Dashboard">
       <PageHeader
         title="Blood requests"
         description="Four answers and an ID. Give the ID to the patient’s bystander. The blood centre takes it from there."

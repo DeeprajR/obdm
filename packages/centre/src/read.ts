@@ -2,7 +2,7 @@
  * Module 2's reads.
  *
  * Nothing here writes, and nothing here reads a Module 1 table: the queue and
- * the decision come through `@blood-connect/hospital`'s narrow API (§11.2).
+ * the decision come through `@obdm/hospital`'s narrow API (§11.2).
  */
 
 import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm';
@@ -13,7 +13,7 @@ import {
   decisionBags,
   donorDemand,
   productShelfLives,
-} from '@blood-connect/db';
+} from '@obdm/db';
 import {
   BLOOD_GROUPS,
   PRODUCTS,
@@ -22,8 +22,8 @@ import {
   recruitsDonors,
   type BloodGroup,
   type Product,
-} from '@blood-connect/domain';
-import type { UseCaseContext } from '@blood-connect/platform';
+} from '@obdm/domain';
+import type { UseCaseContext } from '@obdm/platform';
 
 export type GroupStock = {
   readonly bloodGroup: BloodGroup;
@@ -203,13 +203,24 @@ export async function getDecisionForRequest(
 export async function listDecisionBags(
   ctx: UseCaseContext,
   decisionId: string,
-): Promise<{ id: string; unitNumber: string; expiresAt: string; status: string }[]> {
+): Promise<
+  {
+    id: string;
+    unitNumber: string;
+    expiresAt: string;
+    status: string;
+    reservedForRequestId: string | null;
+  }[]
+> {
   return ctx.db
     .select({
       id: bloodBags.id,
       unitNumber: bloodBags.unitNumber,
       expiresAt: bloodBags.expiresAt,
       status: bloodBags.status,
+      // A bag can sit under more than one decision (a released or restocked
+      // unit decided again), so "held for this request" is read from the bag.
+      reservedForRequestId: bloodBags.reservedForRequestId,
     })
     .from(decisionBags)
     .innerJoin(bloodBags, eq(bloodBags.id, decisionBags.bagId))

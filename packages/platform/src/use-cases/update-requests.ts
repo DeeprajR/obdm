@@ -17,13 +17,13 @@
  */
 
 import { and, asc, desc, eq, ne } from 'drizzle-orm';
-import { err, ok, type Result } from '@blood-connect/result';
+import { err, ok, type Result } from '@obdm/result';
 import {
   accountUpdateRequests,
   users,
   type UpdateRequestField,
   type UpdateRequestStatus,
-} from '@blood-connect/db';
+} from '@obdm/db';
 
 import type { UseCaseContext } from '../context.js';
 import type { Transaction } from '../db.js';

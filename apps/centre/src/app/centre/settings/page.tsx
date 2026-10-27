@@ -2,16 +2,16 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { asc, eq } from 'drizzle-orm';
 
-import { Card, PageHeader } from '@blood-connect/ui';
+import { Card, PageHeader } from '@obdm/ui';
 
 import { CentreShell } from '../../centre-shell';
 import { SettingsForm, ShelfLifeForm } from '../../centre-forms';
 import { requireAccess, useCaseContext } from '@/lib/guards';
-import { getCentreSettings, getShelfLives } from '@blood-connect/centre';
-import { locationNodes } from '@blood-connect/db';
-import { WORDING, productLabel } from '@blood-connect/domain';
+import { getCentreSettings, getShelfLives } from '@obdm/centre';
+import { locationNodes } from '@obdm/db';
+import { WORDING, productLabel } from '@obdm/domain';
 
-export const metadata: Metadata = { title: 'Centre settings · Blood Connect' };
+export const metadata: Metadata = { title: 'Centre settings · OBDM' };
 
 export default async function SettingsPage() {
   const actor = await requireAccess('/centre/settings');

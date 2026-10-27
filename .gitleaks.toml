@@ -1,0 +1,29 @@
+# The secret scan's allowlist (§11.7, .github/workflows/ci.yml).
+#
+# Everything listed here is a development credential that is committed on
+# purpose and documented as such: the three database roles in the compose
+# stack, where every password is the role's own name, and the MinIO defaults.
+# Nothing real ever runs against them, and the production boot check refuses
+# every one of them (packages/config/src/runtime-env.ts). Anything not listed
+# that looks like a credential fails the build.
+
+title = "OBDM"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Development stand-ins, committed by design"
+paths = [
+  '''db/docker/init\.sql''',
+  '''\.env\.example$''',
+  '''deploy/\.env\.[a-z]+\.example$''',
+  '''docs/.*\.md$''',
+  '''e2e/.*''',
+  '''pnpm-lock\.yaml''',
+]
+regexes = [
+  '''minioadmin''',
+  '''postgres://(migrator|app_web|app_bot|postgres):(migrator|app_web|app_bot|postgres)@''',
+  '''OBDM!Demo2026''',
+]

@@ -1,4 +1,4 @@
-# Blood Connect: system specification
+# OBDM: system specification
 
 What each module is, who uses it, what it does, and the rules it must not break.
 
@@ -18,7 +18,7 @@ to the blood centre, and, when the shelf is empty, a message forwarded around as
 strangers to show up. Three disconnected steps, no shared state, and no record of what
 happened.
 
-Blood Connect is those three steps as one loop over one database:
+OBDM is those three steps as one loop over one database:
 
 ```
 Doctor  ──── submits a blood request ────▶  request (submitted, immutable)
@@ -44,7 +44,7 @@ process**. They never call each other over HTTP. The integration is two shared t
 |---|---|---|---|
 | 1 | Doctor app | Installable web app: patients, admissions, the blood request form, submit, samples | Doctors, hospital admins |
 | 2 | Blood centre dashboard | Same web app, `/centre`: tag-scanned and camera-counted fridge inventory, decide each request, raise and track donor demand | Blood centre staff |
-| 3 | Donor bot | Chat bot (Telegram first, WhatsApp planned): finds eligible donors, notifies them, screens them, stops at the unit count | Donors, volunteer admins |
+| 3 | Donor bot | Chat bot, a web application (WhatsApp planned; Telegram was the first channel, ADR 0017): finds eligible donors, notifies them, screens them, stops at the unit count | Donors, volunteer admins |
 | 4 | Volunteer dashboard | Small read-mostly web view of live demand per blood group | Volunteer admins |
 
 Module 4 is not a fourth codebase. It is a role-gated section of the same web app as
@@ -213,7 +213,7 @@ counts, never people.
 
 ### 2.11 The messaging channel is swappable
 
-Telegram is the launch channel. WhatsApp is the expected successor, and the system must be
+The web chat is the launch channel (it replaced Telegram, ADR 0017). WhatsApp is the expected successor, and the system must be
 able to make that switch, or run both at once, without touching donor matching, the
 questionnaire, wave logic, or the centre contract.
 
@@ -225,7 +225,7 @@ donor            (id, name, dob, weight, blood_group, location…, verified_phon
 donor_channel    (donor_id, channel, channel_user_id, opted_in_at, unique(channel, channel_user_id))
 ```
 
-The verified phone number is what links a Telegram donor to the same person arriving on
+The verified phone number is what links a web donor to the same person arriving on
 WhatsApp. It is a verified attribute, never the primary key. People change numbers.
 
 **Everything platform-specific goes behind one narrow port**, with one adapter per channel:

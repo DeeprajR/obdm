@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
-import { CONFIG_DEFAULTS } from '@blood-connect/config';
+import { CONFIG_DEFAULTS } from '@obdm/config';
 import {
   bagDiscards,
   bagQuarantines,
@@ -13,17 +13,17 @@ import {
   tagAssignments,
   tagDiscrepancies,
   users,
-} from '@blood-connect/db';
-import { BAG_STATUSES, addDays, subtractDays, type BagStatus } from '@blood-connect/domain';
-import { idGenerator, newId } from '@blood-connect/ids';
-import { createFakeClock } from '@blood-connect/testing';
+} from '@obdm/db';
+import { BAG_STATUSES, addDays, subtractDays, type BagStatus } from '@obdm/domain';
+import { idGenerator, newId } from '@obdm/ids';
+import { createFakeClock } from '@obdm/testing';
 import {
   argon2Hasher,
   nodeTokens,
   type Actor,
   type Database,
   type UseCaseContext,
-} from '@blood-connect/platform';
+} from '@obdm/platform';
 
 import { registerBag } from './inventory.js';
 import {
@@ -171,7 +171,7 @@ describe.skipIf(!testUrl)('returns, quarantine and discrepancies (§4, §7.5)', 
     counter = { kind: 'user', userId: counterId, role: 'blood_centre', districtScopeId: null };
     await db.insert(users).values({
       id: counterId,
-      email: `counter-${counterId}@blood-connect.invalid`,
+      email: `counter-${counterId}@obdm.invalid`,
       fullName: 'Counter Staff',
       role: 'blood_centre',
       status: 'active',
@@ -186,7 +186,7 @@ describe.skipIf(!testUrl)('returns, quarantine and discrepancies (§4, §7.5)', 
     const admissionId = newId();
     requestId = newId();
     await client`INSERT INTO hospital.users (id, email, full_name, role, status, password_hash)
-                 VALUES (${doctorId}, ${`doctor-${doctorId}@blood-connect.invalid`},
+                 VALUES (${doctorId}, ${`doctor-${doctorId}@obdm.invalid`},
                          'Dr Test', 'doctor', 'active', ${'x'.repeat(20)})`;
     await client`INSERT INTO hospital.patients
                    (id, name, age, age_unit, sex, blood_group, previous_transfusion)

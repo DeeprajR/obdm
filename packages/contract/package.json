@@ -1,5 +1,5 @@
 {
-  "name": "@blood-connect/contract",
+  "name": "@obdm/contract",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -15,7 +15,7 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@blood-connect/domain": "workspace:*",
+    "@obdm/domain": "workspace:*",
     "zod": "^4.5.4"
   }
 }

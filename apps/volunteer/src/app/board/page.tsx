@@ -1,14 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { LiveRefresh } from '@blood-connect/staff-web/client';
+import { LiveRefresh } from '@obdm/staff-web/client';
 import { currentActor } from '@/lib/session';
 import { useCaseContext } from '@/lib/guards';
-import { STOCK_DISPLAY_ORDER } from '@blood-connect/domain';
-import { publicBoard } from '@blood-connect/volunteer';
-import { landingFor } from '@blood-connect/platform';
+import { STOCK_DISPLAY_ORDER } from '@obdm/domain';
+import { publicBoard } from '@obdm/volunteer';
+import { landingFor } from '@obdm/platform';
 
-export const metadata: Metadata = { title: 'Demand board · Blood Connect' };
+export const metadata: Metadata = { title: 'Demand board · OBDM' };
 
 export const dynamic = 'force-dynamic';
 
@@ -72,7 +72,7 @@ export default async function BoardPage() {
           >
             B
           </span>
-          Blood Connect
+          OBDM
         </Link>
         <span className="text-sm text-ink-muted">· Demand board</span>
         <div className="ml-auto">

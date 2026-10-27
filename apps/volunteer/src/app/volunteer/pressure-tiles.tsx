@@ -1,9 +1,9 @@
 import Link from 'next/link';
 
-import { PRESSURE_LABELS, type PressureLevel } from '@blood-connect/domain';
-import type { GroupPressure } from '@blood-connect/volunteer';
+import { PRESSURE_LABELS, type PressureLevel } from '@obdm/domain';
+import type { GroupPressure } from '@obdm/volunteer';
 
-import { cn } from '@blood-connect/ui';
+import { cn } from '@obdm/ui';
 
 /**
  * The eight tiles that are the whole dashboard (§6).

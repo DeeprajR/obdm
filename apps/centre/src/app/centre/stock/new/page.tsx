@@ -1,14 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { Card, PageHeader } from '@blood-connect/ui';
+import { Card, PageHeader } from '@obdm/ui';
 
 import { CentreShell } from '../../../centre-shell';
 import { BagForm } from '../../../centre-forms';
 import { requireAccess, useCaseContext } from '@/lib/guards';
-import { getShelfLives } from '@blood-connect/centre';
+import { getShelfLives } from '@obdm/centre';
 
-export const metadata: Metadata = { title: 'Register a bag · Blood Connect' };
+export const metadata: Metadata = { title: 'Register a bag · OBDM' };
 
 export default async function NewBagPage({
   searchParams,

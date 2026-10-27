@@ -1,5 +1,5 @@
 {
-  "name": "@blood-connect/staff-web",
+  "name": "@obdm/staff-web",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -19,11 +19,11 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@blood-connect/db": "workspace:*",
-    "@blood-connect/domain": "workspace:*",
-    "@blood-connect/ids": "workspace:*",
-    "@blood-connect/platform": "workspace:*",
-    "@blood-connect/ui": "workspace:*",
+    "@obdm/db": "workspace:*",
+    "@obdm/domain": "workspace:*",
+    "@obdm/ids": "workspace:*",
+    "@obdm/platform": "workspace:*",
+    "@obdm/ui": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "next": "^16.3.4",
     "react": "^19.2.8",

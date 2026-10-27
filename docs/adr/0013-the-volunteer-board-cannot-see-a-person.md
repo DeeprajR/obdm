@@ -21,7 +21,7 @@ its context and `domain` for its rules, and dependency-cruiser fails the build
 on an import of `hospital`, `centre` or `bot`.
 
 That is not quite enough on its own, because all four modules legitimately
-import `@blood-connect/db` for their own schema, and the boundary checker sees
+import `@obdm/db` for their own schema, and the boundary checker sees
 one allowed edge and cannot tell `donor_demand` from `patients` inside it. So
 `boundary.test.ts` reads the module's own source and fails on the name of any
 table holding a person. The same shape as the centre's, for the same reason.

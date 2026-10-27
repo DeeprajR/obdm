@@ -6,11 +6,11 @@ import {
   StatusBadge,
   linkButtonClasses,
   type Column,
-} from '@blood-connect/ui';
+} from '@obdm/ui';
 
 import { KitShell } from '../kit-shell';
 import { requireAccess, useCaseContext } from '@/lib/guards';
-import { listDoctors, type DoctorSummary } from '@blood-connect/platform';
+import { listDoctors, type DoctorSummary } from '@obdm/platform';
 
 export const metadata: Metadata = { title: 'Doctors · Administration' };
 
@@ -92,7 +92,7 @@ export default async function DoctorsPage() {
   ];
 
   return (
-    <KitShell currentPath="/doctors" currentTitle="Doctors">
+    <KitShell actor={actor} currentPath="/doctors" currentTitle="Doctors">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-ink">Doctors</h1>

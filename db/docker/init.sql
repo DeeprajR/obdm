@@ -33,8 +33,8 @@ $$;
 
 -- The migrator needs to hand ownership of new objects to nobody in particular;
 -- it simply needs to be able to create them in this database.
-GRANT CONNECT ON DATABASE blood_connect TO migrator, app_web, app_bot;
-GRANT CREATE ON DATABASE blood_connect TO migrator;
+GRANT CONNECT ON DATABASE obdm TO migrator, app_web, app_bot;
+GRANT CREATE ON DATABASE obdm TO migrator;
 
 -- PostgreSQL 15 revoked CREATE on `public` from everyone but the owner. The
 -- shared `set_updated_at()` trigger function lives there, one function for
@@ -43,14 +43,14 @@ GRANT CREATE, USAGE ON SCHEMA public TO migrator;
 
 -- The suite truncates every table between tests, so it gets its own database
 -- and the harness refuses any URL that is not named for testing.
-SELECT 'CREATE DATABASE blood_connect_test OWNER postgres'
- WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'blood_connect_test')\gexec
+SELECT 'CREATE DATABASE obdm_test OWNER postgres'
+ WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'obdm_test')\gexec
 
-GRANT CONNECT ON DATABASE blood_connect_test TO migrator, app_web, app_bot;
-GRANT CREATE ON DATABASE blood_connect_test TO migrator;
+GRANT CONNECT ON DATABASE obdm_test TO migrator, app_web, app_bot;
+GRANT CREATE ON DATABASE obdm_test TO migrator;
 
 -- Schema-level grants are per database, so the test database needs the same
 -- treatment. Without this the suite would run against a schema the migrations
 -- could not fully build, and would fail in a way that looks like a code bug.
-\connect blood_connect_test
+\connect obdm_test
 GRANT CREATE, USAGE ON SCHEMA public TO migrator;

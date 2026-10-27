@@ -1,0 +1,87 @@
+# syntax=docker/dockerfile:1.7
+#
+# One image per web application (docs/deployment.md). Built from the
+# repository root with the application named as a build argument:
+#
+#   docker build -f deploy/Dockerfile.web --build-arg APP=doctor -t obdm/doctor .
+#
+# APP is the directory under apps/ (doctor, admin, centre, volunteer, donor).
+# Three stages: install everything, build the one application as a standalone
+# server, then copy only that server and its traced dependencies into a plain
+# Node image that never sees pnpm, the source or the other applications.
+
+ARG NODE_VERSION=22
+
+# ---------------------------------------------------------------------------
+# build
+# ---------------------------------------------------------------------------
+FROM node:${NODE_VERSION}-bookworm-slim AS build
+
+# The lockfile names the pnpm version; the build uses that one and no other.
+RUN npm install --global pnpm@12.3.4
+
+WORKDIR /repo
+COPY . .
+
+# `--frozen-lockfile` fails the build if the lockfile and the manifests
+# disagree, which is the right outcome: an image is not the place to resolve
+# a dependency. The native build script esbuild needs is allowed in
+# pnpm-workspace.yaml; nothing else runs one.
+RUN pnpm install --frozen-lockfile
+
+ARG APP
+# The build has no database, and needs none: every page that reads one is
+# rendered per request. The connection module still wants a URL at import
+# time, because the driver is created when the module loads and connects only
+# on the first query. A placeholder that resolves nowhere satisfies the import
+# and can never be reached, which is what the build should be.
+ENV NEXT_OUTPUT=standalone \
+    NEXT_TELEMETRY_DISABLED=1 \
+    DATABASE_URL=postgres://build:build@build.invalid:5432/build \
+    BOT_DATABASE_URL=postgres://build:build@build.invalid:5432/build
+
+# The workspace packages first (they are TypeScript the application compiles
+# against), then the application itself. The filter is the package name,
+# which is the directory name with `-app` for the four that carry it.
+RUN pnpm exec tsc -b \
+ && case "$APP" in \
+      admin) FILTER=@obdm/admin ;; \
+      *)     FILTER=@obdm/${APP}-app ;; \
+    esac \
+ && pnpm --filter "$FILTER" build
+
+# ---------------------------------------------------------------------------
+# runtime
+# ---------------------------------------------------------------------------
+FROM node:${NODE_VERSION}-bookworm-slim AS runtime
+
+ARG APP
+# TZ is defence in depth: every date the applications handle is computed in
+# the application timezone by the domain, but a library that reaches for the
+# process default should find the hospital's day rather than UTC.
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=3000 \
+    HOSTNAME=0.0.0.0 \
+    TZ=Asia/Kolkata
+
+WORKDIR /app
+
+# The standalone output mirrors the monorepo layout, because the tracing root
+# is the repository: the server is at apps/<APP>/server.js and its traced
+# dependencies sit beside it. Static assets and the public folder are not
+# traced and are copied in next to the server, where it expects them.
+COPY --from=build --chown=node:node /repo/apps/${APP}/.next/standalone ./
+COPY --from=build --chown=node:node /repo/apps/${APP}/.next/static ./apps/${APP}/.next/static
+COPY --from=build --chown=node:node /repo/apps/${APP}/public ./apps/${APP}/public
+
+USER node
+EXPOSE 3000
+
+# The load balancer's probe (§11.9): one database round trip, one word back.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:3000/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+
+# ARG values are not visible to CMD, so the entry point is written through ENV.
+ENV APP_DIR=${APP}
+CMD ["sh", "-c", "exec node apps/${APP_DIR}/server.js"]

@@ -1,8 +1,11 @@
-# Blood Connect
+# Open Blood Donation Management (OBDM)
 
 A blood request and donor recruitment system for a medical-college hospital: doctors raise
 requests, the blood centre answers them from stock, and a chat bot recruits donors for whatever
 the shelf could not cover, then tells everyone how it ended, including when it ends badly.
+
+The product, its screens, its emails, its hosts (`obdm.deeprajr.com`), the specification and
+the package scope `@obdm/*` are all OBDM.
 
 **Everything here runs on synthetic data.** No real donor, patient or staff record enters this
 system at any point. That is a property of the build, not a limitation of the demonstration.
@@ -15,12 +18,15 @@ system at any point. That is a property of the build, not a limitation of the de
 
 | Document | What it says |
 |---|---|
-| [blood-connect-spec.md](docs/blood-connect-spec.md) | The system's behaviour: the source of truth |
+| [obdm-spec.md](docs/obdm-spec.md) | The system's behaviour: the source of truth |
 | [modules-spec.md](docs/modules-spec.md) | The four modules, flow by flow |
 | [input-fields.md](docs/input-fields.md) | Every screen that accepts input, and every field on it |
 | [backend-architecture.md](docs/backend-architecture.md) | How it is built: processes, schema, transactions, ports |
 | [build-plan.md](docs/build-plan.md) | In what order, and by when |
 | [qa-test-plan.md](docs/qa-test-plan.md) | Manual test protocol: every flow, and how it is most likely to break |
+| [e2e-user-flows.md](docs/e2e-user-flows.md) | Sixteen user flows to walk end to end, each with what every step should show |
+| [playwright-automation-plan.md](docs/playwright-automation-plan.md) | The plan for the browser suite: the loop end to end through all five applications |
+| [deployment.md](docs/deployment.md) | Taking it public: images, configuration, a release in order, and what has to be true before a real record goes in |
 | [docs/user-guides/](docs/user-guides/) | Plain-language guides, one per kind of user: doctor, blood centre, administrator, volunteer admin, donor, and the public board |
 | [docs/adr/](docs/adr/) | Decisions taken along the way, and why |
 
@@ -49,7 +55,7 @@ P13 Demo readiness               ✅  ▲ Milestone C
 ```
 
 The UX4G-based UI has also since been replaced by an in-repo kit,
-`@blood-connect/ui`, shared by all four applications on two accent colours:
+`@obdm/ui`, shared by all four applications on two accent colours:
 medical red for the three staff applications and slate blue for administration
 (ADR 0015). The staff applications draw their shared frame with it through
 `packages/staff-web` (ADR 0016).
@@ -105,10 +111,26 @@ agreement test between its SQL and its TypeScript twin, the six screening questi
 conditional UPDATE of §7.3 with waitlisting and promotion, and the outbox that makes §7.6's
 stand-down guarantee real. ([ADR 0006](docs/adr/0006-the-bot-loop-and-milestone-a.md))
 
-**Running the bot.** `pnpm bot`. With no `TELEGRAM_BOT_TOKEN` it runs on the in-memory channel and
-the whole loop still works: §10 requires the system to be demonstrable when the chat platform is
-unreachable, so that is a supported mode rather than a test shortcut. Put a token from @BotFather
-in `.env` to talk to a real account.
+**The bot is now a web application.** `apps/donor` on :3004 presents the same conversation as
+a chat screen, installable to a phone's home screen, and runs the recruitment ticker in-process
+on the `app_bot` role. The Telegram adapter is gone; the channel port that made it swappable is
+what made the swap a new adapter rather than a rewrite. A donor is a device cookie, which is why
+their phone number is recorded as typed rather than verified.
+([ADR 0017](docs/adr/0017-the-donor-bot-becomes-a-web-app.md))
+
+**The worker runs the jobs.** `apps/worker` is the process §1 names B: the email outbox
+drain with retries, hourly expiry of stock past its date, and the hourly sweep that deletes
+expired sessions and codes (§12.3). One instance does the work, held by an advisory lock; a
+second stands by. It starts with `pnpm dev` and has no screen. A production process refuses to
+start while any variable is missing or still a development value, a real database is brought
+up with `pnpm db:bootstrap` rather than the seed, and every application ships as a container
+image ([ADR 0018](docs/adr/0018-what-a-public-deployment-needed.md),
+[docs/deployment.md](docs/deployment.md)).
+
+**Running the bot.** It starts with `pnpm dev`, with the other four applications. Its terminal
+carries one line per message received and sent, phone numbers masked, and one line per tick that
+did something. Nothing leaves the machine: §10 requires the system to be demonstrable without a
+chat platform, and there is no longer one to reach.
 
 **P5** closed Module 1's endings. **Cancelling a submitted request** is the one the
 loop is judged on: it releases any units the centre was holding, withdraws the donor demand, and
@@ -176,9 +198,9 @@ MinIO stopped. ([ADR 0014](docs/adr/0014-the-control-panel-and-what-it-cannot-se
 
 **P13, demo readiness.** The seed now admits patients (`pnpm db:seed`, `SYN-PT-`/`SYN-IP-`
 prefixed) so the walkthrough below starts from a stocked, populated database rather than a
-patient typed in by hand first. `pnpm bot:diag` checks the bot's database connection, chat
-channel and contract version without starting the ticker or the conversation loop, useful
-before a demo or when the loop looks stuck. `LICENSE` and `NOTICE` (Apache-2.0, §12.7) land
+patient typed in by hand first. The bot checks its database connection and the contract
+version at boot and refuses to start on either, printing what to do. `LICENSE` and `NOTICE`
+(Apache-2.0, §12.7) land
 here too — **the copyright holder in `NOTICE` is a placeholder**, not a confirmed legal name;
 see the file itself.
 
@@ -191,10 +213,10 @@ The loop in §1, end to end, the thing a demo audience is actually shown:
 2. Sign in as the blood centre and decide it from the queue: whatever is on the shelf is
    issued oldest-expiry-first: whatever is short raises donor demand **in the same
    transaction**.
-3. `pnpm bot` (or leave it running) picks the demand up on its next tick; the nearest wave of
-   donors is asked first, visible in the seeded donor pool's spread across localities.
-4. A donor accepts, answers the six screening questions, and confirms — told the hospital and
-   a time.
+3. The donor app's ticker picks the demand up on its next tick; the nearest wave of donors is
+   asked first, visible in the seeded donor pool's spread across localities.
+4. A donor, registered in the donor app at http://localhost:3004, accepts, answers the six
+   screening questions, and confirms — told the hospital and a time.
 5. **Cancel the request**, from the doctor's own request view. Every donor who had agreed to
    come is stood down immediately, in the same transaction that releases any units the centre
    was holding. This is the step most systems of this kind get wrong, and it is worth showing
@@ -203,21 +225,24 @@ The loop in §1, end to end, the thing a demo audience is actually shown:
    counter. Their interval rolls forward, they are thanked with a next-eligible date, and the
    demand closes once every unit is in.
 
-Run `pnpm bot:diag` first if any step involving the bot does not behave as expected — it says
-which of the database, the chat channel or the contract version is the problem, rather than
-leaving that to be guessed from the ticker's log output.
+If any step involving the bot does not behave as expected, read the donor app's terminal first:
+it refuses to start on a database or contract-version problem and says which, and every message
+in and out is logged there with phone numbers masked.
 
 Run `pnpm db:seed` and sign in as any of:
 
 | Role | Email | Signs in at | Lands on |
 |---|---|---|---|
-| Doctor | `doctor@blood-connect.invalid` | http://localhost:3000/sign-in | `/dashboard` |
-| Administrator | `admin@blood-connect.invalid` | http://localhost:3001/sign-in | `/doctors` |
-| Blood centre | `centre@blood-connect.invalid` | http://localhost:3002/sign-in | `/centre` |
-| Volunteer admin | `volunteer@blood-connect.invalid` | http://localhost:3003/sign-in | `/volunteer` |
+| Doctor | `doctor@obdm.invalid` | http://localhost:3000/sign-in | `/dashboard` |
+| Administrator | `admin@obdm.invalid` | http://localhost:3001/sign-in | `/doctors` |
+| Blood centre | `centre@obdm.invalid` | http://localhost:3002/sign-in | `/centre` |
+| Volunteer admin | `volunteer@obdm.invalid` | http://localhost:3003/sign-in | `/volunteer` |
 
-Password `BloodConnect!Demo2026`, printed by the seed. These are synthetic accounts on a
+Password `OBDM!Demo2026`, printed by the seed. These are synthetic accounts on a
 `.invalid` domain, and the seed refuses to run with `NODE_ENV=production`.
+
+Donors have no account. Open http://localhost:3004 and the chat begins; the browser's cookie is
+who you are from then on.
 
 ## Getting started
 
@@ -231,7 +256,7 @@ pnpm install
 cp .env.example .env    # everything already points at the local stack
 pnpm bootstrap          # Docker up, migrations, seed. The three in order
 pnpm verify             # typecheck, lint, boundaries, tests
-pnpm dev                # doctor :3000, admin :3001, centre :3002, volunteer :3003
+pnpm dev                # doctor :3000, admin :3001, centre :3002, volunteer :3003, donor :3004
 ```
 
 `pnpm dev` builds the packages first (`tsc -b`), because the applications load them from their
@@ -249,10 +274,10 @@ the application directory. Two copies of a connection string are two things to k
 |---|---|
 | Postgres | `localhost:5433`: **not** 5432, so a natively installed server cannot be reached by accident ([ADR 0001](docs/adr/0001-phase-0-decisions.md)) |
 | Mailpit inbox | http://localhost:8025 |
-| MinIO console | http://localhost:9001 (`minioadmin` / `minioadmin`) |
+| The storage bucket | `curl http://localhost:9090/obdm` (S3Mock, no console) |
 
 Roles come from `db/docker/init.sql`, which Postgres runs on first start. A database that already
-exists will not re-run it: `docker compose down -v` then `pnpm up` to start clean.
+exists will not re-run it: `docker compose down -v` then `pnpm services:up` to start clean.
 
 ### Commands
 
@@ -267,11 +292,12 @@ exists will not re-run it: `docker compose down -v` then `pnpm up` to start clea
 | `pnpm test` | Vitest. Database suites skip without `TEST_DATABASE_URL` |
 | `node scripts/make-icons.mjs` | Regenerate the PWA icons from the committed drawing |
 | `pnpm clean:next` | Deletes all four `.next` caches. What to run when a page that has always worked fails on navigation with an ENOENT for a `build-manifest.json` and the Turbopack development cache is describing a build that no longer exists. Stop the dev server first. **If it comes back after cleaning, it is not the cache**: run `pnpm --filter <app> build`, which prints the compile error the development server swallows. A client component importing a server package fails exactly this way |
+| `pnpm e2e` | The browser suite in `e2e/`, against whatever `pnpm dev` is serving: the four staff sign-ins, and the loop end to end through all five applications. `pnpm e2e:show` runs the journey headed; `pnpm e2e:report` opens the report ([the plan](docs/playwright-automation-plan.md)). Two variables shape a run, set the PowerShell way: `$env:E2E_SLOWMO='600'` slows every action to a watchable pace, `$env:E2E_VIDEO='on'` keeps one recording per window under `e2e/test-results/` |
+| `pnpm showcase` | The system used, visibly, one flow at a time: one window per role brought to the front in turn, sign-ins on screen, a caption on the page for every step. Plays the loop by default; `$env:SHOWCASE='all'` adds each application's own flows, `$env:SHOWCASE='donor'` (or `doctor`, `centre`, `volunteer`, `admin`, comma-separated) picks chapters; `$env:SHOWCASE_SPEED='slow'` or `'fast'` sets the pace. Needs `pnpm dev` running |
 | `pnpm smoke:signin [url]` | Signs in against a running server the way a browser with no JavaScript would: the wiring a unit test cannot see. Defaults to the doctor app; `SMOKE_EMAIL` and `SMOKE_COOKIE` point it at another |
 | `pnpm smoke:centre` | Runs the centre's writes as `app_web` and asserts what that role must not be able to do. The suite connects as `migrator`, so it proves nothing about the grants; this does |
 | `pnpm smoke:bot` | The same for `app_bot`: the interview, the profile edit, erasure, and the six things the bot must not be able to reach |
-| `pnpm bot` | The donor bot: long-polls the channel and ticks. `CHANNEL=memory` needs no token |
-| `pnpm bot:diag` | Checks the bot's database, chat channel and contract version and says what to do about each failure, without starting the ticker or conversation loop |
+| `pnpm --filter @obdm/donor-app dev` | The donor app on its own, without the other four: the chat on :3004 and the bot's ticker. `BOT_LOG=off` silences the conversation log |
 | `pnpm check:bot-migrations` | Greps the bot's migrations for a table the web release owns (§2.1) |
 | `pnpm db:generate` / `pnpm db:generate:bot` | Generate a migration from the Drizzle schema, for either set |
 | `pnpm db:migrate` / `pnpm db:migrate:bot` / `pnpm db:seed` | Apply either migration set / seed reference data |
@@ -285,7 +311,7 @@ apps/
   admin/      administration: doctor records and the control panel (:3001)
   centre/     the blood centre: stock, requests, demand, returns (:3002)
   volunteer/  the volunteer dashboard and the public demand board (:3003)
-  bot/        the donor bot, no HTTP port
+  donor/      the donor bot as a chat web app, with its ticker in-process (:3004)
 packages/
   platform/   accounts, sessions, authorization, audit, email, config, shared by every app
   staff-web/  the frame the three staff apps share: session, guards, header, account pages
@@ -306,9 +332,9 @@ db/
 docs/         the specification set and the decision log
 ```
 
-`apps/doctor`, `apps/centre`, `apps/volunteer` and `apps/admin` are the four web applications,
-one per role, all on the `app_web` database role; `apps/bot` is the donor bot on `app_bot`.
-`apps/vision` arrives with the phase that needs it.
+`apps/doctor`, `apps/centre`, `apps/volunteer` and `apps/admin` are the four staff applications,
+one per role, all on the `app_web` database role; `apps/donor` is the donor bot on `app_bot`,
+the only application with no sign-in. `apps/vision` arrives with the phase that needs it.
 
 ### The rules the build enforces mechanically
 
@@ -324,7 +350,7 @@ Because there is no second reader on a commit here, CI is the reviewer:
   what they *cannot* do.
 - **Every state machine's table is checked for states with no way out**, the failure §8 exists
   to prevent.
-- **Both applications are installable PWAs**, and the service worker caches the shell and
+- **Every application is an installable PWA**, the donor chat included, and the service worker caches the shell and
   **never** data, a cached stock figure is a wrong stock figure, and on a shared ward device a
   cached page is somebody else's page ([ADR 0004](docs/adr/0004-pwa-and-a-spacing-token-that-does-not-exist.md)).
 - **§9's role matrix is a test**, transcribed row by row, asserted for every role, and the 403

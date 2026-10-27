@@ -6,7 +6,7 @@
  *
  * Presentation only. Session gating is the caller's job: a page a
  * signed-out user must not see is protected by a server-side check in
- * the app (Bloodconnect: `currentActor()` + `redirect('/sign-in')`),
+ * the app (OBDM: `currentActor()` + `redirect('/sign-in')`),
  * not by this shell. The shell renders whatever it is given.
  */
 

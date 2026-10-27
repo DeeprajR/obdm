@@ -1,6 +1,6 @@
-# Blood Connect user guides
+# OBDM user guides
 
-Blood Connect helps a hospital get blood to a patient. A doctor asks for blood. The
+OBDM, Open Blood Donation Management, helps a hospital get blood to a patient. A doctor asks for blood. The
 blood centre answers from the fridge. If the fridge cannot cover it, a chat bot asks
 nearby donors to come in. Everyone who was asked is told how it ended.
 
@@ -12,7 +12,7 @@ There is one guide for each kind of user. Pick yours.
 | Blood centre staff at the counter or the fridge | [Blood centre guide](blood-centre-guide.md) | The blood centre app |
 | An administrator who manages doctor accounts | [Administrator guide](administrator-guide.md) | The administration app |
 | A volunteer admin who spreads the word | [Volunteer admin guide](volunteer-admin-guide.md) | The volunteer app |
-| Someone who wants to give blood | [Donor guide](donor-guide.md) | The Telegram chat bot |
+| Someone who wants to give blood | [Donor guide](donor-guide.md) | The donor app, a chat in the browser, no account needed |
 | A member of the public with a link | [Public board guide](public-board-guide.md) | The public board, no account needed |
 
 Each guide is written to be read on its own. You do not need to read the others.
@@ -47,7 +47,7 @@ incorrect." Each sign-in page has links to the other apps.
 | Blood centre app | http://localhost:3002 |
 | Volunteer app | http://localhost:3003 |
 | Public demand board | http://localhost:3003/board |
-| Donor chat bot | Telegram, `cmck_blood_donor_bot` |
+| Donor app (the chat) | http://localhost:3004 |
 
 On a real installation the addresses will be different. Ask your administrator.
 
@@ -80,6 +80,6 @@ and the compatibility test always happen on site, with a person. Every page says
 its footer.
 
 **Demo accounts.** On the demo machine, four accounts exist with the password
-`BloodConnect!Demo2026`. They are `doctor@`, `admin@`, `centre@` and `volunteer@`, all
-at `blood-connect.invalid`. Nothing in the demo is real. On the demo machine, all email
+`OBDM!Demo2026`. They are `doctor@`, `admin@`, `centre@` and `volunteer@`, all
+at `obdm.invalid`. Nothing in the demo is real. On the demo machine, all email
 lands in Mailpit at http://localhost:8025.

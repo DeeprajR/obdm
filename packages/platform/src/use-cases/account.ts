@@ -11,8 +11,8 @@
  */
 
 import { eq } from 'drizzle-orm';
-import { err, ok, type Result } from '@blood-connect/result';
-import { users, type UserRole } from '@blood-connect/db';
+import { err, ok, type Result } from '@obdm/result';
+import { users, type UserRole } from '@obdm/db';
 
 import { appOrigin } from '../app-origins.js';
 import type { UseCaseContext } from '../context.js';
@@ -105,8 +105,10 @@ export async function consumeInvite(
     // Conditional: two tabs on the same link must not both set a password.
     if (!(await consumeInviteRow(tx, invite.id, now))) return err(linkNotUsable());
 
+    // An account deactivated while its invite was out stays deactivated: the
+    // link is not a way back in past the administrator who closed it.
     const account = await findAccountById(tx, invite.userId);
-    if (!account) return err(linkNotUsable());
+    if (account?.status !== 'pending_activation') return err(linkNotUsable());
 
     await tx
       .update(users)

@@ -1,6 +1,6 @@
 {
-  "name": "Blood Connect · Doctors",
-  "short_name": "BC Doctors",
+  "name": "OBDM · Doctors",
+  "short_name": "OBDM Doctors",
   "description": "Blood requests, centre inventory and donor recruitment.",
   "start_url": "/",
   "scope": "/",

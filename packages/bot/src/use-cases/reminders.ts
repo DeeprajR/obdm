@@ -17,7 +17,7 @@
  */
 
 import { and, eq, gt, lt } from 'drizzle-orm';
-import { conversationState } from '@blood-connect/db/bot';
+import { conversationState } from '@obdm/db/bot';
 
 import type { BotContext } from '../context.js';
 import { MESSAGES } from '../messages.js';

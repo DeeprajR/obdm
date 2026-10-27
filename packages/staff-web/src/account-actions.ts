@@ -25,7 +25,7 @@ import {
   verifyOtpAndReset,
   withdrawAccountUpdate,
   type UserRole,
-} from '@blood-connect/platform';
+} from '@obdm/platform';
 
 import type { StaffApp } from './app.js';
 import type { FormState, SignInFormState } from './form-state.js';

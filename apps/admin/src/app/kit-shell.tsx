@@ -1,7 +1,8 @@
 import 'server-only';
 
 import type { ReactNode } from 'react';
-import { AppShell as KitAppShell } from '@blood-connect/ui';
+import { db, findAccountById, type Actor } from '@obdm/platform';
+import { AppShell as KitAppShell } from '@obdm/ui';
 
 import { PRIMARY_NAV, SECONDARY_NAV } from './nav';
 import { SignOutButton } from './sign-out-button';
@@ -18,11 +19,14 @@ import { SignOutButton } from './sign-out-button';
  * resolved on the server; the kit's `AppShell` is a `"use client"`
  * boundary that runs from there.
  */
-export function KitShell({
+export async function KitShell({
+  actor,
   currentPath,
   currentTitle,
   children,
 }: {
+  /** The signed-in administrator, named in the sidebar. */
+  actor?: Actor;
   /** The page's own path, e.g. `/doctors`. Read as-is by the sidebar to
    * mark the active nav item. */
   currentPath: string;
@@ -31,10 +35,16 @@ export function KitShell({
   currentTitle: string;
   children: ReactNode;
 }) {
+  const account = actor?.kind === 'user' ? await findAccountById(db, actor.userId) : undefined;
+  const user =
+    account === undefined
+      ? { name: 'Administrator' }
+      : { name: account.fullName, email: account.email };
+
   return (
     <KitAppShell
-      brand={{ title: 'Blood Connect', subtitle: 'Administration', letter: 'B' }}
-      user={{ name: 'Administrator' }}
+      brand={{ title: 'OBDM', subtitle: 'Administration', letter: 'O' }}
+      user={user}
       primaryNav={PRIMARY_NAV}
       secondaryNav={SECONDARY_NAV}
       currentPath={currentPath}

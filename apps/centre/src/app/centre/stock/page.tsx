@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { Card, PageHeader, StatusBadge, linkButtonClasses } from '@blood-connect/ui';
+import { Card, PageHeader, StatusBadge, linkButtonClasses } from '@obdm/ui';
 
 import { CentreShell } from '../../centre-shell';
 import { requireAccess, useCaseContext } from '@/lib/guards';
-import { listBags } from '@blood-connect/centre';
+import { listBags } from '@obdm/centre';
 import { DiscardBagForm } from '../../centre-collision-forms';
 import {
   BLOOD_GROUPS,
@@ -15,9 +15,9 @@ import {
   daysUntilExpiry,
   parseCalendarDay,
   productLabel,
-} from '@blood-connect/domain';
+} from '@obdm/domain';
 
-export const metadata: Metadata = { title: 'Register · Blood Connect' };
+export const metadata: Metadata = { title: 'Register · OBDM' };
 
 const STATUSES = [
   'available',

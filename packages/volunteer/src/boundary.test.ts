@@ -11,7 +11,7 @@ import path from 'node:path';
  * screen cannot show one is to guarantee the module cannot name one.
  *
  * dependency-cruiser stops this package importing `hospital`, `centre` or
- * `bot`, but all four modules legitimately import `@blood-connect/db` for their
+ * `bot`, but all four modules legitimately import `@obdm/db` for their
  * own schema, so it sees one allowed edge and cannot tell `donor_demand` from
  * `patients` inside it. This reads the source instead.
  *

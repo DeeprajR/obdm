@@ -19,16 +19,16 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { count, eq, inArray, sql as raw } from 'drizzle-orm';
 import postgres from 'postgres';
 
-import { CONTRACT_VERSION, CONTRACT_VERSION_CONFIG_KEY } from '@blood-connect/contract';
-import { newId } from '@blood-connect/ids';
+import { newId } from '@obdm/ids';
 
 import { databaseUrl, nodeEnv, redact } from './env.js';
-import { SEED_PASSWORD, buildAccountSeeds } from '../seeds/accounts.js';
 import {
-  DATASET_SOURCE,
-  DATASET_VERSION,
-  readLocationSeed,
-} from '../seeds/locations.js';
+  provisionCentreSettings,
+  provisionContractVersion,
+  provisionLocations,
+  type Database,
+} from './provision.js';
+import { SEED_PASSWORD, buildAccountSeeds } from '../seeds/accounts.js';
 import { buildStockSeed } from '../seeds/stock.js';
 import { buildDonorSeed, type PlaceSeed } from '../seeds/donors.js';
 import { buildAdmissionSeed, buildPatientSeed } from '../seeds/patients.js';
@@ -40,11 +40,7 @@ import {
 } from './schema-bot/index.js';
 import {
   admissions,
-  appConfig,
   bloodBags,
-  centreSettings,
-  locationAliases,
-  locationDatasetVersions,
   locationNodes,
   patients,
   users,
@@ -52,61 +48,6 @@ import {
 
 /** This deployment's centre. Multi-tenant needs more rows, not a migration. */
 const CENTRE_ID = '01930000-0000-7000-8000-000000000001';
-
-type Database = ReturnType<typeof drizzle>;
-
-async function seedLocations(db: Database): Promise<void> {
-  const nodes = await readLocationSeed();
-
-  await db
-    .insert(locationDatasetVersions)
-    .values({ version: DATASET_VERSION, source: DATASET_SOURCE })
-    .onConflictDoUpdate({
-      target: locationDatasetVersions.version,
-      set: { source: DATASET_SOURCE },
-    });
-
-  // Parents before children: the rows arrive in hierarchy order and the
-  // self-referencing foreign key is checked per statement.
-  for (const node of nodes) {
-    await db
-      .insert(locationNodes)
-      .values({
-        id: node.id,
-        level: node.level,
-        kind: node.kind,
-        parentId: node.parentId,
-        name: node.name,
-        nameNormalised: node.nameNormalised,
-        datasetVersion: DATASET_VERSION,
-      })
-      .onConflictDoUpdate({
-        target: locationNodes.id,
-        set: {
-          level: node.level,
-          kind: node.kind,
-          parentId: node.parentId,
-          name: node.name,
-          nameNormalised: node.nameNormalised,
-          datasetVersion: DATASET_VERSION,
-          updatedAt: raw`now()`,
-        },
-      });
-  }
-
-  const aliases = nodes.flatMap((node) =>
-    node.aliases.map((aliasNormalised) => ({ nodeId: node.id, aliasNormalised })),
-  );
-
-  if (aliases.length > 0) {
-    await db.insert(locationAliases).values(aliases).onConflictDoNothing();
-  }
-
-  const localities = nodes.filter((n) => n.level === 'locality').length;
-  process.stdout.write(
-    `  locations: ${nodes.length} nodes (${localities} localities), ${aliases.length} aliases\n`,
-  );
-}
 
 async function seedAccounts(db: Database): Promise<void> {
   const accounts = await buildAccountSeeds();
@@ -146,23 +87,6 @@ async function seedAccounts(db: Database): Promise<void> {
     process.stdout.write(`    ${account.role.padEnd(16)} ${account.email}\n`);
   }
   process.stdout.write(`  password:  ${SEED_PASSWORD}\n`);
-}
-
-/**
- * Points the centre at its district, now that the hierarchy exists.
- *
- * Migration 0010 creates the settings row without one, because `district_id` is
- * a foreign key into `reference.location_nodes` and the migrations run before
- * this file does. Set here rather than there, so a fresh database migrates
- * cleanly and the demand use case has an address to snapshot.
- */
-async function seedCentreSettings(db: Database): Promise<void> {
-  await db
-    .update(centreSettings)
-    .set({ districtId: 'KL_KKD', cityId: 'KKD_T1', updatedAt: raw`now()` })
-    .where(eq(centreSettings.id, 1));
-
-  process.stdout.write('  centre:    settings pointed at Kozhikode (KL_KKD)\n');
 }
 
 /**
@@ -404,22 +328,25 @@ async function seedDonors(db: Database): Promise<void> {
   );
 }
 
-async function seedConfig(db: Database): Promise<void> {
-  // Both processes assert their compiled contract version against this at boot
-  // and refuse to start on a major mismatch (§6).
-  await db
-    .insert(appConfig)
-    .values({ key: CONTRACT_VERSION_CONFIG_KEY, value: CONTRACT_VERSION })
-    .onConflictDoUpdate({
-      target: appConfig.key,
-      set: { value: CONTRACT_VERSION, updatedAt: raw`now()` },
-    });
-
-  // Every clinical threshold keeps its default until someone changes it on
-  // purpose. Writing the defaults as rows here would freeze today's guideline
-  // values into the database and hide a later change to them (§12).
-  process.stdout.write(`  config:    contract.version = ${CONTRACT_VERSION}\n`);
-}
+/** `String(error)` drops the cause, and the cause is where ECONNREFUSED is. */
+const describe = (error: unknown): string => {
+  if (!(error instanceof Error)) return String(error);
+  const parts = [error.message];
+  // A refused connection on localhost is an AggregateError with no message of
+  // its own and one ECONNREFUSED per address family inside it; walk the chain
+  // and read whatever each link actually says.
+  let cause: unknown = error.cause;
+  while (cause instanceof Error) {
+    const inner = cause as Error & { errors?: unknown[]; code?: string };
+    const nested = Array.isArray(inner.errors)
+      ? inner.errors.map((e) => (e instanceof Error ? e.message : String(e))).join('; ')
+      : '';
+    const text = [inner.message, nested, inner.code ?? ''].find((part) => part !== '') ?? '';
+    if (text !== '') parts.push(text);
+    cause = inner.cause;
+  }
+  return parts.join(': ');
+};
 
 async function main(): Promise<void> {
   if (nodeEnv() === 'production' && process.env['ALLOW_PRODUCTION_SEED'] !== 'yes') {
@@ -437,13 +364,13 @@ async function main(): Promise<void> {
   const client = postgres(url, { max: 1, onnotice: () => undefined });
   try {
     const db = drizzle(client);
-    await seedLocations(db);
+    await provisionLocations(db);
     await seedAccounts(db);
-    await seedCentreSettings(db);
+    await provisionCentreSettings(db, { districtId: 'KL_KKD', cityId: 'KKD_T1' }, { reset: true });
     await seedStock(db);
     await seedPatients(db);
     await seedDonors(db);
-    await seedConfig(db);
+    await provisionContractVersion(db);
     process.stdout.write('seed complete\n');
   } finally {
     await client.end({ timeout: 5 });
@@ -451,6 +378,9 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  process.stderr.write(`seed failed: ${String(error)}\n`);
+  process.stderr.write(
+    `seed failed: ${describe(error)}\n` +
+      'A refused connection means Postgres is not up: `docker compose ps`, then `pnpm services:up`.\n',
+  );
   process.exit(1);
 });

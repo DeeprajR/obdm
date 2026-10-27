@@ -3,18 +3,18 @@ import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
-import { CONFIG_DEFAULTS } from '@blood-connect/config';
-import { admissions, bloodRequests, patients, users } from '@blood-connect/db';
-import { parseRequestNumber } from '@blood-connect/domain';
-import { idGenerator, newId } from '@blood-connect/ids';
-import { createFakeClock } from '@blood-connect/testing';
+import { CONFIG_DEFAULTS } from '@obdm/config';
+import { admissions, bloodRequests, patients, users } from '@obdm/db';
+import { parseRequestNumber } from '@obdm/domain';
+import { idGenerator, newId } from '@obdm/ids';
+import { createFakeClock } from '@obdm/testing';
 import {
   argon2Hasher,
   nodeTokens,
   type Actor,
   type Database,
   type UseCaseContext,
-} from '@blood-connect/platform';
+} from '@obdm/platform';
 
 import { raiseRequest, type RaiseInput } from './raise.js';
 import { listRequestsForDoctor } from './records.js';
@@ -82,7 +82,7 @@ describe.skipIf(!testUrl)('raising a blood request (§3, §7.1)', () => {
     doctor = { kind: 'user', userId: doctorId, role: 'doctor', districtScopeId: null };
     await db.insert(users).values({
       id: doctorId,
-      email: `doctor-${doctorId}@blood-connect.invalid`,
+      email: `doctor-${doctorId}@obdm.invalid`,
       fullName: 'Dr Test',
       role: 'doctor',
       status: 'active',
@@ -482,7 +482,7 @@ describe.skipIf(!testUrl)('raising a blood request (§3, §7.1)', () => {
       const id = newId();
       await db.insert(users).values({
         id,
-        email: `counter-${id}@blood-connect.invalid`,
+        email: `counter-${id}@obdm.invalid`,
         fullName: 'Counter Staff',
         role: 'blood_centre',
         status: 'active',
@@ -508,6 +508,33 @@ describe.skipIf(!testUrl)('raising a blood request (§3, §7.1)', () => {
       // then (§2.6).
       expect((row?.patientSnapshot as { name: string }).name).toBe(details.name);
       expect(await admissionStateFor(context(), raised.value.requestUuid)).toBe('admitted');
+    });
+
+    it('refuses an IP number already admitted for a different patient', async () => {
+      const first = await raise();
+      const second = await raise();
+      if (!first.ok || !second.ok) throw new Error('not raised');
+
+      expect((await attachPatient(await asCounter(), first.value.requestUuid, details)).ok).toBe(true);
+
+      /**
+       * One digit off is somebody else's admission. Taking it silently would
+       * put this request's units against the wrong person (§2.6), so the
+       * counter is told to check the number instead.
+       */
+      const mismatch = await attachPatient(await asCounter(), second.value.requestUuid, {
+        ...details,
+        name: 'Someone Else',
+      });
+      expect(mismatch.ok).toBe(false);
+
+      // The same person again, typed a little differently, is the ordinary
+      // case of two requests for one admission.
+      const same = await attachPatient(await asCounter(), second.value.requestUuid, {
+        ...details,
+        name: ` ${details.name.toUpperCase()} `,
+      });
+      expect(same.ok).toBe(true);
     });
 
     it('refuses a second patient on the same request', async () => {

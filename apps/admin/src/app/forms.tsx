@@ -3,7 +3,7 @@
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 
-import { Button, FormField, TextInput } from '@blood-connect/ui';
+import { Button, FormField, TextInput } from '@obdm/ui';
 
 import {
   changeDoctorEmailAction,

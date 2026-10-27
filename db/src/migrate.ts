@@ -20,6 +20,26 @@ const migrationsFolder = findUp(
   path.dirname(fileURLToPath(import.meta.url)),
 );
 
+/** `String(error)` drops the cause, and the cause is where ECONNREFUSED is. */
+const describe = (error: unknown): string => {
+  if (!(error instanceof Error)) return String(error);
+  const parts = [error.message];
+  // A refused connection on localhost is an AggregateError with no message of
+  // its own and one ECONNREFUSED per address family inside it; walk the chain
+  // and read whatever each link actually says.
+  let cause: unknown = error.cause;
+  while (cause instanceof Error) {
+    const inner = cause as Error & { errors?: unknown[]; code?: string };
+    const nested = Array.isArray(inner.errors)
+      ? inner.errors.map((e) => (e instanceof Error ? e.message : String(e))).join('; ')
+      : '';
+    const text = [inner.message, nested, inner.code ?? ''].find((part) => part !== '') ?? '';
+    if (text !== '') parts.push(text);
+    cause = inner.cause;
+  }
+  return parts.join(': ');
+};
+
 async function main(): Promise<void> {
   const url = databaseUrl('migrator');
   process.stdout.write(`applying migrations to ${redact(url)}\n`);
@@ -35,6 +55,9 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  process.stderr.write(`migration failed: ${String(error)}\n`);
+  process.stderr.write(
+    `migration failed: ${describe(error)}\n` +
+      'A refused connection means Postgres is not up: `docker compose ps`, then `pnpm services:up`.\n',
+  );
   process.exit(1);
 });

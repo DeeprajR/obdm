@@ -9,30 +9,30 @@ import {
   PageHeader,
   StatusBadge,
   type Column,
-} from '@blood-connect/ui';
+} from '@obdm/ui';
 
 import { CentreShell } from '../../../centre-shell';
-import { DecisionForm } from '../../../centre-forms';
+import { DecisionForm, HandOverForm } from '../../../centre-forms';
 import { requireAccess, useCaseContext } from '@/lib/guards';
 import {
   availableUnits,
   getDecisionForRequest,
   listDecisionBags,
   listDemands,
-} from '@blood-connect/centre';
+} from '@obdm/centre';
 import {
   admissionStateFor,
   getRequestForDecision,
-} from '@blood-connect/hospital';
+} from '@obdm/hospital';
 import { AttachPatientForm } from '../../../attach-patient-form';
 import {
   WORDING,
   bloodGroupLabel,
   productLabel,
   recruitsDonors,
-} from '@blood-connect/domain';
+} from '@obdm/domain';
 
-export const metadata: Metadata = { title: 'Answer a request · Blood Connect' };
+export const metadata: Metadata = { title: 'Answer a request · OBDM' };
 
 const DECISION_LABELS: Readonly<Record<string, string>> = {
   approved: 'Approved in full',
@@ -61,6 +61,7 @@ export default async function DecisionPage({
   ]);
 
   const issued = decision ? await listDecisionBags(ctx, decision.id) : [];
+  const held = issued.filter((bag) => bag.reservedForRequestId === request.id).length;
   const demands = decision?.demandId
     ? (await listDemands(ctx)).filter((row) => row.id === decision.demandId)
     : [];
@@ -282,6 +283,9 @@ export default async function DecisionPage({
                   These units are held for this request until they leave
                   the fridge.
                 </p>
+                {held > 0 ? (
+                  <HandOverForm requestUuid={request.id} units={held} />
+                ) : null}
               </div>
             ) : null}
 

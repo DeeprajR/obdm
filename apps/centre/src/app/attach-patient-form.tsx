@@ -9,9 +9,9 @@ import {
   Select,
   TextArea,
   TextInput,
-} from '@blood-connect/ui';
+} from '@obdm/ui';
 
-import { BLOOD_GROUPS, WORDING, bloodGroupLabel } from '@blood-connect/domain';
+import { BLOOD_GROUPS, WORDING, bloodGroupLabel } from '@obdm/domain';
 
 import { DateParts } from './date-parts';
 import { attachPatientAction, type FormState } from './centre-actions';

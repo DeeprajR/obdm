@@ -18,8 +18,8 @@
  */
 
 import { eq, sql } from 'drizzle-orm';
-import { err, ok, type Result } from '@blood-connect/result';
-import { bloodBags, productShelfLives, rfidTags, tagAssignments } from '@blood-connect/db';
+import { err, ok, type Result } from '@obdm/result';
+import { bloodBags, productShelfLives, rfidTags, tagAssignments } from '@obdm/db';
 import {
   deriveExpiry,
   isBloodGroup,
@@ -27,13 +27,13 @@ import {
   parseCalendarDay,
   type BloodGroup,
   type Product,
-} from '@blood-connect/domain';
+} from '@obdm/domain';
 import {
   actorHas,
   createAuditWriter,
   type Transaction,
   type UseCaseContext,
-} from '@blood-connect/platform';
+} from '@obdm/platform';
 
 import {
   invalidBag,

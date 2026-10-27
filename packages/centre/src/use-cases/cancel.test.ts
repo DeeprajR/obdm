@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
-import { CONFIG_DEFAULTS } from '@blood-connect/config';
+import { CONFIG_DEFAULTS } from '@obdm/config';
 import {
   admissions,
   bloodBags,
@@ -11,20 +11,21 @@ import {
   donorDemand,
   patients,
   users,
-} from '@blood-connect/db';
-import { addDays, bloodRequestTransitions, canTransition } from '@blood-connect/domain';
-import { idGenerator, newId } from '@blood-connect/ids';
-import { createFakeClock } from '@blood-connect/testing';
+} from '@obdm/db';
+import { addDays, bloodRequestTransitions, canTransition } from '@obdm/domain';
+import { idGenerator, newId } from '@obdm/ids';
+import { createFakeClock } from '@obdm/testing';
 import {
   argon2Hasher,
   nodeTokens,
   type Actor,
   type Database,
   type UseCaseContext,
-} from '@blood-connect/platform';
+} from '@obdm/platform';
 
 import { cancelRequest } from './cancel.js';
 import { decideRequest } from './decide.js';
+import { handOverBags } from './issue.js';
 
 const testUrl = process.env['TEST_DATABASE_URL'];
 const CENTRE_ID = '01930000-0000-7000-8000-000000000001';
@@ -91,7 +92,7 @@ describe.skipIf(!testUrl)('cancelling a request (§3, §8)', () => {
     await db.insert(users).values([
       {
         id: doctorId,
-        email: `doctor-${doctorId}@blood-connect.invalid`,
+        email: `doctor-${doctorId}@obdm.invalid`,
         fullName: 'Dr Test',
         role: 'doctor',
         status: 'active',
@@ -99,7 +100,7 @@ describe.skipIf(!testUrl)('cancelling a request (§3, §8)', () => {
       },
       {
         id: counterId,
-        email: `counter-${counterId}@blood-connect.invalid`,
+        email: `counter-${counterId}@obdm.invalid`,
         fullName: 'Counter Staff',
         role: 'blood_centre',
         status: 'active',
@@ -313,6 +314,61 @@ describe.skipIf(!testUrl)('cancelling a request (§3, §8)', () => {
 
     const issued = await db.select().from(bloodBags).where(eq(bloodBags.status, 'issued'));
     expect(issued).toHaveLength(1);
+  });
+
+  it('lets a released unit go to the next request', async () => {
+    // The units a cancelled decision held are back on the shelf, and the
+    // shortest-dated go first, so the next decision picks the same bags.
+    await stock(2);
+    const first = await submitted(2);
+    await decideRequest(context(counter), { requestUuid: first, action: 'issue', note: null });
+    await cancelRequest(context(doctor), first, 'Patient improved');
+
+    const second = await submitted(2);
+    const decided = await decideRequest(context(counter), {
+      requestUuid: second,
+      action: 'issue',
+      note: null,
+    });
+    expect(decided.ok && decided.value.unitsIssued).toBe(2);
+
+    const held = await db
+      .select()
+      .from(bloodBags)
+      .where(eq(bloodBags.reservedForRequestId, second));
+    expect(held).toHaveLength(2);
+  });
+
+  it('hands over the units held, once, and then has nothing to release', async () => {
+    await stock(2);
+    const id = await submitted(2);
+    await decideRequest(context(counter), { requestUuid: id, action: 'issue', note: null });
+
+    const handed = await handOverBags(context(counter), id);
+    expect(handed.ok && handed.value.issued).toBe(2);
+
+    const issued = await db.select().from(bloodBags).where(eq(bloodBags.issuedToRequestId, id));
+    expect(issued).toHaveLength(2);
+    expect(issued.every((bag) => bag.status === 'issued' && bag.issuedAt !== null)).toBe(true);
+    expect(issued.every((bag) => bag.reservedForRequestId === null)).toBe(true);
+
+    // A second press finds nothing held, and says so.
+    const again = await handOverBags(context(counter), id);
+    expect(again.ok).toBe(false);
+
+    // Gone from the fridge, so a cancellation no longer reclaims them (§4).
+    const result = await cancelRequest(context(doctor), id, 'Patient improved');
+    expect(result.ok && result.value.bagsReleased).toBe(0);
+  });
+
+  it('does not let a doctor record a hand-over', async () => {
+    await stock(1);
+    const id = await submitted(1);
+    await decideRequest(context(counter), { requestUuid: id, action: 'issue', note: null });
+
+    const result = await handOverBags(context(doctor), id);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe('NotAuthorized');
   });
 
   it('cancels a partly approved request too', async () => {

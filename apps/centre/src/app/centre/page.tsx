@@ -1,14 +1,13 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { Card, PageHeader, StatusBadge, linkButtonClasses } from '@blood-connect/ui';
+import { Card, PageHeader, StatusBadge, linkButtonClasses } from '@obdm/ui';
 
 import { CentreShell } from '../centre-shell';
-import { LiveRefresh } from '@blood-connect/staff-web/client';
-import { RecruitButton } from '../centre-forms';
+import { LiveRefresh } from '@obdm/staff-web/client';
+import { RecruitForm } from '../centre-forms';
 import { StockChart } from '../stock-chart';
 import { CompletedDonations, UpcomingDonations } from '../donations-tables';
-import { recruitForFloorAction } from '../centre-actions';
 import { requireAccess, useCaseContext } from '@/lib/guards';
 import {
   centreOverviewCounts,
@@ -18,11 +17,11 @@ import {
   listQuarantine,
   listUpcomingDonations,
   stockByGroup,
-} from '@blood-connect/centre';
-import { listRequestsAwaitingDecision } from '@blood-connect/hospital';
-import { STOCK_DISPLAY_ORDER, WORDING, bloodGroupLabel } from '@blood-connect/domain';
+} from '@obdm/centre';
+import { listRequestsAwaitingDecision } from '@obdm/hospital';
+import { STOCK_DISPLAY_ORDER, WORDING, bloodGroupLabel } from '@obdm/domain';
 
-export const metadata: Metadata = { title: 'Blood centre · Blood Connect' };
+export const metadata: Metadata = { title: 'Blood centre · OBDM' };
 
 // The header CTA and the "register" card's secondary links are <Link>s
 // styled as <Button>; `linkButtonClasses` (PR-11a) is the shared shape
@@ -218,9 +217,7 @@ export default async function CentrePage() {
           </div>
 
           <div className="flex flex-col gap-2 border-t border-border pt-4">
-            <form action={recruitForFloorAction}>
-              <RecruitButton shortGroups={short.length} />
-            </form>
+            <RecruitForm shortGroups={short.length} />
             <p className="text-xs text-ink-subtle">
               {/* The partial unique index makes this safe to press twice (§5.6). */}
               One demand per short group. A group that already has an open

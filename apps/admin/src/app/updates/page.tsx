@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
 
-import { Button, Card, EmptyState, PageHeader, StatusBadge } from '@blood-connect/ui';
+import { Button, Card, EmptyState, PageHeader, StatusBadge } from '@obdm/ui';
 
 import { KitShell } from '../kit-shell';
 import { approveUpdateRequestAction, rejectUpdateRequestAction } from '../actions';
 import { requireAccess, useCaseContext } from '@/lib/guards';
-import { UPDATE_REQUEST_LABELS, listPendingUpdateRequests } from '@blood-connect/platform';
+import { UPDATE_REQUEST_LABELS, listPendingUpdateRequests } from '@obdm/platform';
 
 export const metadata: Metadata = { title: 'Update requests · Administration' };
 
@@ -40,7 +40,7 @@ export default async function UpdateRequestsPage({
   const { problem } = await searchParams;
 
   return (
-    <KitShell currentPath="/updates" currentTitle="Update requests">
+    <KitShell actor={actor} currentPath="/updates" currentTitle="Update requests">
       <PageHeader
         title="Update requests"
         description="A doctor cannot change their own name or registration number, because both appear on every request they raise. Approving one applies it for them."

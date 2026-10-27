@@ -40,7 +40,7 @@ export function SearchInput({
   // exactly the pattern the "you might not need an effect" essay
   // discusses; the linter's exhaustive-deps rule would misdiagnose it,
   // which is why the ported code from blood-connect-ui suppressed that
-  // rule here. Bloodconnect's ESLint config does not include the
+  // rule here. OBDM's ESLint config does not include the
   // react-hooks plugin, so there is nothing to suppress: this comment
   // is the whole documentation.
   useEffect(() => {

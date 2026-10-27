@@ -13,10 +13,10 @@
  */
 
 import { eq } from 'drizzle-orm';
-import { admissions, patients } from '@blood-connect/db';
-import { isBloodGroup } from '@blood-connect/domain';
-import { err, ok, type Result } from '@blood-connect/result';
-import type { Transaction, UseCaseContext } from '@blood-connect/platform';
+import { admissions, patients } from '@obdm/db';
+import { isBloodGroup } from '@obdm/domain';
+import { err, ok, type Result } from '@obdm/result';
+import type { Transaction, UseCaseContext } from '@obdm/platform';
 
 /** Everything a patient record can carry. Only four of them are required. */
 export type PatientDetails = {
@@ -143,6 +143,10 @@ export async function snapshotOfAdmission(
  * admission and whatever the caller is attaching them to have to commit
  * together, or a crash leaves a request pointing at half a patient.
  */
+/** Case, dots and runs of spaces are not a different person. */
+const looseName = (value: string): string =>
+  value.toLowerCase().replace(/\./g, '').replace(/\s+/g, ' ').trim();
+
 export async function createPatientAndAdmit(
   tx: Transaction,
   ctx: UseCaseContext,
@@ -165,6 +169,25 @@ export async function createPatientAndAdmit(
   if (existing) {
     const snapshot = await snapshotOfAdmission(tx, existing.id);
     if (!snapshot) return err(problem('ipNo', 'That admission is unreadable.'));
+    /*
+      Reused only for the same person. An IP number one digit off is another
+      patient's admission, and silently taking it would put this request's
+      units against them (§2.6). The name is compared loosely, because two
+      people typing one name rarely agree on its spaces and capitals; the
+      group strictly, because it is what a unit is issued on.
+    */
+    const recorded = snapshot['name'];
+    const sameName = typeof recorded === 'string' && looseName(recorded) === looseName(name);
+    const sameGroup = snapshot['bloodGroup'] === input.bloodGroup;
+    if (!sameName || !sameGroup) {
+      return err(
+        problem(
+          'ipNo',
+          'That IP number is already on record for a different patient. Check the digits ' +
+            'with the person who brought it; a unit has to be traceable to the right person.',
+        ),
+      );
+    }
     return ok({ admissionId: existing.id, snapshot });
   }
 

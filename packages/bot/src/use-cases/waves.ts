@@ -28,7 +28,7 @@
  */
 
 import { and, eq, isNull, lte, or, sql } from 'drizzle-orm';
-import { botRequests, donorChannels, donorRequests, donors } from '@blood-connect/db/bot';
+import { botRequests, donorChannels, donorRequests, donors } from '@obdm/db/bot';
 import {
   ageOn,
   compatibleDonorGroupsFor,
@@ -37,8 +37,8 @@ import {
   parseCalendarDay,
   type BloodGroup,
   type CalendarDay,
-} from '@blood-connect/domain';
-import type { AppConfig } from '@blood-connect/config';
+} from '@obdm/domain';
+import type { AppConfig } from '@obdm/config';
 
 import type { BotContext } from '../context.js';
 import { createEventWriter } from '../events.js';

@@ -18,9 +18,9 @@ import { randomBytes } from 'node:crypto';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 
-import { CONFIG_DEFAULTS } from '@blood-connect/config';
-import { idGenerator, newId } from '@blood-connect/ids';
-import { APP_TIMEZONE, dayOf } from '@blood-connect/domain';
+import { CONFIG_DEFAULTS } from '@obdm/config';
+import { idGenerator, newId } from '@obdm/ids';
+import { APP_TIMEZONE, dayOf } from '@obdm/domain';
 import {
   answerContact,
   answerInterview,
@@ -32,7 +32,7 @@ import {
   findDonorByAddress,
   loadInterview,
   openBoard,
-} from '@blood-connect/bot';
+} from '@obdm/bot';
 
 const botUrl = process.env.BOT_DATABASE_URL;
 const migratorUrl = process.env.MIGRATION_DATABASE_URL;

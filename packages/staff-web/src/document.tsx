@@ -13,13 +13,13 @@ import { ServiceWorker } from './client/service-worker.js';
  * and the installed-app name in each application's own manifest.
  */
 export const staffMetadata: Metadata = {
-  title: 'Blood Connect',
+  title: 'OBDM',
   description:
     'Blood requests, centre inventory and donor recruitment for a medical-college hospital.',
 
   manifest: '/manifest.webmanifest',
-  applicationName: 'Blood Connect',
-  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'Blood Connect' },
+  applicationName: 'OBDM',
+  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'OBDM' },
   icons: {
     icon: [
       { url: '/icons/favicon-32.png', sizes: '32x32', type: 'image/png' },

@@ -23,8 +23,19 @@ export {
 } from './ports/channel.js';
 
 export { createMemoryChannel, type MemoryChannel } from './adapters/memory-channel.js';
-export { TELEGRAM_CHANNEL, createTelegramChannel, type TelegramOptions } from './adapters/telegram.js';
-export { withLogging, type LogLine } from './adapters/logging-channel.js';
+export {
+  WEB_CHANNEL,
+  createWebChannel,
+  type TranscriptRow,
+  type WebChannel,
+  type WebChannelOptions,
+} from './adapters/web.js';
+export {
+  describeIncoming,
+  describeOutgoing,
+  withLogging,
+  type LogLine,
+} from './adapters/logging-channel.js';
 
 export { MESSAGES, WORDING_VERSION, readableDay, type HospitalSnapshot } from './messages.js';
 export {
@@ -55,6 +66,15 @@ export {
 } from './outbox.js';
 
 export { handleUpdate } from './conversation.js';
+export {
+  CHAT_RATE_LIMITS,
+  callerAddressFrom,
+  pruneChatRateLimits,
+  takeChatToken,
+  type RateLimitDecision,
+  type RateLimitKeys,
+  type RateLimitPolicy,
+} from './rate-limit.js';
 export { standingFor, unaskedRequestsFor, type DonorStanding, type OpenNeed } from './use-cases/needs.js';
 export { tick, type TickResult } from './ticker.js';
 

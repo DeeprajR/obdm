@@ -389,3 +389,20 @@ export function createConfigCache(
     },
   };
 }
+
+/* -------------------------------------------------------------------------- */
+/* The process environment                                                     */
+/* -------------------------------------------------------------------------- */
+
+export {
+  BOT_RUNTIME_RULES,
+  ENV_FROM_FILE,
+  WEB_RUNTIME_RULES,
+  checkRuntimeEnv,
+  describeEnvProblems,
+  productionEnvProblems,
+  refuseToStartUnconfigured,
+  type Env,
+  type EnvProblem,
+  type EnvRule,
+} from './runtime-env.js';

@@ -1,6 +1,6 @@
 # Public board guide
 
-This guide is for anyone who has been sent a link to the Blood Connect demand board.
+This guide is for anyone who has been sent a link to the OBDM demand board.
 You do not need an account. The board shows which blood groups a hospital needs right
 now, and where to go.
 
@@ -47,8 +47,9 @@ volunteer admins. You do not need it.
 - No patient's name, ward or condition.
 - No doctor.
 - No donor, and no count of who has been asked.
-- No link to the Telegram chat bot. If you want the bot, it is on Telegram as
-  `cmck_blood_donor_bot`, or on the poster or message that sent you here.
+- No link to the donor app. If you want to register as a donor, the donor app's
+  address is on the poster or message that sent you here (on the demo machine,
+  http://localhost:3004).
 
 ---
 

@@ -2,9 +2,9 @@
  * Module 1's error taxonomy (§11.4). Expected failures are values.
  */
 
-export { notAuthorized, type NotAuthorized } from '@blood-connect/platform';
+export { notAuthorized, type NotAuthorized } from '@obdm/platform';
 
-import type { NotAuthorized } from '@blood-connect/platform';
+import type { NotAuthorized } from '@obdm/platform';
 
 export type PatientNotFound = { readonly kind: 'PatientNotFound'; readonly message: string };
 export type AdmissionNotFound = {

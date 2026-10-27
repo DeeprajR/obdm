@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
-import { Card } from '@blood-connect/ui';
-import { appOrigin } from '@blood-connect/platform';
+import { Card } from '@obdm/ui';
+import { appOrigin } from '@obdm/platform';
 
 import { STAFF_APPS, type StaffApp } from './app.js';
 import { SignInForm } from './client/sign-in-form.js';
@@ -38,7 +38,7 @@ export function SignInCard({ app, action }: { app: StaffApp; action: SignInActio
       </div>
 
       <nav
-        aria-label="Other Blood Connect applications"
+        aria-label="Other OBDM applications"
         className="flex flex-col items-center gap-1 text-center text-sm"
       >
         {others.map((other) => (

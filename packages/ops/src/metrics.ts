@@ -12,9 +12,9 @@
  */
 
 import { gte, lt, sql } from 'drizzle-orm';
-import { requestSamples } from '@blood-connect/db';
-import type { UseCaseContext } from '@blood-connect/platform';
-import { newId } from '@blood-connect/ids';
+import { requestSamples } from '@obdm/db';
+import type { UseCaseContext } from '@obdm/platform';
+import { newId } from '@obdm/ids';
 
 import { isSurface, type Surface } from './types.js';
 

@@ -19,7 +19,7 @@
  */
 
 const VERSION = 'v1';
-const SHELL_CACHE = `blood-connect-admin-shell-${VERSION}`;
+const SHELL_CACHE = `obdm-admin-shell-${VERSION}`;
 const OFFLINE_URL = '/offline';
 
 /** Enough to render the offline notice with its styling and mark. */

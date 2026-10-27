@@ -1,6 +1,6 @@
 import 'server-only';
 
-import type { Actor } from '@blood-connect/platform';
+import type { Actor } from '@obdm/platform';
 
 import { KitShell } from './kit-shell';
 
@@ -56,7 +56,7 @@ export function CentreShell({
     currentPath ?? (current !== undefined ? PATH_BY_SECTION[current] : '/centre');
 
   return (
-    <KitShell role={actor.role} currentPath={path} currentTitle={title}>
+    <KitShell role={actor.role} userId={actor.userId} currentPath={path} currentTitle={title}>
       {children}
     </KitShell>
   );

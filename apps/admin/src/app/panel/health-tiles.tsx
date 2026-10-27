@@ -1,5 +1,5 @@
-import { StatusBadge } from '@blood-connect/ui';
-import type { Heartbeat, HealthTile } from '@blood-connect/ops';
+import { StatusBadge } from '@obdm/ui';
+import type { Heartbeat, HealthTile } from '@obdm/ops';
 
 /**
  * The dependency tiles (§11.9).

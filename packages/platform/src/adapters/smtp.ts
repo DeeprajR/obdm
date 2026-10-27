@@ -60,7 +60,7 @@ export const smtpEmailPort: EmailPort = {
   async send(email: OutgoingEmail): Promise<SendResult> {
     try {
       const info = (await getTransport().sendMail({
-        from: process.env['MAIL_FROM'] ?? 'Blood Connect <no-reply@blood-connect.local>',
+        from: process.env['MAIL_FROM'] ?? 'OBDM <no-reply@obdm.local>',
         to: email.to,
         subject: email.subject,
         text: email.text,

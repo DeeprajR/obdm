@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { Card, DataTable, DescList, PageHeader, type Column } from '@blood-connect/ui';
+import { Card, DataTable, DescList, PageHeader, type Column } from '@obdm/ui';
 
 import { KitShell } from '../../kit-shell';
 import { notePage } from '@/lib/metrics';
 import { requireAccess, useCaseContext } from '@/lib/guards';
-import { readDeployment } from '@blood-connect/ops';
+import { readDeployment } from '@obdm/ops';
 
 export const metadata: Metadata = { title: 'This deployment · Administration' };
 
@@ -71,7 +71,7 @@ export default async function DeploymentPage() {
   ];
 
   return (
-    <KitShell currentPath="/panel" currentTitle="This deployment">
+    <KitShell actor={actor} currentPath="/panel" currentTitle="This deployment">
       <PageHeader
         title="This deployment"
         description="Read-only. Changing a threshold is a clinical decision, and it happens on its own audited screen."

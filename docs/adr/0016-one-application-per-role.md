@@ -132,7 +132,7 @@ pages differ, and moving it is a separate change with nothing to gain here.
 
 The first production build of the centre app failed. `centre-collision-forms.tsx`
 is a client component, and since P6 it had imported `allowedOutcomes` and
-`defaultOutcome` from `@blood-connect/centre`, which brings the database driver
+`defaultOutcome` from `@obdm/centre`, which brings the database driver
 and Argon2 into a browser bundle. In development this did not look like a
 compile error. It looked like an `ENOENT` for a `build-manifest.json` on
 `/centre/stock`, `/centre/tags`, `/centre/quarantine` and
@@ -155,7 +155,7 @@ rewritten onto the kit rather than keeping a UX4G copy alive in one package.
 
 What that changed in §5:
 
-- `packages/staff-web` imports `@blood-connect/ui`. The
+- `packages/staff-web` imports `@obdm/ui`. The
   `nothing-depends-on-ui-except-apps` rule admits it by name, because the frame
   is presentation that happens to live in a package, and
   `ui-is-presentation-only` now also keeps the kit out of `staff-web`.
