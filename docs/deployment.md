@@ -301,7 +301,9 @@ Open no inbound port except SSH. The tunnel dials out.
 
 ### Accounts, in order
 
-1. **Cloudflare Tunnel.** Zero Trust → Networks → Tunnels → Create a tunnel →
+1. **Cloudflare Tunnel.** In the Cloudflare dashboard, at the account level:
+   Networking → Tunnels (or Ctrl+K and search "Tunnels"; in Cloudflare One,
+   formerly Zero Trust, it is under Networks → Connectors) → Create a tunnel →
    Cloudflared, name it `obdm`. On the install screen choose Docker and copy
    the token after `--token`; it is `TUNNEL_TOKEN`. Then add five public
    hostnames on the tunnel, each `HTTP` to a service on the compose network:
