@@ -194,7 +194,7 @@ async function donorRegisters(
   name: string,
   who: { phone: string; name: string; group: string; sex: 'Female' | 'Male' | 'Other'; birthYear: string },
 ): Promise<ChatPage> {
-  const page = await stage.window(name, 'phone', `${DONOR.origin}/`);
+  const page = await stage.window(name, 'phone', `${DONOR.origin}/chat`);
   const chat = new ChatPage(page);
   await stage.chapter(page, 'The donor app, :3004. A chat in the browser, no account, installable to the home screen.');
   await chat.waitForBubble(/thank you for coming/);

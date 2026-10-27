@@ -40,7 +40,7 @@ export class ChatPage {
     this.log = page.getByRole('log', { name: 'Conversation' });
   }
 
-  async open(path = '/'): Promise<void> {
+  async open(path = '/chat'): Promise<void> {
     await this.page.goto(`${this.origin}${path}`);
     await expect(this.log).toBeVisible();
   }

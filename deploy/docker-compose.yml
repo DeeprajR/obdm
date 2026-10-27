@@ -141,6 +141,12 @@ services:
       BOT_TICK_INTERVAL_MS: ${BOT_TICK_INTERVAL_MS:-15000}
       BOT_LOG: ${BOT_LOG:-on}
       BUILD_ID: ${BUILD_ID:-}
+      # Only for the landing page at `/`, which links to each staff
+      # application's sign-in. The donor application calls none of them.
+      DOCTOR_APP_URL: https://${DOCTOR_HOST}
+      ADMIN_APP_URL: https://${ADMIN_HOST}
+      CENTRE_APP_URL: https://${CENTRE_HOST}
+      VOLUNTEER_APP_URL: https://${VOLUNTEER_HOST}
     logging:
       driver: json-file
       options: { max-size: '20m', max-file: '5' }

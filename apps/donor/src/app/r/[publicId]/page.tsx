@@ -17,5 +17,5 @@ export default async function RequestLinkPage({
   params: Promise<{ publicId: string }>;
 }) {
   const { publicId } = await params;
-  redirect(PUBLIC_ID.test(publicId) ? `/?r=${encodeURIComponent(publicId)}` : '/');
+  redirect(PUBLIC_ID.test(publicId) ? `/chat?r=${encodeURIComponent(publicId)}` : '/chat');
 }

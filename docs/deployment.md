@@ -49,14 +49,15 @@ The system is hosted as **Open Blood Donation Management (OBDM)**: production at
 is its own origin, because every session cookie is host-only and every form is
 refused unless its `Origin` matches the application's own `Host` (§13), so one
 name becomes five. The donor application is the public face and takes the bare
-name; the staff applications sit beside it, one level under `deeprajr.com`.
+name: its `/` is the landing page for the whole system, linking a donor to the
+chat at `/chat` and each member of staff to their own application's sign-in; the staff applications sit beside it, one level under `deeprajr.com`.
 One level, because Cloudflare's free edge certificate covers `*.deeprajr.com`
 and nothing deeper: `doctor.obdm.deeprajr.com` would fail TLS at the edge
 unless Advanced Certificate Manager is bought.
 
 | Application | Production | Development |
 |---|---|---|
-| Donor app, public | `obdm.deeprajr.com` | `dev-obdm.deeprajr.com` |
+| Landing page, and the donor chat at `/chat` | `obdm.deeprajr.com` | `dev-obdm.deeprajr.com` |
 | Doctors | `doctor-obdm.deeprajr.com` | `doctor-dev-obdm.deeprajr.com` |
 | Blood centre | `centre-obdm.deeprajr.com` | `centre-dev-obdm.deeprajr.com` |
 | Volunteers, and the board | `volunteer-obdm.deeprajr.com` | `volunteer-dev-obdm.deeprajr.com` |

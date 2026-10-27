@@ -14,9 +14,11 @@ import { ServiceWorker } from './service-worker';
  * The donor application (ADR 0017).
  *
  * The one application with no sign-in: a donor is a device with a cookie, and
- * the conversation is the whole interface. It is installable like the staff
- * applications, with the same shell-only service worker, because the person
- * it is for opens it from a home screen on a phone, often in a hurry.
+ * the conversation (`/chat`) is the whole interface. It also serves `/`, the
+ * landing page for the whole system, because it has the bare name. It is
+ * installable like the staff applications, with the same shell-only service
+ * worker, because the person it is for opens it from a home screen on a
+ * phone, often in a hurry.
  */
 export const metadata: Metadata = {
   title: 'OBDM · Donors',
@@ -64,7 +66,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
           href="#main"
           className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded-control focus:border focus:border-border-strong focus:bg-surface focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-ink"
         >
-          Skip to the conversation
+          Skip to the main content
         </a>
         {children}
         <ServiceWorker />

@@ -241,7 +241,8 @@ Run `pnpm db:seed` and sign in as any of:
 Password `OBDM!Demo2026`, printed by the seed. These are synthetic accounts on a
 `.invalid` domain, and the seed refuses to run with `NODE_ENV=production`.
 
-Donors have no account. Open http://localhost:3004 and the chat begins; the browser's cookie is
+Donors have no account. Open http://localhost:3004 for the landing page, or
+http://localhost:3004/chat and the chat begins; the browser's cookie is
 who you are from then on.
 
 ## Getting started
