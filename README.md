@@ -173,6 +173,30 @@ In outline:
 - **Hostnames** are one level under the domain (`doctor-obdm.deeprajr.com`, not
   `doctor.obdm.deeprajr.com`), because Cloudflare's free certificate covers only one level.
 
+### Demo mode
+
+To let people try the doctor, blood centre or volunteer application without an account, name a
+shared demonstration account for it in `deploy/.env.production`:
+
+```
+DEMO_DOCTOR_EMAIL=demo-doctor@example.org
+DEMO_CENTRE_EMAIL=demo-centre@example.org
+DEMO_VOLUNTEER_EMAIL=demo-volunteer@example.org
+```
+
+Each must be an **active** account of that application's role. Create it from the admin
+application and accept its invite first. Then run `docker compose $P up -d`. That application's
+sign-in page now leads with **Enter the demo**, which opens the account with no password. The
+password form stays underneath for real accounts.
+
+To turn it off, empty the line and run `up -d` again. Things to keep in mind while it is on:
+
+- Everyone with the link shares the one account and sees everything entered in it.
+- Every visit is audited as `session.created` with `demo: true`, and each address may open 60
+  per quarter-hour.
+- The admin application has no demo mode. The use case refuses an administrator's account
+  even if one is configured.
+
 ## Security model
 
 - **Separate origins.** Each staff application is its own origin with its own host-only session

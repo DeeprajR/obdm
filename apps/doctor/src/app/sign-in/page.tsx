@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { SignInCard } from '@obdm/staff-web';
 import { landingFor } from '@obdm/platform';
 
-import { signInAction } from '../actions';
+import { enterDemoAction, signInAction } from '../actions';
 import { APP } from '@/lib/app';
 import { currentActor } from '@/lib/session';
 
@@ -24,5 +24,5 @@ export default async function SignInPage() {
   // form for an account they are already using.
   if (actor.kind === 'user') redirect(landingFor(actor.role));
 
-  return <SignInCard app={APP} action={signInAction} />;
+  return <SignInCard app={APP} action={signInAction} demoAction={enterDemoAction} />;
 }

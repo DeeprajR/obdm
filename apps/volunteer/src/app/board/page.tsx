@@ -93,7 +93,7 @@ export default async function BoardPage() {
             aria-hidden
             className="flex size-7 items-center justify-center rounded-control bg-primary text-xs font-bold text-white"
           >
-            B
+            O
           </span>
           OBDM
         </Link>

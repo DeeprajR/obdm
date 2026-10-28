@@ -22,12 +22,14 @@ import {
   signIn,
   signOut,
   smtpEmailPort,
+  startDemoSession,
   verifyOtpAndReset,
   withdrawAccountUpdate,
   type UserRole,
 } from '@obdm/platform';
 
 import type { StaffApp } from './app.js';
+import { demoAccount } from './demo.js';
 import type { FormState, SignInFormState } from './form-state.js';
 import { useCaseContext } from './guards.js';
 import {
@@ -128,6 +130,32 @@ export function accountActions(app: StaffApp) {
 
       // Signing in lands them on the dashboard for their role, never on a menu
       // and never back on the form they just completed (§3).
+      redirect(landingFor(result.value.user.role));
+    },
+
+    /**
+     * Into the shared demonstration account, with no password. Only while the
+     * deployment names one (`demoAccount`); the form carries nothing, so
+     * nobody can choose which account it opens.
+     */
+    async enterDemo(): Promise<SignInFormState> {
+      await assertSameOrigin();
+
+      const email = demoAccount();
+      if (!email) return { error: 'The demonstration is not open at the moment. Sign in below.' };
+
+      const ctx = await useCaseContext(anonymousActor);
+      const result = await startDemoSession(ctx, email, app.audience);
+      if (!result.ok) {
+        return {
+          error:
+            result.error.kind === 'RateLimited'
+              ? result.error.message
+              : 'The demonstration is not available at the moment. Sign in below.',
+        };
+      }
+
+      await setSessionCookie(app, result.value.token, result.value.expiresAt);
       redirect(landingFor(result.value.user.role));
     },
 

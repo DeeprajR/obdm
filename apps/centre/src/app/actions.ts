@@ -25,6 +25,10 @@ export async function signInAction(
   return account.signIn(previous, formData);
 }
 
+export async function enterDemoAction(): Promise<SignInFormState> {
+  return account.enterDemo();
+}
+
 export async function signOutAction(): Promise<void> {
   return account.signOut();
 }

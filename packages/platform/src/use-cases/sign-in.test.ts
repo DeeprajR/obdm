@@ -12,7 +12,7 @@ import type { Database } from '../db.js';
 import { argon2Hasher, nodeTokens } from '../adapters/crypto.js';
 import { anonymousActor } from '../domain/authorization.js';
 import type { UseCaseContext } from '../context.js';
-import { signIn } from './sign-in.js';
+import { DEMO_SESSIONS_PER_IP, signIn, startDemoSession } from './sign-in.js';
 import { resolveActor, signOut } from './sessions.js';
 
 const testUrl = process.env['TEST_DATABASE_URL'];
@@ -434,6 +434,50 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
     expect(stillThere.ok).toBe(false);
     if (!stillThere.ok) expect(stillThere.error.kind).toBe('RateLimited');
 
+    const owner = await signIn(context(), {
+      email: 'active@obdm.invalid',
+      password: PASSWORD,
+      audience: 'doctor',
+    });
+    expect(owner.ok).toBe(true);
+  });
+
+  it('opens the demonstration account with no password, in its own application only', async () => {
+    const opened = await startDemoSession(context(), 'Active@obdm.invalid', 'doctor');
+    if (!opened.ok) throw new Error('expected a session');
+
+    const fingerprint = nodeTokens.fingerprint(opened.value.token);
+    expect(await resolveActor(db, fingerprint, clock.now(), 'doctor')).toMatchObject({
+      kind: 'user',
+      userId: activeUserId,
+    });
+
+    // The wrong application, an account that is not active, and an
+    // administrator however it is configured: none of them opens.
+    expect((await startDemoSession(context(), 'active@obdm.invalid', 'centre')).ok).toBe(false);
+    expect((await startDemoSession(context(), 'deactivated@obdm.invalid', 'doctor')).ok).toBe(false);
+    expect((await startDemoSession(context(), 'invited@obdm.invalid', 'doctor')).ok).toBe(false);
+
+    await db.insert(users).values({
+      id: newId(),
+      email: 'admin@obdm.invalid',
+      fullName: 'Administrator',
+      role: 'admin',
+      status: 'active',
+      passwordHash,
+    });
+    expect((await startDemoSession(context(), 'admin@obdm.invalid', 'admin')).ok).toBe(false);
+  });
+
+  it('limits demonstration sessions per address, apart from the password budget', async () => {
+    for (let i = 0; i < DEMO_SESSIONS_PER_IP; i += 1) {
+      expect((await startDemoSession(context(), 'active@obdm.invalid', 'doctor')).ok).toBe(true);
+    }
+    const over = await startDemoSession(context(), 'active@obdm.invalid', 'doctor');
+    expect(over.ok).toBe(false);
+    if (!over.ok) expect(over.error.kind).toBe('RateLimited');
+
+    // The same address can still sign in with a password.
     const owner = await signIn(context(), {
       email: 'active@obdm.invalid',
       password: PASSWORD,

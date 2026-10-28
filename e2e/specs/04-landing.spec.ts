@@ -21,6 +21,14 @@ test('says what OBDM is, and that it is a prototype', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'The applications' })).toBeVisible();
 });
 
+test('shows what is needed now, for every blood group', async ({ page }) => {
+  await page.goto(`${DONOR.origin}/`);
+  const demand = page.getByRole('region', { name: 'Blood needed now' });
+  await expect(demand.getByRole('listitem')).toHaveCount(8);
+  // Each group says either how many units or that none are needed.
+  await expect(demand.getByRole('listitem').filter({ hasText: /units? needed|Not needed/ })).toHaveCount(8);
+});
+
 test('leads a donor to the chat, in a new tab', async ({ page }) => {
   await page.goto(`${DONOR.origin}/`);
   const [chat] = await Promise.all([
