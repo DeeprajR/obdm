@@ -137,6 +137,3 @@ process is not running, and are never delivered anywhere.
 
 Seal images are read back through http://localhost:3001/api/seal/&lt;id&gt;, which
 requires an administrator session. The bucket itself serves nobody.
-
-testdoctor@obdm.invalid
-123456789011
