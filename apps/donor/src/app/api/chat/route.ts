@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import {
   describeIncoming,
   drainOutbox,
-  callerAddressFrom,
+  callerAddressFromHeaders,
   handleUpdate,
   takeChatToken,
   type ChannelAddress,
@@ -34,6 +34,8 @@ const TEXT_MAX = 500;
 const DATA_MAX = 64;
 const MESSAGE_REF = /^[0-9a-f-]{36}$/;
 const PUBLIC_ID = /^[A-Za-z0-9_-]{4,64}$/;
+/** The largest legitimate body is a 500-character message; this is ample. */
+const BODY_MAX_BYTES = 4096;
 
 type Incoming =
   | { readonly kind: 'text'; readonly text: string }
@@ -91,20 +93,55 @@ async function sameOrigin(): Promise<boolean> {
 }
 
 /**
- * The caller's address, as a throttle key and nothing more (§3). The entry the
- * nearest proxy wrote, validated as an address; see `callerAddressFrom`.
+ * The caller's address, as a throttle key and nothing more (§3). Cloudflare's
+ * header behind the tunnel, else the entry the nearest proxy wrote; see
+ * `callerAddressFromHeaders`.
  */
 async function callerAddress(): Promise<string | null> {
   const list = await headers();
-  return callerAddressFrom(list.get('x-forwarded-for'), list.get('x-real-ip'));
+  return callerAddressFromHeaders((name) => list.get(name));
 }
+
+/**
+ * The body, read no further than `BODY_MAX_BYTES`. A route handler has no
+ * body limit of its own, and `request.json()` would buffer and parse whatever
+ * arrived, however large, before anything could refuse it.
+ */
+async function readCapped(request: Request): Promise<string | undefined> {
+  const declared = Number(request.headers.get('content-length') ?? '0');
+  if (declared > BODY_MAX_BYTES) return undefined;
+  if (!request.body) return '';
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > BODY_MAX_BYTES) {
+      await reader.cancel();
+      return undefined;
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
+
+const parseJson = (raw: string): unknown => {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
 
 /** What the person did, as the router sees it. */
 async function toUpdate(
   runtime: BotRuntime,
   address: ChannelAddress,
   incoming: Incoming,
-): Promise<IncomingUpdate> {
+): Promise<IncomingUpdate | undefined> {
   switch (incoming.kind) {
     case 'text': {
       // On the transcript first, so the chat reads as a conversation. The row
@@ -115,12 +152,14 @@ async function toUpdate(
     }
     case 'choice': {
       /*
-        What a tap shows on the transcript is the button's label, looked up
-        from the message it was on. Never the client's own text: a tap on a
-        button that is not there is handled, but it is not quoted.
+        A tap is only a tap on a button this person was shown: the data must be
+        on the message it names, and that message must be theirs. Anything
+        else is a request somebody wrote by hand, and it is not acted on. The
+        transcript quotes the button's own label, never the client's text.
       */
       const label = await runtime.web.labelOf(address, incoming.messageRef, incoming.data);
-      const updateId = label ? await runtime.web.recordIncoming(address, label) : newId();
+      if (label === undefined) return undefined;
+      const updateId = await runtime.web.recordIncoming(address, label);
       return {
         kind: 'choice',
         address,
@@ -171,23 +210,22 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   }
 
-  const incoming = parse(await request.json().catch(() => null));
-  if (!incoming) {
-    return NextResponse.json({ error: 'bad request' }, { status: 400 });
+  if (Number(request.headers.get('content-length') ?? '0') > BODY_MAX_BYTES) {
+    return NextResponse.json({ error: 'too large' }, { status: 413 });
   }
 
   try {
     const runtime = botRuntime();
-    const { address } = await deviceAddress();
+    const { address, issued } = await deviceAddress();
 
     /*
       The limit a chat platform used to impose for us (ADR 0017 §8). Counted
-      before anything is written, so a flood costs one upsert and no
+      before the body is even read, so a flood costs one upsert per key and no
       transcript row. `Retry-After` says when the window closes.
     */
     const throttle = await takeChatToken(
       runtime.db,
-      { device: address.channelUserId, ip: await callerAddress() },
+      { device: address.channelUserId, ip: await callerAddress(), newDevice: issued },
       new Date(),
     );
     if (!throttle.allowed) {
@@ -197,7 +235,21 @@ export async function POST(request: Request): Promise<NextResponse> {
       );
     }
 
+    const raw = await readCapped(request);
+    if (raw === undefined) {
+      return NextResponse.json({ error: 'too large' }, { status: 413 });
+    }
+    const incoming = parse(parseJson(raw));
+    if (!incoming) {
+      return NextResponse.json({ error: 'bad request' }, { status: 400 });
+    }
+
     const update = await toUpdate(runtime, address, incoming);
+    if (update === undefined) {
+      // A tap on no button of theirs: nothing happens, and they see their
+      // conversation as it stands.
+      return await transcriptResponse(runtime, address);
+    }
     runtime.log(describeIncoming(update));
 
     await handleUpdate(await runtime.context(), update);

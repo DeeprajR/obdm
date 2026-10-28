@@ -12,7 +12,13 @@ import { KitShell } from '../kit-shell';
 import { requireAccess, useCaseContext } from '@/lib/guards';
 import { listDoctors, type DoctorSummary } from '@obdm/platform';
 
-export const metadata: Metadata = { title: 'Doctors · Administration' };
+export const metadata: Metadata = { title: 'Staff · Administration' };
+
+const ROLE_LABELS: Readonly<Record<string, string>> = {
+  doctor: 'Doctor',
+  blood_centre: 'Blood centre',
+  volunteer_admin: 'Volunteer coordinator',
+};
 
 const STATUS_LABELS = {
   active: 'Active',
@@ -53,6 +59,7 @@ export default async function DoctorsPage() {
         </Link>
       ),
     },
+    { key: 'role', header: 'Role', cell: (d) => ROLE_LABELS[d.role] ?? d.role },
     { key: 'email', header: 'Email', cell: (d) => d.email },
     {
       key: 'reg',
@@ -92,16 +99,16 @@ export default async function DoctorsPage() {
   ];
 
   return (
-    <KitShell actor={actor} currentPath="/doctors" currentTitle="Doctors">
+    <KitShell actor={actor} currentPath="/doctors" currentTitle="Staff">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-ink">Doctors</h1>
+          <h1 className="text-xl font-semibold tracking-tight text-ink">Staff</h1>
           <p className="mt-1 text-sm text-ink-muted">
             {doctors.length} record{doctors.length === 1 ? '' : 's'}
           </p>
         </div>
         <Link href="/doctors/new" className={linkButtonClasses()}>
-          Add a doctor
+          Add staff
         </Link>
       </div>
 
@@ -109,7 +116,7 @@ export default async function DoctorsPage() {
         columns={columns}
         rows={doctors}
         getRowKey={(d) => d.id}
-        emptyLabel="No doctors yet. Adding one sends them an invite to set a password."
+        emptyLabel="No staff yet. Adding someone sends them an invite to set a password."
       />
     </KitShell>
   );

@@ -100,13 +100,18 @@ const PUBLIC_PAGES = new Set([
    * transcript. Every page and route here is public by design, and each is
    * listed rather than exempted by directory so adding one is a decision.
    */
+  // The landing page: what OBDM is and where each application lives.
   'apps/donor/src/app/page.tsx',
+  // The chat screen; who the person is comes from the device cookie.
+  'apps/donor/src/app/chat/page.tsx',
   'apps/donor/src/app/offline/page.tsx',
   // Redirects to the chat with the request id in hand; it decides nothing itself.
   'apps/donor/src/app/r/[publicId]/page.tsx',
   // The conversation: identity is the device cookie, never the body.
   'apps/donor/src/app/api/chat/route.ts',
   'apps/donor/src/app/api/health/route.ts',
+  // Blood groups and unit counts, summed: nothing about any one person.
+  'apps/donor/src/app/api/needs/route.ts',
   'apps/admin/src/app/offline/page.tsx',
   'apps/admin/src/app/forbidden/page.tsx',
   // Administration has no landing page; this redirects to a guarded one.

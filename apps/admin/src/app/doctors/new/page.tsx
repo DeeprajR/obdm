@@ -7,16 +7,16 @@ import { KitShell } from '../../kit-shell';
 import { CreateDoctorForm } from '../../forms';
 import { requireAccess } from '@/lib/guards';
 
-export const metadata: Metadata = { title: 'Add a doctor · Administration' };
+export const metadata: Metadata = { title: 'Add staff · Administration' };
 
 export default async function NewDoctorPage() {
   const actor = await requireAccess('/doctors/new');
 
   return (
-    <KitShell actor={actor} currentPath="/doctors" currentTitle="Add a doctor">
+    <KitShell actor={actor} currentPath="/doctors" currentTitle="Add staff">
       <PageHeader
-        title="Add a doctor"
-        description="They receive an email with a single-use link and set their own password."
+        title="Add a member of staff"
+        description="A doctor, a member of blood centre staff or a volunteer coordinator. They receive an email with a single-use link to their own application and set their own password."
       />
 
       <Card>

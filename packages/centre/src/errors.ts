@@ -95,8 +95,17 @@ export const patientNotIdentified = (): PatientNotIdentified => ({
     'the bystander before issuing, only an emergency may be answered first.',
 });
 
+/** A decline with no reason given (§15): the doctor is owed one. */
+export type DeclineNeedsNote = { readonly kind: 'DeclineNeedsNote'; readonly message: string };
+
+export const declineNeedsNote = (): DeclineNeedsNote => ({
+  kind: 'DeclineNeedsNote',
+  message: 'Say why it is being declined. The doctor reads this on the request.',
+});
+
 export type DecideError =
   | NotAuthorized
+  | DeclineNeedsNote
   | RequestNotFound
   | RequestNotDecidable
   | RequestAlreadyDecided

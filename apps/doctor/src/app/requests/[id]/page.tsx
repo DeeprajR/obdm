@@ -14,6 +14,7 @@ import {
 import { KitShell } from '../../kit-shell';
 import { CancelRequestForm, SampleForm } from '../../hospital-forms';
 import { requireAccess, useCaseContext } from '@/lib/guards';
+import { isUuidV7 } from '@obdm/ids';
 import { getRequest, listSamples } from '@obdm/hospital';
 import { getDecisionForRequest } from '@obdm/centre';
 import {
@@ -71,11 +72,16 @@ export default async function RequestPage({
   const justRaised = query['raised'] === '1';
   const actor = await requireAccess(`/requests/${id}`);
   if (actor.kind !== 'user') return null;
+  // Not an id at all: a 404, rather than a query Postgres refuses as a 500.
+  if (!isUuidV7(id)) notFound();
 
   const ctx = await useCaseContext(actor);
 
   const row = await getRequest(ctx, id);
+  // A doctor sees their own requests (§2.2). Another doctor's is a page that
+  // does not exist, not one that says it is somebody else's.
   if (!row) notFound();
+  if (row.request.doctorId !== actor.userId) notFound();
 
   const { request } = row;
 

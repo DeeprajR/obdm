@@ -8,7 +8,10 @@
  * message sent, so a transcript can be read off the terminal.
  *
  * Phone numbers are masked before they reach a log line. A terminal is not a
- * roster, and a log file lives longer than a donor's consent (§12).
+ * roster, and a log file lives longer than a donor's consent (§12). A tap is
+ * logged by its verb only: the rest of its data is a health answer or a
+ * journey id, and neither belongs in a log. In production the whole log is
+ * off unless `BOT_LOG=on` asks for it.
  */
 
 import type {
@@ -41,7 +44,7 @@ export function describeIncoming(update: IncomingUpdate): string {
     case 'text':
       return `<- ${who(update.address)} #${update.updateId} text ${JSON.stringify(mask(update.text))}`;
     case 'choice':
-      return `<- ${who(update.address)} #${update.updateId} tap ${update.data} on msg ${update.messageRef}`;
+      return `<- ${who(update.address)} #${update.updateId} tap ${update.data.split(':')[0] ?? ''} on msg ${update.messageRef}`;
     case 'contact':
       return `<- ${who(update.address)} #${update.updateId} contact ${mask(update.phone)}`;
   }

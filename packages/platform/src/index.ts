@@ -42,7 +42,7 @@ export {
 } from './domain/authorization.js';
 
 export { appOrigin } from './app-origins.js';
-export { clientAddress } from './domain/client-address.js';
+export { clientAddress, clientAddressFromHeaders } from './domain/client-address.js';
 
 export {
   OTP_LENGTH,
@@ -133,6 +133,7 @@ export {
 } from './use-cases/account.js';
 
 export {
+  MANAGED_ROLES,
   createDoctor,
   getDoctor,
   listDoctors,
@@ -142,6 +143,7 @@ export {
   updateDoctor,
   type DoctorDetail,
   type DoctorSummary,
+  type ManagedRole,
 } from './use-cases/doctors.js';
 
 export {

@@ -2,7 +2,7 @@
   "name": "OBDM · Donors",
   "short_name": "OBDM Donors",
   "description": "Register to give blood, and answer when a patient near you needs your group.",
-  "start_url": "/",
+  "start_url": "/chat",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",

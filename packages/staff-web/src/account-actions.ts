@@ -203,7 +203,11 @@ export function accountActions(app: StaffApp) {
 
       const actor = await currentActor(app);
       const ctx = await useCaseContext(actor);
-      const result = await requestEmailChange(ctx, formValue(formData, 'email'));
+      const result = await requestEmailChange(
+        ctx,
+        formValue(formData, 'email'),
+        formValue(formData, 'currentPassword'),
+      );
 
       after(() => drainEmailOutbox(db, smtpEmailPort, new Date()));
 

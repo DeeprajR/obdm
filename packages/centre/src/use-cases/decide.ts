@@ -52,6 +52,7 @@ import {
 } from '@obdm/platform';
 
 import {
+  declineNeedsNote,
   notAuthorized,
   requestAlreadyDecided,
   patientNotIdentified,
@@ -177,6 +178,10 @@ export async function decideRequest(
   input: DecisionInput,
 ): Promise<Result<DecisionResult, DecideError>> {
   if (!actorHas(ctx.actor, 'centre:operate')) return err(notAuthorized('centre:operate'));
+  // Required on the server, not only by the form's `required` (§15).
+  if (input.action === 'decline' && (input.note ?? '').trim().length === 0) {
+    return err(declineNeedsNote());
+  }
 
   const request = await getRequestForDecision(ctx, input.requestUuid);
   if (!request) return err(requestNotFound());

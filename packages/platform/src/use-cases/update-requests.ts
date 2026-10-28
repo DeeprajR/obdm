@@ -26,6 +26,7 @@ import {
 } from '@obdm/db';
 
 import type { UseCaseContext } from '../context.js';
+import { actorHas } from '../domain/authorization.js';
 import type { Transaction } from '../db.js';
 import {
   notAuthorized,
@@ -222,6 +223,9 @@ export async function listMyUpdateRequests(
 export async function listPendingUpdateRequests(
   ctx: UseCaseContext,
 ): Promise<readonly PendingUpdateRequest[]> {
+  // Names and registration numbers, for whoever decides them and nobody else.
+  if (!actorHas(ctx.actor, 'doctors:manage')) return [];
+
   const now = ctx.clock.now();
 
   const rows = await ctx.db
@@ -251,7 +255,9 @@ export async function approveUpdateRequest(
   ctx: UseCaseContext,
   requestId: string,
 ): Promise<Result<{ field: UpdateRequestField }, UpdateRequestError>> {
-  if (ctx.actor.kind !== 'user') return err(notAuthorized('doctors:manage'));
+  if (ctx.actor.kind !== 'user' || !actorHas(ctx.actor, 'doctors:manage')) {
+    return err(notAuthorized('doctors:manage'));
+  }
 
   const adminId = ctx.actor.userId;
   const now = ctx.clock.now();
@@ -309,7 +315,9 @@ export async function rejectUpdateRequest(
   requestId: string,
   adminNote: string,
 ): Promise<Result<Record<string, never>, UpdateRequestError>> {
-  if (ctx.actor.kind !== 'user') return err(notAuthorized('doctors:manage'));
+  if (ctx.actor.kind !== 'user' || !actorHas(ctx.actor, 'doctors:manage')) {
+    return err(notAuthorized('doctors:manage'));
+  }
 
   const adminId = ctx.actor.userId;
   const now = ctx.clock.now();

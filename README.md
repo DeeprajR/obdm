@@ -1,364 +1,313 @@
 # Open Blood Donation Management (OBDM)
 
-A blood request and donor recruitment system for a medical-college hospital: doctors raise
-requests, the blood centre answers them from stock, and a chat bot recruits donors for whatever
-the shelf could not cover, then tells everyone how it ended, including when it ends badly.
+A blood request and donor recruitment system for a medical-college hospital. Doctors raise
+requests, the blood centre answers them from stock, and donors nearby are recruited through a
+chat for whatever the shelf could not cover. Then everyone is told how it ended, including when
+it ends badly.
 
-The product, its screens, its emails, its hosts (`obdm.deeprajr.com`), the specification and
-the package scope `@obdm/*` are all OBDM.
+**Live prototype:** [obdm.deeprajr.com](https://obdm.deeprajr.com)
 
-**Everything here runs on synthetic data.** No real donor, patient or staff record enters this
-system at any point. That is a property of the build, not a limitation of the demonstration.
+> [!WARNING]
+> **A prototype, for demonstration only.** OBDM shows how such a system would work. It must not
+> be used to manage real patients, donors or blood in any real-world setting without
+> consultation with the hospital, its transfusion service, and legal and regulatory advisers.
+> Everything here runs on **synthetic data**; no real donor, patient or staff record enters it.
 
 > **Not a medical device.** This software does not make clinical decisions. Blood-group
 > compatibility, donor eligibility and screening answers are screening aids only; the
-> pre-donation assessment and the pre-transfusion compatibility test always happen onsite.
+> pre-donation assessment and the pre-transfusion compatibility test always happen on site.
 
-## The documents
+## Contents
 
-| Document | What it says |
+- [How it works](#how-it-works)
+- [The applications](#the-applications)
+- [Quick start](#quick-start)
+- [Demo accounts and a walkthrough](#demo-accounts-and-a-walkthrough)
+- [Deploying](#deploying)
+- [Security model](#security-model)
+- [Commands](#commands)
+- [Repository layout](#repository-layout)
+- [What the build enforces](#what-the-build-enforces)
+- [Documents](#documents)
+- [How it was built](#how-it-was-built)
+- [Licence](#licence)
+
+## How it works
+
+```
+ Doctor ──request──▶ Blood centre ──answers from stock──▶ units held, then handed over
+                          │
+                          └── shortfall (same transaction) ──▶ donor demand
+                                                                    │
+ Donors nearby ◀──── chat: "a patient near you needs O−" ◀──────────┘
+      │
+      ├─ yes ─▶ health questions ─▶ confirmed, told where to come ─▶ donation at the counter
+      └─ thanked, or stood down if the need ends ─▶ the doctor sees how it ended
+```
+
+1. **A doctor asks.** A request is a slip: blood group, product, units and urgency, with an ID
+   to read aloud to the patient's bystander.
+2. **The blood centre answers** from what is on the shelf, oldest expiry first. The units are
+   held for that request and marked handed over when they leave the fridge.
+3. **Donors are asked for the rest.** If the shelf cannot cover it, demand is raised in the same
+   transaction. The nearest eligible donors with a compatible group are messaged in waves,
+   screened with a few health questions, and confirmed until the units are covered.
+4. **Everyone hears how it ended.** Donors are thanked with their next eligible date, those still
+   holding a place are stood down, and a cancelled request releases its units and its donors at
+   once.
+
+## The applications
+
+Every role has its own application, its own address and its own sign-in. An account is refused
+everywhere but its own application, exactly like a wrong password.
+
+| Application | For | Local | Prototype address | Access |
+|---|---|---|---|---|
+| **Landing page** | Everyone | :3004 `/` | [obdm.deeprajr.com](https://obdm.deeprajr.com) | Open |
+| **Donor chat** | Donors | :3004 `/chat` | [obdm.deeprajr.com/chat](https://obdm.deeprajr.com/chat) | Open, no account; the browser remembers you |
+| **Demand board** | Anyone | :3003 `/board` | [volunteer-obdm.deeprajr.com/board](https://volunteer-obdm.deeprajr.com/board) | Open; groups and places only, never a person |
+| **Doctors** | Ward doctors | :3000 | [doctor-obdm.deeprajr.com](https://doctor-obdm.deeprajr.com) | Invited by an administrator |
+| **Blood centre** | Blood centre staff | :3002 | [centre-obdm.deeprajr.com](https://centre-obdm.deeprajr.com) | Invited by an administrator |
+| **Volunteer coordinators** | Donor-drive coordinators | :3003 | [volunteer-obdm.deeprajr.com](https://volunteer-obdm.deeprajr.com) | Invited by an administrator |
+| **Administration** | Administrators | :3001 | [admin-obdm.deeprajr.com](https://admin-obdm.deeprajr.com) | The first one is created on the server; others invited |
+
+A **worker** process runs alongside them with no screen: it sends queued email, expires stock
+past its date, discards quarantined units that expire, and sweeps expired sessions and codes.
+
+**The donor chat** opens on what is needed right now (blood groups and units, live) and asks
+nothing until the visitor chooses to register. Registering takes about a minute, and nothing
+is saved until they agree at the end. A registered donor is messaged only when a patient near
+them needs their group, and chooses each time whether they can come.
+
+**Staff accounts** start with an emailed invitation; the person opens it and chooses their own
+password. Doctors, centre staff and coordinators can reset a forgotten password from their
+sign-in page with a six-digit emailed code. Administrator passwords have no self-service reset.
+
+## Quick start
+
+Needs **Node 20+**, **pnpm** and **Docker**.
+
+Run these one at a time. **Do not chain them with `&&`**: Windows PowerShell 5.1, which is what
+`pnpm` opens by default on Windows, does not accept it as a statement separator.
+
+```sh
+pnpm install
+cp .env.example .env    # everything already points at the local stack
+pnpm bootstrap          # Docker up, both migration sets, seed. In order
+pnpm verify             # typecheck, lint, boundaries, tests
+pnpm dev                # all five applications and the worker
+```
+
+Then open http://localhost:3004 for the landing page.
+
+| Service | Where |
 |---|---|
-| [obdm-spec.md](docs/obdm-spec.md) | The system's behaviour: the source of truth |
-| [modules-spec.md](docs/modules-spec.md) | The four modules, flow by flow |
-| [input-fields.md](docs/input-fields.md) | Every screen that accepts input, and every field on it |
-| [backend-architecture.md](docs/backend-architecture.md) | How it is built: processes, schema, transactions, ports |
-| [build-plan.md](docs/build-plan.md) | In what order, and by when |
-| [qa-test-plan.md](docs/qa-test-plan.md) | Manual test protocol: every flow, and how it is most likely to break |
-| [e2e-user-flows.md](docs/e2e-user-flows.md) | Sixteen user flows to walk end to end, each with what every step should show |
-| [playwright-automation-plan.md](docs/playwright-automation-plan.md) | The plan for the browser suite: the loop end to end through all five applications |
-| [deployment.md](docs/deployment.md) | Taking it public: images, configuration, a release in order, and what has to be true before a real record goes in |
-| [docs/user-guides/](docs/user-guides/) | Plain-language guides, one per kind of user: doctor, blood centre, administrator, volunteer admin, donor, and the public board |
-| [docs/adr/](docs/adr/) | Decisions taken along the way, and why |
+| Doctor / admin / centre / volunteer / donor | http://localhost:3000 / 3001 / 3002 / 3003 / 3004 |
+| Postgres | `localhost:5433`, **not** 5432, so a natively installed server cannot be reached by accident ([ADR 0001](docs/adr/0001-phase-0-decisions.md)) |
+| Mailpit inbox (every email the apps send) | http://localhost:8025 |
+| Object storage bucket (S3Mock) | `curl http://localhost:9090/obdm` |
 
-Section references written as §n point at the specification.
+Good to know:
 
-## Where the build is
+- There is one `.env`, at the workspace root, shared by every application, the worker and the
+  database scripts. Each app's `next.config.ts` loads it.
+- `pnpm dev` builds the packages first (`tsc -b`), because the applications load them from their
+  `dist`. After editing a package while the servers run, rebuild it with `npx tsc -b`.
+- `pnpm services:up` / `pnpm services:down` start and stop the Docker stack. (Not `pnpm up`,
+  which is pnpm's own alias for `pnpm update`.)
+- Database roles come from `db/docker/init.sql`, which Postgres runs only on first start. To
+  start clean: `docker compose down -v`, then `pnpm bootstrap`.
 
-**Milestone C reached. The loop in §1 closes, and the system is demonstrable.**
+## Demo accounts and a walkthrough
 
-```
-P0  Foundations                  ✅
-P1  Identity and access, thin    ✅
-P2  The request, thin            ✅
-P3  The centre decision, thin    ✅
-P4  The bot loop, thin           ✅  ▲ Milestone A, the loop closes
-P5  Module 1 depth               ✅
-P6  Centre depth, collisions    ✅
-P7  Bot depth, the interview    ✅
-P7b The request slip             ✅  (ADR 0010)
-P8  Endings sweep                ✅  ▲ Milestone B (ADR 0011, ADR 0012)
-P9  Volunteer + public board     ✅  (ADR 0013)
-P10 Control panel                ✅  (ADR 0014)
-P11 Tag reader integration       ⏸  gated on hardware
-P12 Vision, shadow mode          ⏸  gated on hardware
-P13 Demo readiness               ✅  ▲ Milestone C
-```
-
-The UX4G-based UI has also since been replaced by an in-repo kit,
-`@obdm/ui`, shared by all four applications on two accent colours:
-medical red for the three staff applications and slate blue for administration
-(ADR 0015). The staff applications draw their shared frame with it through
-`packages/staff-web` (ADR 0016).
-
-A doctor raises a request; the centre answers it from the shelf and whatever stock cannot cover
-becomes demand **in the same transaction**; the bot recruits the nearest eligible donors; one is
-screened and confirmed; the counter records the donation; the donor is thanked with a
-next-eligible date, and everyone still holding a place is stood down. Every step of that is
-proven against real Postgres across both database roles.
-
-**P0** delivered the workspace and its strict TypeScript settings; the import boundary and a CI
-job that proves it rejects a deep import; Docker Compose with Postgres, Mailpit and MinIO; three
-schemas, three roles and the grants of §5.1; Drizzle with the first migrations and a seed runner;
-the six shared packages; and the Kozhikode location hierarchy, seeded and versioned.
-
-**P1+** delivered the two applications and the shared platform package: `users`, `sessions`,
-`auth_rate_limits`, `audit_log` and `app_config`; Argon2id passwords and an httpOnly session
-cookie storing only a hash; login throttling per IP and per account, in the database; the three
-authorization layers of §13 reading one decision function; the audit writer wired into the
-use-case context; and a seeded account for each of the four roles. Sign in, sign out, and four
-role dashboards, built on UX4G.
-
-**Every role has its own application** ([ADR 0003](docs/adr/0003-administration-as-a-separate-application.md),
-[ADR 0016](docs/adr/0016-one-application-per-role.md)). Doctors on :3000, administration on
-:3001, the blood centre on :3002 and volunteer admins on :3003, the public demand board with them.
-Each has its own sign-in and admits one role; any other account is refused exactly like a wrong
-password. Sessions name the application that issued them and each has its own cookie, so a
-cookie from one is inert in the other three. The three staff applications share their frame,
-session handling and account pages through `packages/staff-web`; administration holds only
-`admin`, which can manage doctor records and nothing clinical.
-
-An administrator adds a doctor, who receives an emailed link, sets their own password and is
-signed in. Doctors reset a password with a six-digit code, and change their address by confirming
-it from the new inbox, no administrator approves it. Mail lands in Mailpit at
-http://localhost:8025.
-
-**P2** delivered Module 1: patients, admissions, the draft/review/submit flow, and the
-transactional counter of §7.1 that gives two doctors submitting in the same millisecond
-consecutive identifiers with no gap. Both snapshots are frozen at submit, so editing a patient
-record later never rewrites what the centre was told. The administrator's patients-per-doctor
-view is wired up, and every read of it is audited by record.
-
-**P3** delivered Module 2: the register (`blood_bags`, `rfid_tags`, typed intake with the expiry
-derived from collection), the request queue with stock on hand, and the decision transaction of
-§7.2: `FOR UPDATE SKIP LOCKED` oldest-expiry-first, one decision per request enforced by a unique
-constraint, and a shortfall raising demand in the same transaction. Plus the stock floor, and
-"recruit for groups below floor" that cannot double-raise. ([ADR 0005](docs/adr/0005-the-centre-decision.md))
-
-**P4** delivered Module 3 and closed the loop: the `bot` schema as its own migration set and its
-own deployable, the channel port with a Telegram adapter and an in-memory one, minimal onboarding
-that commits nothing until consent, wave selection by proximity (§7.7) with the mandatory
-agreement test between its SQL and its TypeScript twin, the six screening questions, the last-unit
-conditional UPDATE of §7.3 with waitlisting and promotion, and the outbox that makes §7.6's
-stand-down guarantee real. ([ADR 0006](docs/adr/0006-the-bot-loop-and-milestone-a.md))
-
-**The bot is now a web application.** `apps/donor` on :3004 presents the same conversation as
-a chat screen, installable to a phone's home screen, and runs the recruitment ticker in-process
-on the `app_bot` role. The Telegram adapter is gone; the channel port that made it swappable is
-what made the swap a new adapter rather than a rewrite. A donor is a device cookie, which is why
-their phone number is recorded as typed rather than verified.
-([ADR 0017](docs/adr/0017-the-donor-bot-becomes-a-web-app.md))
-
-**The worker runs the jobs.** `apps/worker` is the process §1 names B: the email outbox
-drain with retries, hourly expiry of stock past its date, and the hourly sweep that deletes
-expired sessions and codes (§12.3). One instance does the work, held by an advisory lock; a
-second stands by. It starts with `pnpm dev` and has no screen. A production process refuses to
-start while any variable is missing or still a development value, a real database is brought
-up with `pnpm db:bootstrap` rather than the seed, and every application ships as a container
-image ([ADR 0018](docs/adr/0018-what-a-public-deployment-needed.md),
-[docs/deployment.md](docs/deployment.md)).
-
-**Running the bot.** It starts with `pnpm dev`, with the other four applications. Its terminal
-carries one line per message received and sent, phone numbers masked, and one line per tick that
-did something. Nothing leaves the machine: §10 requires the system to be demonstrable without a
-chat platform, and there is no longer one to reach.
-
-**P5** closed Module 1's endings. **Cancelling a submitted request** is the one the
-loop is judged on: it releases any units the centre was holding, withdraws the donor demand, and
-the bot stands down every donor who had agreed to come, one transaction across three modules,
-because a request showing cancelled while units stay held for it is worse than not cancelling.
-Plus the duplicate-patient warning, draft ageing, and the compatibility testing sample with its
-globally unique identifier. ([ADR 0007](docs/adr/0007-module-1-depth-and-a-query-that-lied.md))
-
-**P6** built the part of the system most likely to put the wrong unit into a patient. A tag that
-already exists is **three** situations, and they do not share a button: a return, a release, or a
-discrepancy that offers no resolution at all and asks somebody to go and find the conflicting unit.
-Returns ask how long the unit was out of storage **before** offering an outcome, and the database
-refuses a restock that was out too long or for a time nobody can say. Plus quarantine that ages
-visibly, discards that require a disposal route, and the counter roster.
-
-The walk-in was the interesting one: recorded as a confirmation row it passed every test and was
-refused by Postgres the moment it ran as `app_web`, because the centre holds no INSERT on the
-bot's roster. It is now its own table, and the bot reads it and stops recruiting for a unit already
-collected. `pnpm smoke:centre` is what found that. It runs P6's writes as the real application
-role, which the test suite (connecting as `migrator`) cannot.
-([ADR 0008](docs/adr/0008-centre-depth-and-a-grant-that-said-no.md))
-
-**P7** replaced the seven fields matching needed with the interview §5 describes.
-Ten steps: the platform is asked for the phone so the number arrives **verified**
-and the counter has something it can ring; the date of birth as year, month, day,
-because age asked directly gets rounded; "I don't know" for the blood group, since
-guessing is worse; the four-level location matched against the seeded hierarchy.
-Then the summary, every answer played back, numbered, the phone masked, with a
-checklist that fixes three wrong answers in **one** pass and returns once. The
-profile editor is the same screens with a different way in.
-
-Erasure was the finding. §12.1 requires de-identifying the roster; `app_bot` had
-no grant to do it, so deletion reported success and left the donor's name and
-number on every roster row for ever. Migration 0016 grants exactly those two
-columns. The unit number and the date stay, because that is the donation record.
-`pnpm smoke:bot` runs the whole thing as `app_bot`, which is what caught it.
-([ADR 0009](docs/adr/0009-the-interview-and-an-erasure-that-did-not-land.md))
-
-**A change of shape.** The doctor app becomes a **request slip**: blood group,
-product, units, urgency, and an ID to read aloud to the patient's bystander, who carries it
-to the blood centre. Everything else about the request, the patient, the admission, the
-clinical context, the crossmatch sample, is entered at the counter, because a doctor
-handling several patients at once is the wrong person to be typing an address.
-([ADR 0010](docs/adr/0010-the-doctor-app-becomes-a-request-slip.md))
-
-**P8** closed every ⚠︎ ending §8's flow index named, one flow short at first: the account
-update-request queue had never been built, so its own ⚠︎ ending had nowhere to close. Built in
-[ADR 0012](docs/adr/0012-the-update-queue-holds-two-fields.md); recorded as reached short in
-[ADR 0011](docs/adr/0011-the-endings-sweep-and-one-milestone-short.md) rather than quietly
-patched over. Two endings that were genuinely missing are now built too: declining the
-acknowledgement leaves a donor registered and dormant rather than nothing at all, and somebody
-still holding a card for a request that has filled is told the moment it fills.
-
-**P9** built the volunteer dashboard as `packages/volunteer`, a module whose own boundary test
-reads its source and fails on the name of any table holding a patient, a doctor, a donor or a
-bag: eight pressure tiles, demands behind a tile, the generated share message, and the public
-board behind `flag.public_board`. ([ADR 0013](docs/adr/0013-the-volunteer-board-cannot-see-a-person.md))
-
-**P10** built the control panel, administrator-only, in the administration app, with no
-clinical function: dependency tiles that do the job rather than ping it, the silent-failure
-board §11.9 names, per-surface and per-route metrics, a screen that follows one unit of blood
-end to end from a correlation id, and the resolved configuration, read-only. The container-
-stopping test earned its place immediately, catching a storage tile that stayed green with
-MinIO stopped. ([ADR 0014](docs/adr/0014-the-control-panel-and-what-it-cannot-see.md))
-
-**P13, demo readiness.** The seed now admits patients (`pnpm db:seed`, `SYN-PT-`/`SYN-IP-`
-prefixed) so the walkthrough below starts from a stocked, populated database rather than a
-patient typed in by hand first. The bot checks its database connection and the contract
-version at boot and refuses to start on either, printing what to do. `LICENSE` and `NOTICE`
-(Apache-2.0, §12.7) land
-here too — **the copyright holder in `NOTICE` is a placeholder**, not a confirmed legal name;
-see the file itself.
-
-### The walkthrough
-
-The loop in §1, end to end, the thing a demo audience is actually shown:
-
-1. Sign in as the doctor and submit a request for **4 units of PRBC, O−** → get a request
-   number back, read-aloud length (`DDMMYY-NNNNN`).
-2. Sign in as the blood centre and decide it from the queue: whatever is on the shelf is
-   issued oldest-expiry-first: whatever is short raises donor demand **in the same
-   transaction**.
-3. The donor app's ticker picks the demand up on its next tick; the nearest wave of donors is
-   asked first, visible in the seeded donor pool's spread across localities.
-4. A donor, registered in the donor app at http://localhost:3004, accepts, answers the six
-   screening questions, and confirms — told the hospital and a time.
-5. **Cancel the request**, from the doctor's own request view. Every donor who had agreed to
-   come is stood down immediately, in the same transaction that releases any units the centre
-   was holding. This is the step most systems of this kind get wrong, and it is worth showing
-   deliberately rather than skipping to the happy path.
-6. Re-raise the request, let a donor confirm again, then mark them **Donated** at the centre's
-   counter. Their interval rolls forward, they are thanked with a next-eligible date, and the
-   demand closes once every unit is in.
-
-If any step involving the bot does not behave as expected, read the donor app's terminal first:
-it refuses to start on a database or contract-version problem and says which, and every message
-in and out is logged there with phone numbers masked.
-
-Run `pnpm db:seed` and sign in as any of:
+`pnpm db:seed` (part of `pnpm bootstrap`) creates synthetic stock, patients, a donor pool and one
+account per role, all with the password **`OBDM!Demo2026`**:
 
 | Role | Email | Signs in at | Lands on |
 |---|---|---|---|
 | Doctor | `doctor@obdm.invalid` | http://localhost:3000/sign-in | `/dashboard` |
 | Administrator | `admin@obdm.invalid` | http://localhost:3001/sign-in | `/doctors` |
 | Blood centre | `centre@obdm.invalid` | http://localhost:3002/sign-in | `/centre` |
-| Volunteer admin | `volunteer@obdm.invalid` | http://localhost:3003/sign-in | `/volunteer` |
+| Volunteer coordinator | `volunteer@obdm.invalid` | http://localhost:3003/sign-in | `/volunteer` |
 
-Password `OBDM!Demo2026`, printed by the seed. These are synthetic accounts on a
-`.invalid` domain, and the seed refuses to run with `NODE_ENV=production`.
+These exist only on a development database: the seed refuses to run with
+`NODE_ENV=production`, and a production database is brought up with `pnpm db:bootstrap` instead,
+which creates one administrator with a password you choose.
 
-Donors have no account. Open http://localhost:3004 and the chat begins; the browser's cookie is
-who you are from then on.
+**The loop, end to end**, the thing a demonstration shows:
 
-## Getting started
+1. As the **doctor**, submit a request for **4 units of PRBC, O−**. You get a request number
+   back, read-aloud length (`DDMMYY-NNNNN`).
+2. As the **blood centre**, answer it from the queue. What is on the shelf is held for it,
+   oldest expiry first; whatever is short raises donor demand in the same transaction.
+3. In the **donor chat**, register a donor. The ticker picks the demand up on its next tick and
+   messages the nearest wave of eligible donors.
+4. The donor accepts, answers the health questions, and is confirmed, told where and by when.
+5. **Cancel the request** from the doctor's request view. Every donor who agreed to come is
+   stood down at once, in the same transaction that releases the held units. Show this one
+   deliberately: it is the step systems of this kind most often get wrong.
+6. Raise it again, let a donor confirm, and mark them **Donated** at the centre's counter. They
+   are thanked with their next eligible date, and the demand closes once every unit is in.
 
-Needs Node 20+, pnpm and Docker.
+`pnpm showcase` plays this on screen, one window per role, with a caption for every step.
 
-Run these one at a time. **Do not chain them with `&&`**. Windows PowerShell 5.1, which is
-what `pnpm` opens by default on Windows, does not accept it as a statement separator.
+## Deploying
 
-```
-pnpm install
-cp .env.example .env    # everything already points at the local stack
-pnpm bootstrap          # Docker up, migrations, seed. The three in order
-pnpm verify             # typecheck, lint, boundaries, tests
-pnpm dev                # doctor :3000, admin :3001, centre :3002, volunteer :3003, donor :3004
-```
+The prototype runs on **one small server** behind **Cloudflare Tunnel**, with **Cloudflare R2**
+for file storage and **Brevo** for email, at roughly zero cost. The step-by-step guide, from
+accounts to backups, is [docs/deployment.md §6a](docs/deployment.md#6a-the-prototype-one-small-server-cloudflare-in-front).
 
-`pnpm dev` builds the packages first (`tsc -b`), because the applications load them from their
-`dist`. After editing a package while the servers run, rebuild it with `npx tsc -b`.
+In outline:
 
-`pnpm bootstrap` is one command precisely so no chaining is needed. It is not called `setup`,
-because that is one of pnpm's own commands and a script by that name is shadowed by the CLI,
-which reconfigures your PATH instead of running the project.
+- **Images:** `.github/workflows/release.yml` builds an image per application for both
+  `linux/amd64` and `linux/arm64` on every push to `main`, published to
+  `ghcr.io/deeprajr/obdm/<app>`.
+- **Stack:** [deploy/docker-compose.yml](deploy/docker-compose.yml) runs the seven containers,
+  Postgres (`--profile local-db`) and the tunnel (`--profile tunnel`). No inbound port is
+  opened; TLS ends at Cloudflare. Caddy on 80/443 is the alternative (`--profile caddy`).
+- **Settings:** `deploy/.env.production`, copied from
+  [the example](deploy/.env.production.example) and never committed. Each application refuses to
+  start in production while a required value is missing or still a development default.
+- **A release:** `pull`, then `run --rm migrate`, then `up -d`, in that order. The applications
+  check the database's contract version at boot and refuse a mismatch.
+- **Hostnames** are one level under the domain (`doctor-obdm.deeprajr.com`, not
+  `doctor.obdm.deeprajr.com`), because Cloudflare's free certificate covers only one level.
 
-There is one `.env`, at the workspace root, shared by the web apps, the worker, the bot and the
-seed runner: each app's `next.config.ts` loads it, because Next otherwise reads `.env` only from
-the application directory. Two copies of a connection string are two things to keep in step.
+## Security model
 
-| Service | Where |
-|---|---|
-| Postgres | `localhost:5433`: **not** 5432, so a natively installed server cannot be reached by accident ([ADR 0001](docs/adr/0001-phase-0-decisions.md)) |
-| Mailpit inbox | http://localhost:8025 |
-| The storage bucket | `curl http://localhost:9090/obdm` (S3Mock, no console) |
+- **Separate origins.** Each staff application is its own origin with its own host-only session
+  cookie, and every session records which application issued it. A cookie from one is inert in
+  the others.
+- **Sessions:** httpOnly, `SameSite=Lax`, `Secure` in production. The database stores only a
+  fingerprint of the session token, never the token.
+- **Passwords:** Argon2id. Nobody, administrators included, can read one back. Sign-in is
+  throttled per address and per account, in the database.
+- **CSRF:** every mutating server action is refused unless its `Origin` matches the
+  application's own `Host`.
+- **Authorization** is checked three times: the route, the page, and the use case, all reading
+  one decision function. The role matrix is a test.
+- **Least privilege in the database:** the web applications connect as `app_web`, the donor chat
+  as `app_bot`, migrations as `migrator`. Tests connect as each role and assert what it cannot
+  do.
+- **Minimal disclosure:** the donor chat and the demand board show blood groups, units and
+  places, never a patient. A donor's phone number reaches the blood centre only after they say
+  yes to a patient.
+- **Uploaded seals** go to a private bucket and are only ever served through an authenticated
+  route.
 
-Roles come from `db/docker/init.sql`, which Postgres runs on first start. A database that already
-exists will not re-run it: `docker compose down -v` then `pnpm services:up` to start clean.
-
-### Commands
+## Commands
 
 | Command | Does |
 |---|---|
+| `pnpm dev` | All five applications and the worker, in development |
 | `pnpm verify` | Everything CI runs, in the same order |
-| `pnpm typecheck` | `tsc -b`, plus the no-emit project that covers the test files |
-| `pnpm lint` | ESLint, type-aware |
-| `pnpm boundaries` | The import boundary of §11.2 |
-| `pnpm boundaries:prove` | Writes a deliberate deep import and asserts the check rejects it |
+| `pnpm typecheck` / `pnpm lint` | TypeScript (including the test files) / ESLint, type-aware |
+| `pnpm test` | Vitest against real Postgres. Database suites skip without `TEST_DATABASE_URL` |
+| `pnpm boundaries` / `pnpm boundaries:prove` | The import boundary (§11.2) / prove the check rejects a deep import |
 | `pnpm check:gates` | Every page decides access (§13); every mutating use case records what it did (§14) |
-| `pnpm test` | Vitest. Database suites skip without `TEST_DATABASE_URL` |
-| `node scripts/make-icons.mjs` | Regenerate the PWA icons from the committed drawing |
-| `pnpm clean:next` | Deletes all four `.next` caches. What to run when a page that has always worked fails on navigation with an ENOENT for a `build-manifest.json` and the Turbopack development cache is describing a build that no longer exists. Stop the dev server first. **If it comes back after cleaning, it is not the cache**: run `pnpm --filter <app> build`, which prints the compile error the development server swallows. A client component importing a server package fails exactly this way |
-| `pnpm e2e` | The browser suite in `e2e/`, against whatever `pnpm dev` is serving: the four staff sign-ins, and the loop end to end through all five applications. `pnpm e2e:show` runs the journey headed; `pnpm e2e:report` opens the report ([the plan](docs/playwright-automation-plan.md)). Two variables shape a run, set the PowerShell way: `$env:E2E_SLOWMO='600'` slows every action to a watchable pace, `$env:E2E_VIDEO='on'` keeps one recording per window under `e2e/test-results/` |
-| `pnpm showcase` | The system used, visibly, one flow at a time: one window per role brought to the front in turn, sign-ins on screen, a caption on the page for every step. Plays the loop by default; `$env:SHOWCASE='all'` adds each application's own flows, `$env:SHOWCASE='donor'` (or `doctor`, `centre`, `volunteer`, `admin`, comma-separated) picks chapters; `$env:SHOWCASE_SPEED='slow'` or `'fast'` sets the pace. Needs `pnpm dev` running |
-| `pnpm smoke:signin [url]` | Signs in against a running server the way a browser with no JavaScript would: the wiring a unit test cannot see. Defaults to the doctor app; `SMOKE_EMAIL` and `SMOKE_COOKIE` point it at another |
-| `pnpm smoke:centre` | Runs the centre's writes as `app_web` and asserts what that role must not be able to do. The suite connects as `migrator`, so it proves nothing about the grants; this does |
-| `pnpm smoke:bot` | The same for `app_bot`: the interview, the profile edit, erasure, and the six things the bot must not be able to reach |
-| `pnpm --filter @obdm/donor-app dev` | The donor app on its own, without the other four: the chat on :3004 and the bot's ticker. `BOT_LOG=off` silences the conversation log |
-| `pnpm check:bot-migrations` | Greps the bot's migrations for a table the web release owns (§2.1) |
-| `pnpm db:generate` / `pnpm db:generate:bot` | Generate a migration from the Drizzle schema, for either set |
-| `pnpm db:migrate` / `pnpm db:migrate:bot` / `pnpm db:seed` | Apply either migration set / seed reference data |
-| `pnpm db:push` | Refused unless the target database is named as a scratch one |
+| `pnpm e2e` | The browser suite against running servers: the staff sign-ins, the landing page and the whole loop. `pnpm e2e:show` runs it headed; `pnpm e2e:report` opens the report |
+| `pnpm showcase` | The system used visibly, one flow at a time, with captions. `$env:SHOWCASE='all'` adds every application's own flows |
+| `pnpm smoke:signin [url]` | Signs in the way a browser with no JavaScript would |
+| `pnpm smoke:centre` / `pnpm smoke:bot` | The centre's and the bot's writes as their real database roles, and what those roles must not reach |
+| `pnpm build` | Production build of every application |
+| `pnpm services:up` / `pnpm services:down` | Start / stop Postgres, Mailpit and S3Mock |
+| `pnpm db:migrate` / `pnpm db:migrate:bot` | Apply either migration set |
+| `pnpm db:seed` / `pnpm db:bootstrap` | Synthetic demonstration data (development) / reference data and one administrator (production) |
+| `pnpm db:generate` / `pnpm db:generate:bot` | Generate a migration from the Drizzle schema |
+| `pnpm clean:next` | Delete the `.next` caches, for a development server describing a build that no longer exists |
+| `node scripts/make-icons.mjs` | Regenerate the PWA icons |
 
-## Layout
+## Repository layout
 
 ```
 apps/
-  doctor/     patients, admissions and blood requests (:3000)
-  admin/      administration: doctor records and the control panel (:3001)
-  centre/     the blood centre: stock, requests, demand, returns (:3002)
-  volunteer/  the volunteer dashboard and the public demand board (:3003)
-  donor/      the donor bot as a chat web app, with its ticker in-process (:3004)
+  doctor/     doctors: requests, patients, samples (:3000)
+  admin/      administration: staff accounts and the control panel (:3001)
+  centre/     the blood centre: stock, requests, hand-over, returns, demand, the counter (:3002)
+  volunteer/  volunteer coordinators, and the public demand board (:3003)
+  donor/      the landing page and the donor chat, with the recruitment ticker in-process (:3004)
+  worker/     scheduled jobs: email, stock expiry, quarantine discards, credential sweep
 packages/
-  platform/   accounts, sessions, authorization, audit, email, config, shared by every app
-  staff-web/  the frame the three staff apps share: session, guards, header, account pages
-  hospital/   Module 1: patients, admissions, requests, and its narrow read API
-  centre/     Module 2: the register, the §7.2 decision, demand and the stock floor
+  platform/   accounts, sessions, authorization, audit, email, storage; shared by every app
+  staff-web/  the frame the three clinical staff apps share: session, guards, account pages
+  hospital/   Module 1: patients, admissions, requests
+  centre/     Module 2: the register, the decision, hand-over, returns, demand, the stock floor
   bot/        Module 3: onboarding, waves, screening, the outbox and the stand-down
-  domain/     the clinical rules, pure, no clock, no I/O, imported by web and bot alike
-  contract/   the two shared tables: schemas, column ownership, writer-scoped transitions
-  config/     clinical thresholds as data, with defaults and a 60-second cache
-  result/     Result<T, E>, expected failures are values, not exceptions
-  ids/        branded UUIDv7 identifiers
-  testing/    fake clock, deterministic ids, the real-Postgres harness
-db/
-  migrations/ hospital + reference. The only creator of the shared contract tables
-  migrations-bot/ the bot schema, applied by the bot release. Never mentions donor_demand
-  seeds/      the location hierarchy, synthetic stock and a synthetic donor pool
-  src/        Drizzle schema, migration runner, seed runner, the db:push guard
-docs/         the specification set and the decision log
+  volunteer/  the volunteer dashboard's reads; it cannot name a table that holds a person
+  ops/        health tiles, metrics and the trace behind the control panel
+  ui/         the clinical design kit every app is drawn with (ADR 0015)
+  domain/     the clinical rules, pure: no clock, no I/O
+  contract/   the two tables the web side and the bot share
+  config/     clinical thresholds as data; the production boot checks
+  result/ ids/ testing/   Result<T, E>, UUIDv7 ids, the real-Postgres test harness
+db/           Drizzle schema, both migration sets, seeds, bootstrap
+deploy/       Dockerfiles, the compose stack, env examples
+e2e/          the Playwright suite and the showcase
+docs/         the specification set, the guides and the decision log
 ```
 
-`apps/doctor`, `apps/centre`, `apps/volunteer` and `apps/admin` are the four staff applications,
-one per role, all on the `app_web` database role; `apps/donor` is the donor bot on `app_bot`,
-the only application with no sign-in. `apps/vision` arrives with the phase that needs it.
-
-### The rules the build enforces mechanically
+## What the build enforces
 
 Because there is no second reader on a commit here, CI is the reviewer:
 
-- **`packages/domain` imports nothing outside itself.** The clinical rules exist once, shared by
-  the web app and the bot, so the two can never disagree about who may donate to whom (§11.3).
+- **`packages/domain` imports nothing outside itself.** The clinical rules exist once, so the
+  web side and the bot can never disagree about who may donate to whom (§11.3).
 - **No deep imports across packages.** A package's entry point is its contract (§11.2).
 - **The full 8×8 compatibility matrix is tested against a table written out by hand**, not
   derived from the implementation.
 - **Migrations only.** `db:push` is refused outside a scratch database, and in CI (§5.9).
 - **The grants are asserted, not reviewed.** Tests connect as `app_web` and `app_bot` and check
   what they *cannot* do.
-- **Every state machine's table is checked for states with no way out**, the failure §8 exists
-  to prevent.
-- **Every application is an installable PWA**, the donor chat included, and the service worker caches the shell and
-  **never** data, a cached stock figure is a wrong stock figure, and on a shared ward device a
-  cached page is somebody else's page ([ADR 0004](docs/adr/0004-pwa-and-a-spacing-token-that-does-not-exist.md)).
-- **§9's role matrix is a test**, transcribed row by row, asserted for every role, and the 403
-  response is checked for carrying *no data*, which is the mistake §14 names.
+- **Every state machine is checked for states with no way out**, the failure §8 exists to
+  prevent.
+- **Every application is an installable PWA** whose service worker caches the shell and
+  **never** data: a cached stock figure is a wrong stock figure
+  ([ADR 0004](docs/adr/0004-pwa-and-a-spacing-token-that-does-not-exist.md)).
+
+## Documents
+
+| Document | What it says |
+|---|---|
+| [obdm-spec.md](docs/obdm-spec.md) | The system's behaviour: the source of truth. §n references point here |
+| [modules-spec.md](docs/modules-spec.md) | The four modules, flow by flow |
+| [input-fields.md](docs/input-fields.md) | Every screen that accepts input, and every field on it |
+| [backend-architecture.md](docs/backend-architecture.md) | Processes, schema, transactions, ports |
+| [deployment.md](docs/deployment.md) | Images, configuration, a release in order, the one-server prototype (§6a), and what must be true before a real record goes in (§8) |
+| [qa-test-plan.md](docs/qa-test-plan.md) | Manual test protocol: every flow, and how it is most likely to break |
+| [e2e-user-flows.md](docs/e2e-user-flows.md) | User flows to walk end to end, with what every step should show |
+| [playwright-automation-plan.md](docs/playwright-automation-plan.md) | The plan for the browser suite |
+| [build-plan.md](docs/build-plan.md) | In what order it was built |
+| [docs/user-guides/](docs/user-guides/) | Plain-language guides for each kind of user |
+| [docs/adr/](docs/adr/) | Decisions taken along the way, and why |
+
+## How it was built
+
+Built in phases, each closing with a decision record. The detail lives in the ADRs.
+
+```
+P0  Foundations                       ✅  ADR 0001
+P1  Identity and access               ✅  ADR 0002, 0003
+P2  The request                       ✅
+P3  The centre decision               ✅  ADR 0005
+P4  The bot loop                      ✅  ADR 0006  ▲ Milestone A, the loop closes
+P5  Module 1 depth                    ✅  ADR 0007
+P6  Centre depth, collisions          ✅  ADR 0008
+P7  The donor interview               ✅  ADR 0009
+P7b The request slip                  ✅  ADR 0010
+P8  Endings sweep                     ✅  ADR 0011, 0012  ▲ Milestone B
+P9  Volunteer dashboard, public board ✅  ADR 0013
+P10 Control panel                     ✅  ADR 0014
+P11 Tag reader integration            ⏸  gated on hardware
+P12 Vision, shadow mode               ⏸  gated on hardware
+P13 Demo readiness                    ✅  ▲ Milestone C
+    In-repo design kit                ✅  ADR 0015
+    One application per role          ✅  ADR 0016
+    Donor bot becomes a web app       ✅  ADR 0017
+    Public deployment                 ✅  ADR 0018
+```
 
 ## Licence
 
-Apache-2.0 (§12.7). See [`LICENSE`](LICENSE) for the full text and
-[`NOTICE`](NOTICE) for attribution — **the copyright holder named there is a
-placeholder**, pending confirmation from whichever hospital, university or
-other entity this is actually released in the name of.
+Apache-2.0 (§12.7). See [`LICENSE`](LICENSE) for the full text and [`NOTICE`](NOTICE) for
+attribution. **The copyright holder named in `NOTICE` is a placeholder**, pending confirmation
+from whichever hospital, university or other entity this is released in the name of.

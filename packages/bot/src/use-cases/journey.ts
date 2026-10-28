@@ -22,10 +22,12 @@ import {
 } from '@obdm/db/bot';
 import { donorDemandConfirmations } from '@obdm/db';
 import { err, ok, type Result } from '@obdm/result';
+import { compatibleRecipientGroupsFor, type BloodGroup } from '@obdm/domain';
 
 import type { BotContext } from '../context.js';
 import { createEventWriter } from '../events.js';
 import { MESSAGES, screeningQuestion, type HospitalSnapshot } from '../messages.js';
+import { blockFor } from './board.js';
 import { enqueue, type QueuedMessage } from '../outbox.js';
 import {
   QUESTION_COUNT,
@@ -37,7 +39,9 @@ export type JourneyError =
   | { readonly kind: 'JourneyNotFound'; readonly message: string }
   /** The transition did not apply. A replay, and therefore not a fault. */
   | { readonly kind: 'AlreadyMoved'; readonly message: string }
-  | { readonly kind: 'RequestClosed'; readonly message: string };
+  | { readonly kind: 'RequestClosed'; readonly message: string }
+  /** This donor may not answer this request: their group, or a block on them. */
+  | { readonly kind: 'NotEligible'; readonly message: string };
 
 const journeyNotFound: JourneyError = {
   kind: 'JourneyNotFound',
@@ -51,6 +55,24 @@ const requestClosed: JourneyError = {
   kind: 'RequestClosed',
   message: MESSAGES.requestClosed,
 };
+const notEligible = (message: string): JourneyError => ({ kind: 'NotEligible', message });
+
+/**
+ * Whether this journey is the given donor's. A tap carries a journey id and
+ * nothing else, so the conversation asks this before acting on one: a journey
+ * id that leaked must not let somebody answer for another donor.
+ */
+export async function isJourneyOf(
+  ctx: BotContext,
+  journeyId: string,
+  donorId: string,
+): Promise<boolean> {
+  const [row] = await ctx.db
+    .select({ id: donorRequests.id })
+    .from(donorRequests)
+    .where(and(eq(donorRequests.id, journeyId), eq(donorRequests.donorId, donorId)));
+  return row !== undefined;
+}
 
 type JourneyRow = {
   id: string;
@@ -105,7 +127,11 @@ export async function acceptRequest(
 
   return ctx.db.transaction(async (tx) => {
     const [journey] = await tx
-      .select({ botRequestId: donorRequests.botRequestId, status: donorRequests.status })
+      .select({
+        botRequestId: donorRequests.botRequestId,
+        donorId: donorRequests.donorId,
+        status: donorRequests.status,
+      })
       .from(donorRequests)
       .where(eq(donorRequests.id, journeyId));
 
@@ -115,6 +141,8 @@ export async function acceptRequest(
     const [request] = await tx
       .select({
         status: botRequests.status,
+        bloodGroup: botRequests.bloodGroup,
+        neededBy: botRequests.neededBy,
         confirmedCount: botRequests.confirmedCount,
         walkInUnits: botRequests.walkInUnits,
         unitsNeeded: botRequests.unitsNeeded,
@@ -124,6 +152,44 @@ export async function acceptRequest(
 
     if (!request) return err(journeyNotFound);
     if (request.status !== 'open' && request.status !== 'fulfilled') return err(requestClosed);
+    if (request.neededBy < ctx.clock.today()) return err(requestClosed);
+
+    /*
+      The match and the eligibility, checked where the yes is committed. A wave
+      only ever reaches donors who pass both, but a request link or a board tap
+      reaches anybody who registers, and a registration costs nothing: without
+      this, a few throwaway donors could fill a request with places nobody will
+      come for, and stop the waves that would have reached real donors.
+    */
+    const [donor] = await tx
+      .select({
+        bloodGroup: donors.bloodGroup,
+        nextEligibleOn: donors.nextEligibleOn,
+        snoozeUntil: donors.snoozeUntil,
+        durableFlagStatus: donors.durableFlagStatus,
+        qualificationStatus: donors.qualificationStatus,
+        qualificationReason: donors.qualificationReason,
+        optedOutAt: donors.optedOutAt,
+        deletedAt: donors.deletedAt,
+      })
+      .from(donors)
+      .where(eq(donors.id, journey.donorId));
+
+    if (!donor) return err(journeyNotFound);
+    const block = blockFor(donor, ctx.clock.today());
+    if (block !== null) {
+      const detail =
+        block.reason === 'not_qualified'
+          ? block.detail
+          : block.reason === 'interval' || block.reason === 'paused'
+            ? block.until
+            : '';
+      return err(notEligible(MESSAGES.boardBlocked(block.reason, detail)));
+    }
+    const answerable = compatibleRecipientGroupsFor(donor.bloodGroup as BloodGroup) as readonly string[];
+    if (!answerable.includes(request.bloodGroup)) {
+      return err(notEligible(MESSAGES.notYourGroup(request.bloodGroup)));
+    }
 
     const event = createEventWriter(tx, ctx.correlationId, now);
 

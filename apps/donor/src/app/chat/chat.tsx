@@ -17,6 +17,11 @@ import { Button, cn } from '@obdm/ui';
  * the server edits that message's buttons in place (§8): the one chosen is
  * ticked, the rest are dimmed and inert, and the question stays readable.
  *
+ * Somebody new is not asked anything on arrival. They see what this is, what
+ * is needed now (the panel above), and a button to register; the questions
+ * start when they press it or type something. A request link is different:
+ * it opens on that request, onboarding first if need be (§5).
+ *
  * Polling, not a socket: a request card, a stand-down or a thank-you arrives
  * from the ticker between a person's own messages, on the scale of seconds to
  * minutes, and the poll stops while the tab is hidden.
@@ -120,17 +125,12 @@ export function Chat({ requestId }: { requestId: string | null }) {
           // address bar would reopen the same request on every reload; taking
           // it out before the server has it would lose it on the first refusal.
           const taken = await post({ kind: 'open', publicId: requestId });
-          if (taken) window.history.replaceState(null, '', '/');
+          if (taken) window.history.replaceState(null, '', '/chat');
           return;
         }
 
-        if (transcript.length === 0) {
-          // Opening the application is the web's "any message starts the
-          // bot" (§5): the greeting and the first question, no command needed.
-          await post({ kind: 'open' });
-          return;
-        }
-
+        // An empty transcript is somebody new: the welcome below, and nothing
+        // asked of them until they choose to register.
         setRows(transcript);
       } catch {
         if (run.cancelled) return;
@@ -185,6 +185,12 @@ export function Chat({ requestId }: { requestId: string | null }) {
     void post({ kind: 'choice', data: choice.data, messageRef: row.id });
   };
 
+  /** Opening the conversation: the greeting and the first question (§5). */
+  const register = (): void => {
+    if (busy) return;
+    void post({ kind: 'open' });
+  };
+
   return (
     <>
       <main
@@ -199,6 +205,8 @@ export function Chat({ requestId }: { requestId: string | null }) {
           <p role="status" className="py-10 text-center text-sm text-ink-muted">
             Opening your conversation…
           </p>
+        ) : rows.length === 0 ? (
+          <Welcome busy={busy} onRegister={register} />
         ) : (
           rows.map((row) => <Bubble key={row.id} row={row} busy={busy} onTap={tap} />)
         )}
@@ -242,6 +250,33 @@ export function Chat({ requestId }: { requestId: string | null }) {
         </div>
       </footer>
     </>
+  );
+}
+
+/**
+ * What somebody new sees before anything is asked of them: what this is, and
+ * the one action that starts it. The live needs are in the panel above.
+ */
+function Welcome({ busy, onRegister }: { busy: boolean; onRegister: () => void }) {
+  return (
+    <section aria-labelledby="welcome" className="flex flex-col gap-4 py-6">
+      <h1 id="welcome" className="text-xl font-semibold text-ink">
+        Give blood when someone nearby needs it
+      </h1>
+      <p className="text-sm text-ink-muted">
+        Register once, and we message you here only when a patient near you needs your
+        blood group. You choose each time whether you can come. The blood centre checks
+        you on the day, before any donation.
+      </p>
+      <div className="flex flex-col items-start gap-2">
+        <Button type="button" className="h-11" loading={busy} disabled={busy} onClick={onRegister}>
+          Register as a donor
+        </Button>
+        <p className="text-xs text-ink-subtle">
+          About a minute. Nothing is saved until you agree at the end.
+        </p>
+      </div>
+    </section>
   );
 }
 

@@ -377,11 +377,15 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
     const rows = await db
       .select()
       .from(authRateLimits)
-      .where(eq(authRateLimits.scope, 'login_account'));
+      .where(
+        and(
+          eq(authRateLimits.scope, 'login_account'),
+          eq(authRateLimits.key, 'active@obdm.invalid'),
+        ),
+      );
 
     expect(rows).toHaveLength(1);
     expect(rows[0]?.attempts).toBe(1);
-    expect(rows[0]?.key).toBe('active@obdm.invalid');
   });
 
   it('clears the account counter on success but never the IP counter', async () => {
@@ -407,7 +411,35 @@ describe.skipIf(!testUrl)('signIn (§8.1, §13, §15)', () => {
     await signIn(context(), { email: 'active@obdm.invalid', password: 'wrong', audience: 'doctor' });
 
     const rows = await db.select().from(authRateLimits);
-    expect(rows.map((r) => r.scope).sort()).toEqual(['login_account', 'login_ip']);
+    // The account, the account from this address, and the address.
+    expect(rows.map((r) => r.key).sort()).toEqual([
+      '10.0.0.1',
+      'active@obdm.invalid',
+      'active@obdm.invalid#10.0.0.1',
+    ]);
+  });
+
+  it('does not let failures from elsewhere lock the owner out', async () => {
+    // Somebody who knows a doctor's address, failing from their own network,
+    // used to keep that doctor out with a correct password (§3).
+    const elsewhere = context({ request: { ip: '203.0.113.9', userAgent: 'attacker' } });
+    for (let i = 0; i < CONFIG_DEFAULTS.auth.loginThrottle.maxAttemptsPerAccount; i += 1) {
+      await signIn(elsewhere, { email: 'active@obdm.invalid', password: 'wrong', audience: 'doctor' });
+    }
+    const stillThere = await signIn(elsewhere, {
+      email: 'active@obdm.invalid',
+      password: 'wrong',
+      audience: 'doctor',
+    });
+    expect(stillThere.ok).toBe(false);
+    if (!stillThere.ok) expect(stillThere.error.kind).toBe('RateLimited');
+
+    const owner = await signIn(context(), {
+      email: 'active@obdm.invalid',
+      password: PASSWORD,
+      audience: 'doctor',
+    });
+    expect(owner.ok).toBe(true);
   });
 });
 

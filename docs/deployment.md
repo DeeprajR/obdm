@@ -49,14 +49,15 @@ The system is hosted as **Open Blood Donation Management (OBDM)**: production at
 is its own origin, because every session cookie is host-only and every form is
 refused unless its `Origin` matches the application's own `Host` (§13), so one
 name becomes five. The donor application is the public face and takes the bare
-name; the staff applications sit beside it, one level under `deeprajr.com`.
+name: its `/` is the landing page for the whole system, linking a donor to the
+chat at `/chat` and each member of staff to their own application's sign-in; the staff applications sit beside it, one level under `deeprajr.com`.
 One level, because Cloudflare's free edge certificate covers `*.deeprajr.com`
 and nothing deeper: `doctor.obdm.deeprajr.com` would fail TLS at the edge
 unless Advanced Certificate Manager is bought.
 
 | Application | Production | Development |
 |---|---|---|
-| Donor app, public | `obdm.deeprajr.com` | `dev-obdm.deeprajr.com` |
+| Landing page, and the donor chat at `/chat` | `obdm.deeprajr.com` | `dev-obdm.deeprajr.com` |
 | Doctors | `doctor-obdm.deeprajr.com` | `doctor-dev-obdm.deeprajr.com` |
 | Blood centre | `centre-obdm.deeprajr.com` | `centre-dev-obdm.deeprajr.com` |
 | Volunteers, and the board | `volunteer-obdm.deeprajr.com` | `volunteer-dev-obdm.deeprajr.com` |
@@ -300,7 +301,9 @@ Open no inbound port except SSH. The tunnel dials out.
 
 ### Accounts, in order
 
-1. **Cloudflare Tunnel.** Zero Trust → Networks → Tunnels → Create a tunnel →
+1. **Cloudflare Tunnel.** In the Cloudflare dashboard, at the account level:
+   Networking → Tunnels (or Ctrl+K and search "Tunnels"; in Cloudflare One,
+   formerly Zero Trust, it is under Networks → Connectors) → Create a tunnel →
    Cloudflared, name it `obdm`. On the install screen choose Docker and copy
    the token after `--token`; it is `TUNNEL_TOKEN`. Then add five public
    hostnames on the tunnel, each `HTTP` to a service on the compose network:
@@ -320,12 +323,13 @@ Open no inbound port except SSH. The tunnel dials out.
    only. Its access key id and secret are `S3_ACCESS_KEY_ID` and
    `S3_SECRET_ACCESS_KEY`; the endpoint is
    `https://<account id>.r2.cloudflarestorage.com`, region `auto`.
-3. **Brevo.** Senders, Domains & Dedicated IPs → add the domain in `MAIL_FROM`
-   (the bare `deeprajr.com` in the example) and put the records it lists into
-   Cloudflare DNS, then verify. Not `obdm.deeprajr.com`: that name is the
-   tunnel's CNAME, and a CNAME allows no other record beside it, so Brevo's
-   TXT records could not go there. If `deeprajr.com` already has an SPF or
-   DMARC record, edit it rather than adding a second. SMTP & API → SMTP: the login shown there is
+3. **Brevo.** Senders, Domains & Dedicated IPs → add the domain in `MAIL_FROM`,
+   `obdm-mail.deeprajr.com`, and put the records it lists into Cloudflare DNS
+   (any CNAMEs as DNS only, not proxied), then verify. A subdomain of its own
+   keeps OBDM's sending reputation apart from `deeprajr.com`'s own mail, and
+   starts with no records to merge into. Not `obdm.deeprajr.com`: that name is
+   the tunnel's CNAME, and a CNAME allows no other record beside it, so Brevo's
+   TXT records could not go there. SMTP & API → SMTP: the login shown there is
    `SMTP_USER`, and a generated SMTP key is `SMTP_PASSWORD`.
 4. **GitHub packages.** After the first release run, the six packages appear
    under the repository's Packages. Set each one's visibility to public, since

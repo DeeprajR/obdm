@@ -194,11 +194,11 @@ async function donorRegisters(
   name: string,
   who: { phone: string; name: string; group: string; sex: 'Female' | 'Male' | 'Other'; birthYear: string },
 ): Promise<ChatPage> {
-  const page = await stage.window(name, 'phone', `${DONOR.origin}/`);
+  const page = await stage.window(name, 'phone', `${DONOR.origin}/chat`);
   const chat = new ChatPage(page);
   await stage.chapter(page, 'The donor app, :3004. A chat in the browser, no account, installable to the home screen.');
-  await chat.waitForBubble(/thank you for coming/);
-  await stage.say(page, 'Open it and it greets you. No command, no sign-up form: a few questions, about a minute.');
+  await chat.begin();
+  await stage.say(page, 'Open it, see what is needed now, and press Register: no sign-up form, a few questions, about a minute.');
   await stage.during(page, `${who.name} answers: phone, name, date of birth, sex, group ${who.group}, weight, four health questions, where they live, last donation.`, () =>
     chat.register({ ...who, group: who.group, ...PLACE }),
   );

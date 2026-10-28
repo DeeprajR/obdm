@@ -1,9 +1,9 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 
-import { Button, FormField, TextInput } from '@obdm/ui';
+import { Button, FormField, Select, TextInput } from '@obdm/ui';
 
 import {
   changeDoctorEmailAction,
@@ -53,12 +53,43 @@ function Saved({ shown }: { shown: boolean }) {
  * this moment no password exists. The doctor sets one from a link that only
  * their inbox receives (§2.3).
  */
+const ROLE_OPTIONS = [
+  { value: 'doctor', label: 'Doctor' },
+  { value: 'blood_centre', label: 'Blood centre staff' },
+  { value: 'volunteer_admin', label: 'Volunteer coordinator' },
+] as const;
+
 export function CreateDoctorForm() {
   const [state, action] = useActionState(createDoctorAction, initial);
+  const [role, setRole] = useState<string>('doctor');
 
   return (
     <form action={action} className="space-y-4" noValidate>
       <Problem message={state.error} />
+
+      <FormField
+        label="Role"
+        hint="Decides which application they sign in to. Each role has its own."
+        required
+      >
+        {(p) => (
+          <Select
+            {...p}
+            name="role"
+            value={role}
+            onChange={(event) => {
+              setRole(event.target.value);
+            }}
+            required
+          >
+            {ROLE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
+        )}
+      </FormField>
 
       <FormField label="Full name" required>
         {(p) => <TextInput {...p} name="fullName" required />}
@@ -66,18 +97,20 @@ export function CreateDoctorForm() {
 
       <FormField
         label="Email address"
-        hint="The invite goes here. The doctor sets their own password from it."
+        hint="The invite goes here. They set their own password from it."
         required
       >
         {(p) => <TextInput {...p} name="email" type="email" required />}
       </FormField>
 
-      <FormField
-        label="Provisional registration number"
-        hint="Optional. Must be unique across doctors."
-      >
-        {(p) => <TextInput {...p} name="provisionalReg" />}
-      </FormField>
+      {role === 'doctor' ? (
+        <FormField
+          label="Provisional registration number"
+          hint="Optional. Must be unique across doctors."
+        >
+          {(p) => <TextInput {...p} name="provisionalReg" />}
+        </FormField>
+      ) : null}
 
       <Submit label="Create and send invite" busy="Creating…" />
     </form>
@@ -88,10 +121,13 @@ export function EditDoctorForm({
   userId,
   fullName,
   provisionalReg,
+  registration = true,
 }: {
   userId: string;
   fullName: string;
   provisionalReg: string | null;
+  /** A registration number is a doctor's; other staff have none to edit. */
+  registration?: boolean;
 }) {
   const [state, action] = useActionState(updateDoctorAction.bind(null, userId), initial);
 
@@ -104,11 +140,13 @@ export function EditDoctorForm({
         {(p) => <TextInput {...p} name="fullName" defaultValue={fullName} required />}
       </FormField>
 
-      <FormField label="Provisional registration number">
-        {(p) => (
-          <TextInput {...p} name="provisionalReg" defaultValue={provisionalReg ?? ''} />
-        )}
-      </FormField>
+      {registration ? (
+        <FormField label="Provisional registration number">
+          {(p) => (
+            <TextInput {...p} name="provisionalReg" defaultValue={provisionalReg ?? ''} />
+          )}
+        </FormField>
+      ) : null}
 
       <Submit label="Save details" busy="Saving…" />
     </form>

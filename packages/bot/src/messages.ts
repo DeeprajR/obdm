@@ -331,6 +331,8 @@ ${why}`;
         return 'The centre wants a word before your next donation, so we are not asking for now. That is a conversation, not a no.';
       case 'paused':
         return `You have paused messages until ${readableDay(detail)}. Send “resume” if you would like to be asked again.`;
+      case 'stopped':
+        return 'You asked us to stop, so we are not asking you. Send “resume” if you would like to be asked again.';
       case 'interval':
         return `You gave recently. You can give again from ${readableDay(detail)}.`;
       default:
@@ -339,6 +341,14 @@ ${why}`;
   },
 
   boardTapPrompt: 'Tap one you can give for, and I will ask you a few questions.',
+
+  /** A tap on a request card that was never this person's. Says nothing about whose. */
+  notYourRequest: 'That request is not one we asked you about. Send “needs” to see what is needed now.',
+
+  /** A yes to a request this donor's blood cannot answer (§2), said kindly. */
+  notYourGroup: (needed: string): string =>
+    `This one needs ${group(needed)} blood, which yours cannot be given for. ` +
+    'Thank you for offering. We will message you when someone needs your group.',
 
   /** A visitor who tapped a request before registering (§5). */
   linkHeldForYou: (bloodGroup: string, hospital: HospitalSnapshot): string =>

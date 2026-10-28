@@ -23,6 +23,18 @@ describe('the conversation log', () => {
     expect(line).toBe('-> memory/log-1 "What is your phone number?" [asks for contact]');
   });
 
+  it('logs a tap by its verb, never the answer or the journey it names', () => {
+    const line = describeIncoming({
+      kind: 'choice',
+      address: WHO,
+      data: 'screen:0190a1b2-0000-7000-8000-000000000001:2:yes',
+      messageRef: 'm1',
+      updateId: '3',
+    });
+    expect(line).toBe('<- memory/log-1 #3 tap screen on msg m1');
+    expect(line).not.toContain('yes');
+  });
+
   it('says how many buttons went with a question, and which message an edit touched', () => {
     expect(describeOutgoing(WHO, { text: 'Which year?', choices: [{ label: 'a', data: 'a' }, { label: 'b', data: 'b' }] }))
       .toContain('[2 buttons]');

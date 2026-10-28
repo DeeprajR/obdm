@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { readSeal, s3Storage } from '@obdm/platform';
 
 import { requireAccess, useCaseContext } from '@/lib/guards';
+import { isUuidV7 } from '@obdm/ids';
 
 /**
  * Serves a doctor's seal to a signed-in administrator (§3, §13).
@@ -17,6 +18,7 @@ export async function GET(
 ): Promise<Response> {
   const { id } = await params;
   const actor = await requireAccess(`/api/seal/${id}`);
+  if (!isUuidV7(id)) return new NextResponse('Not found', { status: 404 });
   const ctx = await useCaseContext(actor);
 
   const seal = await readSeal(ctx, s3Storage, id);

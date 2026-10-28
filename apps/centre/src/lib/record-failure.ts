@@ -38,17 +38,24 @@ export async function recordFailedRender(
  * A path reduced to something safe to store.
  *
  * Any segment shaped like an identifier becomes a placeholder, so a uuid or a
- * request number cannot reach the table through this hook. Aggregation wants
- * the pattern rather than the path anyway.
+ * request number cannot reach the table through this hook. So does anything
+ * after `invite` or `confirm-email`, and any long opaque segment: those are
+ * live credentials, and this table is read on the control panel. The query
+ * string goes entirely, and so does length past what a route can need.
+ * Aggregation wants the pattern rather than the path anyway.
  */
 function routeOf(path: string | undefined): string {
   if (!path) return 'unknown';
-  return path
-    .split('/')
-    .map((segment) =>
-      /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(segment) || /^\d{6}-\d{5}$/.test(segment)
-        ? '[id]'
-        : segment,
-    )
-    .join('/');
+  const segments = (path.split('?')[0] ?? '').split('/');
+  return segments
+    .map((segment, index) => {
+      const previous = segments[index - 1];
+      if (previous === 'invite' || previous === 'confirm-email') return '[token]';
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(segment) || /^\d{6}-\d{5}$/.test(segment)) {
+        return '[id]';
+      }
+      return segment.length > 40 || /^[A-Za-z0-9_-]{20,}$/.test(segment) ? '[token]' : segment;
+    })
+    .join('/')
+    .slice(0, 200);
 }

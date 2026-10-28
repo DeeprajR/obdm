@@ -7,6 +7,7 @@ import { Card, DataTable, PageHeader, type Column } from '@obdm/ui';
 import { CentreShell } from '../../../centre-shell';
 import { RosterMarkForm, WalkInForm } from '../../../centre-collision-forms';
 import { requireAccess, useCaseContext } from '@/lib/guards';
+import { isUuidV7 } from '@obdm/ids';
 import { getDemand, listRoster, listWalkIns } from '@obdm/centre';
 import { WORDING, bloodGroupLabel, productLabel } from '@obdm/domain';
 
@@ -43,6 +44,7 @@ export default async function RosterPage({
   const actor = await requireAccess('/centre/demands');
   const ctx = await useCaseContext(actor);
   const { id } = await params;
+  if (!isUuidV7(id)) notFound();
 
   const demand = await getDemand(ctx, id);
   if (!demand) notFound();

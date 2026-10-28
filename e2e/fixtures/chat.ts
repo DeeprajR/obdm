@@ -40,9 +40,18 @@ export class ChatPage {
     this.log = page.getByRole('log', { name: 'Conversation' });
   }
 
-  async open(path = '/'): Promise<void> {
+  async open(path = '/chat'): Promise<void> {
     await this.page.goto(`${this.origin}${path}`);
     await expect(this.log).toBeVisible();
+  }
+
+  /**
+   * Somebody new is asked nothing until they choose to register: this is
+   * that choice, and it waits for the greeting it brings.
+   */
+  async begin(): Promise<void> {
+    await this.page.getByRole('button', { name: 'Register as a donor' }).click();
+    await this.waitForBubble(/thank you for coming/);
   }
 
   outgoing(): Locator {
