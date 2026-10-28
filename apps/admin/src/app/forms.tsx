@@ -198,7 +198,13 @@ export function SealForm({ userId }: { userId: string }) {
         hint="PNG only, 1 MB or smaller. Stored privately and shown only to signed-in staff."
         required
       >
-        {(p) => <TextInput {...p} name="seal" type="file" accept="image/png" required />}
+        {/*
+          An extension, not a MIME type: Chrome and Edge on Windows resolve a
+          MIME type through the registry before the file dialog opens, which
+          can take many seconds. What arrives is checked as a PNG on the
+          server either way (checkPng).
+        */}
+        {(p) => <TextInput {...p} name="seal" type="file" accept=".png" required />}
       </FormField>
 
       <Submit label="Upload seal" busy="Uploading…" />
