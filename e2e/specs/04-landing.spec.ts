@@ -21,11 +21,27 @@ test('says what OBDM is, and that it is a prototype', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'The applications' })).toBeVisible();
 });
 
-test('leads a donor to the chat', async ({ page }) => {
+test('leads a donor to the chat, in a new tab', async ({ page }) => {
   await page.goto(`${DONOR.origin}/`);
-  await page.getByRole('link', { name: 'I want to give blood' }).click();
-  await expect(page).toHaveURL(`${DONOR.origin}/chat`);
-  await expect(page.getByRole('log', { name: 'Conversation' })).toBeVisible();
+  const [chat] = await Promise.all([
+    page.context().waitForEvent('page'),
+    page.getByRole('link', { name: 'I want to give blood' }).click(),
+  ]);
+  await expect(chat).toHaveURL(`${DONOR.origin}/chat`);
+  await expect(chat.getByRole('log', { name: 'Conversation' })).toBeVisible();
+  // The landing page stays where it was.
+  await expect(page).toHaveURL(`${DONOR.origin}/`);
+});
+
+test('opens every link that leaves the page in a new tab', async ({ page }) => {
+  await page.goto(`${DONOR.origin}/`);
+  const outgoing = page.locator('a:not([href^="#"])');
+  const count = await outgoing.count();
+  expect(count).toBeGreaterThan(0);
+  for (let i = 0; i < count; i += 1) {
+    await expect(outgoing.nth(i)).toHaveAttribute('target', '_blank');
+    await expect(outgoing.nth(i)).toHaveAttribute('rel', /noopener/);
+  }
 });
 
 test('links each member of staff to their own application', async ({ page }) => {

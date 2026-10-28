@@ -21,6 +21,13 @@ const PUBLIC_ID = /^[A-Za-z0-9_-]{4,64}$/;
 const REPOSITORY = 'https://github.com/DeeprajR/obdm';
 
 /**
+ * Every link that leaves this page opens in a new tab, so the landing page
+ * stays open as the map to come back to. `noopener` keeps the new tab from
+ * reaching back into this one. The in-page section links are left alone.
+ */
+const NEW_TAB = { target: '_blank', rel: 'noopener noreferrer' } as const;
+
+/**
  * Where a staff application lives. In production each is configured, and an
  * unconfigured one is left off the page rather than linked to localhost; in
  * development it falls back to the port `pnpm dev` serves it on.
@@ -159,12 +166,13 @@ export default async function LandingPage({
             how it ended.
           </p>
           <div className="flex flex-wrap gap-3">
-            <Link href="/chat" className={linkButtonClasses({ size: 'lg' })}>
+            <Link href="/chat" {...NEW_TAB} className={linkButtonClasses({ size: 'lg' })}>
               I want to give blood
             </Link>
             {volunteer ? (
               <a
                 href={`${volunteer}/board`}
+                {...NEW_TAB}
                 className={linkButtonClasses({ variant: 'secondary', size: 'lg' })}
               >
                 See what is needed now
@@ -204,7 +212,7 @@ export default async function LandingPage({
                   Register as a donor in about a minute, see what is needed now, and answer when
                   a patient near you needs your group. No account or password.
                 </span>
-                <Link href="/chat" className="mt-2 text-sm font-medium text-primary">
+                <Link href="/chat" {...NEW_TAB} className="mt-2 text-sm font-medium text-primary">
                   Open the donor chat →
                 </Link>
               </li>
@@ -214,7 +222,7 @@ export default async function LandingPage({
                   <span className="text-sm text-ink-muted">
                     Which blood groups are short right now, and where. No patient details, ever.
                   </span>
-                  <a href={`${volunteer}/board`} className="mt-2 text-sm font-medium text-primary">
+                  <a href={`${volunteer}/board`} {...NEW_TAB} className="mt-2 text-sm font-medium text-primary">
                     Open the demand board →
                   </a>
                 </li>
@@ -235,7 +243,7 @@ export default async function LandingPage({
                       For {app.who.toLowerCase()} · <span className="font-mono">{hostOf(app.origin)}</span>
                     </span>
                     <span className="text-sm text-ink-muted">{app.text}</span>
-                    <a href={`${app.origin}/sign-in`} className="mt-2 text-sm font-medium text-primary">
+                    <a href={`${app.origin}/sign-in`} {...NEW_TAB} className="mt-2 text-sm font-medium text-primary">
                       Sign in to {app.title} →
                     </a>
                   </li>
@@ -279,7 +287,7 @@ export default async function LandingPage({
           </p>
           <p>
             Open source:{' '}
-            <a href={REPOSITORY} className="underline hover:text-ink">
+            <a href={REPOSITORY} {...NEW_TAB} className="underline hover:text-ink">
               github.com/DeeprajR/obdm
             </a>
           </p>
