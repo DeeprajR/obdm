@@ -173,7 +173,7 @@ export function accountActions(app: StaffApp) {
 
       const email = formValue(formData, 'email');
       const ctx = await useCaseContext(anonymousActor);
-      const result = await requestPasswordOtp(ctx, email);
+      const result = await requestPasswordOtp(ctx, email, app.audience);
 
       after(() => drainEmailOutbox(db, smtpEmailPort, new Date()));
 
@@ -191,7 +191,7 @@ export function accountActions(app: StaffApp) {
       const password = formValue(formData, 'password');
 
       const ctx = await useCaseContext(anonymousActor);
-      const result = await verifyOtpAndReset(ctx, email, otp, password);
+      const result = await verifyOtpAndReset(ctx, email, otp, password, app.audience);
       if (!result.ok) return { error: result.error.message };
 
       after(() => drainEmailOutbox(db, smtpEmailPort, new Date()));

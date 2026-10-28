@@ -16,7 +16,7 @@ import { users, type UserRole } from '@obdm/db';
 
 import { appOrigin } from '../app-origins.js';
 import type { UseCaseContext } from '../context.js';
-import { audienceFor } from '../domain/authorization.js';
+import { ROLES_BY_AUDIENCE, audienceFor, type Audience } from '../domain/authorization.js';
 import {
   checkPassword,
   isLinkUsable,
@@ -166,6 +166,7 @@ export async function consumeInvite(
 export async function requestPasswordOtp(
   ctx: UseCaseContext,
   emailInput: string,
+  audience: Audience,
 ): Promise<Result<Record<string, never>, RateLimited>> {
   const now = ctx.clock.now();
   const email = normaliseEmail(emailInput);
@@ -201,7 +202,17 @@ export async function requestPasswordOtp(
     const account = await findAccountByEmail(tx, email);
     const audit = createAuditWriter(tx, ctx.actor, ctx.correlationId, now);
 
-    if (account?.status !== 'active') {
+    /*
+      Only an account this application signs in. An administrator's address
+      typed into the doctor app's reset is treated as an address with no
+      account: no code is sent, and the reply is the same. Administrator
+      passwords have no self-service reset at all (the admin app has no
+      reset page), and an application must not reset an account it would
+      refuse at its own sign-in.
+    */
+    const ours = account !== undefined && ROLES_BY_AUDIENCE[audience].includes(account.role);
+
+    if (account?.status !== 'active' || !ours) {
       await audit({
         action: 'password.otp_requested',
         subjectType: 'email',
@@ -258,6 +269,7 @@ export async function verifyOtpAndReset(
   emailInput: string,
   otp: string,
   newPassword: string,
+  audience: Audience,
 ): Promise<Result<ResetResult, OtpNotAccepted | PasswordRejected>> {
   const now = ctx.clock.now();
   const email = normaliseEmail(emailInput);
@@ -269,6 +281,9 @@ export async function verifyOtpAndReset(
   return ctx.db.transaction(async (tx) => {
     const account = await findAccountByEmail(tx, email);
     if (account?.status !== 'active') return err(otpNotAccepted(0));
+    // The same rule as the request: not an account this application resets,
+    // even with a code that was somehow issued for it.
+    if (!ROLES_BY_AUDIENCE[audience].includes(account.role)) return err(otpNotAccepted(0));
 
     // Locked: concurrent guesses queue on the code's row, so each one counts
     // against the limit the one before it already moved.
