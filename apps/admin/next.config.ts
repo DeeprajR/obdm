@@ -58,7 +58,13 @@ const config: NextConfig = {
   typedRoutes: true,
   // `forbidden()` and `unauthorized()` answer 403 and 401 only with this on;
   // without it they throw, and a refused page is a 500.
-  experimental: { authInterrupts: true },
+  experimental: {
+    authInterrupts: true,
+    // A seal may be up to 1 MB (MAX_SEAL_BYTES), and a form carrying it is
+    // a little larger. Next's own 1 MB default refused a seal the app would
+    // have accepted, before the app could say why.
+    serverActions: { bodySizeLimit: '2mb' },
+  },
 };
 
 export default config;

@@ -4,15 +4,15 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
 import { CONFIG_DEFAULTS } from '@obdm/config';
-import { accountInvites, emailDeliveries, users } from '@obdm/db';
+import { accountInvites, emailDeliveries, passwordResetOtps, users } from '@obdm/db';
 import { newId, idGenerator } from '@obdm/ids';
 import { createFakeClock } from '@obdm/testing';
 
 import type { Database } from '../db.js';
 import { argon2Hasher, nodeTokens } from '../adapters/crypto.js';
-import type { Actor } from '../domain/authorization.js';
+import { anonymousActor, type Actor } from '../domain/authorization.js';
 import type { UseCaseContext } from '../context.js';
-import { consumeInvite } from './account.js';
+import { consumeInvite, requestPasswordOtp, verifyOtpAndReset } from './account.js';
 import { createDoctor, setAccountStatus, setDoctorEmail, updateDoctor } from './doctors.js';
 
 const testUrl = process.env['TEST_DATABASE_URL'];
@@ -54,12 +54,45 @@ describe.skipIf(!testUrl)('administering accounts (§2.2, §13)', () => {
   }
 
   beforeEach(async () => {
-    await client`TRUNCATE hospital.account_invites, hospital.email_deliveries, hospital.audit_log, hospital.sessions, hospital.users RESTART IDENTITY CASCADE`;
+    await client`TRUNCATE hospital.account_invites, hospital.password_reset_otps, hospital.auth_rate_limits, hospital.email_deliveries, hospital.audit_log, hospital.sessions, hospital.users RESTART IDENTITY CASCADE`;
     adminId = await account('admin', 'active');
   });
 
   afterAll(async () => {
     await client.end({ timeout: 5 });
+  });
+
+  it('resets a password only in the application that account signs in to', async () => {
+    const [adminRow] = await db.select().from(users).where(eq(users.id, adminId));
+    const doctor = await account('doctor', 'active');
+    const [doctorRow] = await db.select().from(users).where(eq(users.id, doctor));
+    if (!adminRow || !doctorRow) throw new Error('accounts missing');
+
+    // An administrator's address at the doctor app's reset: the same reply as
+    // an unknown address, and no code issued or sent.
+    expect((await requestPasswordOtp(context(anonymousActor), adminRow.email, 'doctor')).ok).toBe(true);
+    expect(await db.select().from(passwordResetOtps).where(eq(passwordResetOtps.userId, adminId))).toHaveLength(0);
+    expect(await db.select().from(emailDeliveries)).toHaveLength(0);
+
+    // Even with a code that exists, the doctor app will not complete it.
+    await db.insert(passwordResetOtps).values({
+      id: newId(),
+      userId: adminId,
+      otpHash: nodeTokens.fingerprint('123456'),
+      expiresAt: new Date(clock.now().getTime() + 600_000),
+    });
+    const completed = await verifyOtpAndReset(
+      context(anonymousActor),
+      adminRow.email,
+      '123456',
+      'a-long-enough-password',
+      'doctor',
+    );
+    expect(completed.ok).toBe(false);
+
+    // A doctor at the doctor app is sent a code as before.
+    expect((await requestPasswordOtp(context(anonymousActor), doctorRow.email, 'doctor')).ok).toBe(true);
+    expect(await db.select().from(passwordResetOtps).where(eq(passwordResetOtps.userId, doctor))).toHaveLength(1);
   });
 
   it('edits staff, never an administrator, and never the administrator doing it', async () => {
