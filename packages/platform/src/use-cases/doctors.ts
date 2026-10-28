@@ -10,13 +10,13 @@
  * queues any email in the same transaction as the change that caused it.
  */
 
-import { and, desc, eq, ne } from 'drizzle-orm';
+import { and, desc, eq, inArray, ne } from 'drizzle-orm';
 import { err, ok, type Result } from '@obdm/result';
 import { objectRefs, userSeals, users, type UserStatus } from '@obdm/db';
 
 import { appOrigin } from '../app-origins.js';
 import type { UseCaseContext } from '../context.js';
-import { actorHas } from '../domain/authorization.js';
+import { actorHas, audienceFor } from '../domain/authorization.js';
 import { isPlausibleEmail, normaliseEmail } from '../domain/credentials.js';
 import {
   accountNotFound,
@@ -33,7 +33,41 @@ import {
 import { findAccountById, revokeAllSessionsForUser } from '../repositories/accounts.js';
 import { createAuditWriter } from '../repositories/audit.js';
 import { queueEmail } from '../repositories/email-outbox.js';
-import { createInvite, supersedeLiveInvites } from '../repositories/lifecycle.js';
+import {
+  createInvite,
+  supersedeLiveEmailChanges,
+  supersedeLiveInvites,
+  supersedeLiveOtps,
+} from '../repositories/lifecycle.js';
+
+/**
+ * The roles an administrator provisions and manages from the administration
+ * application (§2.2). Administrators are not among them: an administrator's
+ * own details are not edited from here, by them or by another.
+ */
+export const MANAGED_ROLES = ['doctor', 'blood_centre', 'volunteer_admin'] as const;
+export type ManagedRole = (typeof MANAGED_ROLES)[number];
+
+const isManagedRole = (role: string): role is ManagedRole =>
+  (MANAGED_ROLES as readonly string[]).includes(role);
+
+/**
+ * The account an administrator is about to change, if it is one they may.
+ *
+ * Every id these use cases take came from a form, and a form can be posted
+ * with any id. Without this, `doctors:manage` let an administrator rename
+ * themselves around the update queue, or move another administrator's email
+ * to an inbox they read and reset their way in.
+ */
+async function findManagedAccount(
+  ctx: UseCaseContext,
+  tx: Parameters<typeof findAccountById>[0],
+  userId: string,
+) {
+  if (ctx.actor.kind === 'user' && ctx.actor.userId === userId) return undefined;
+  const account = await findAccountById(tx, userId);
+  return account && isManagedRole(account.role) ? account : undefined;
+}
 
 /** An empty registration number means "not recorded", not an empty string. */
 const blankToNull = (value: string | null): string | null => {
@@ -43,6 +77,7 @@ const blankToNull = (value: string | null): string | null => {
 
 export type DoctorSummary = {
   readonly id: string;
+  readonly role: ManagedRole;
   readonly fullName: string;
   readonly email: string;
   readonly provisionalReg: string | null;
@@ -60,6 +95,8 @@ export type CreateDoctorInput = {
   readonly fullName: string;
   readonly email: string;
   readonly provisionalReg: string | null;
+  /** Which application they will use. A doctor unless said otherwise. */
+  readonly role?: ManagedRole;
 };
 
 export type CreateDoctorError = NotAuthorized | EmailTaken;
@@ -81,6 +118,8 @@ export async function createDoctor(
   const now = ctx.clock.now();
   const email = normaliseEmail(input.email);
   if (!isPlausibleEmail(email)) return err(emailTaken());
+  const role: ManagedRole = input.role ?? 'doctor';
+  if (!isManagedRole(role)) return err(notAuthorized('doctors:manage'));
 
   return ctx.db.transaction(async (tx) => {
     const existing = await tx.select({ id: users.id }).from(users).where(eq(users.email, email));
@@ -92,8 +131,9 @@ export async function createDoctor(
       id: userId,
       email,
       fullName: input.fullName.trim(),
-      role: 'doctor',
-      provisionalReg: blankToNull(input.provisionalReg),
+      role,
+      // A registration number is a doctor's; nobody else's is recorded.
+      provisionalReg: role === 'doctor' ? blankToNull(input.provisionalReg) : null,
       // No password field exists here, and the administrator never knows one.
       status: 'pending_activation',
       passwordHash: null,
@@ -103,6 +143,7 @@ export async function createDoctor(
       userId,
       email,
       fullName: input.fullName.trim(),
+      role,
       now,
       kind: 'invite',
     });
@@ -112,7 +153,7 @@ export async function createDoctor(
       action: 'account.created',
       subjectType: 'user',
       subjectId: userId,
-      metadata: { role: 'doctor', email },
+      metadata: { role, email },
     });
 
     return ok({ userId });
@@ -127,6 +168,7 @@ async function issueInvite(
     userId: string;
     email: string;
     fullName: string;
+    role: ManagedRole;
     now: Date;
     kind: 'invite' | 'invite_resent';
   },
@@ -152,9 +194,9 @@ async function issueInvite(
     userId: args.userId,
     vars: {
       fullName: args.fullName,
-      // The doctor sets their password in the doctor app, which is a different
-      // origin from the administration app that sent the invite.
-      link: `${appOrigin('doctor')}/invite/${token}`,
+      // They set their password in their own application, which is a
+      // different origin from the administration app that sent the invite.
+      link: `${appOrigin(audienceFor(args.role))}/invite/${token}`,
       expiresInHours: String(ttlHours),
     },
   });
@@ -169,7 +211,7 @@ export async function resendInvite(
   const now = ctx.clock.now();
 
   return ctx.db.transaction(async (tx) => {
-    const account = await findAccountById(tx, userId);
+    const account = await findManagedAccount(ctx, tx, userId);
     if (!account) return err(accountNotFound());
 
     // Re-sending to an account that is already using the system would issue a
@@ -181,6 +223,7 @@ export async function resendInvite(
       userId,
       email: account.email,
       fullName: account.fullName,
+      role: account.role as ManagedRole,
       now,
       kind: 'invite_resent',
     });
@@ -211,11 +254,11 @@ export async function updateDoctor(
   const now = ctx.clock.now();
 
   return ctx.db.transaction(async (tx) => {
-    const before = await findAccountById(tx, userId);
+    const before = await findManagedAccount(ctx, tx, userId);
     if (!before) return err(accountNotFound());
 
     const fullName = input.fullName.trim();
-    const provisionalReg = blankToNull(input.provisionalReg);
+    const provisionalReg = before.role === 'doctor' ? blankToNull(input.provisionalReg) : null;
 
     await tx.update(users).set({ fullName, provisionalReg }).where(eq(users.id, userId));
 
@@ -255,7 +298,7 @@ export async function setDoctorEmail(
   if (!isPlausibleEmail(newEmail)) return err(emailTaken());
 
   return ctx.db.transaction(async (tx) => {
-    const before = await findAccountById(tx, userId);
+    const before = await findManagedAccount(ctx, tx, userId);
     if (!before) return err(accountNotFound());
     if (before.email.toLowerCase() === newEmail) return ok({});
 
@@ -267,7 +310,26 @@ export async function setDoctorEmail(
 
     await tx.update(users).set({ email: newEmail }).where(eq(users.id, userId));
 
-    // Any live confirmation for a change the doctor started is now stale.
+    /*
+      Every credential that went to the old address dies with it: an invite
+      not yet opened, a reset code, a confirmation for a change somebody else
+      started. Left live, any of them would let whoever holds the old inbox,
+      or a session that started that change, undo the correction or walk in.
+    */
+    await supersedeLiveInvites(tx, userId, now);
+    await supersedeLiveOtps(tx, userId, now);
+    await supersedeLiveEmailChanges(tx, userId, now);
+    if (before.status === 'pending_activation') {
+      await issueInvite(ctx, tx, {
+        userId,
+        email: newEmail,
+        fullName: before.fullName,
+        role: before.role as ManagedRole,
+        now,
+        kind: 'invite_resent',
+      });
+    }
+
     await queueEmail(tx, {
       kind: 'email_change_notice',
       to: before.email,
@@ -309,6 +371,9 @@ export async function setAccountStatus(
   const now = ctx.clock.now();
 
   return ctx.db.transaction(async (tx) => {
+    // Staff, or another administrator (§2.2: admins provision and deactivate
+    // accounts), which between them is every role; never themselves, which is
+    // refused above.
     const account = await findAccountById(tx, userId);
     if (!account) return err(accountNotFound());
     if (account.status === status) return ok({});
@@ -380,15 +445,17 @@ export async function listDoctors(ctx: UseCaseContext): Promise<DoctorSummary[]>
       status: users.status,
       lastLoginAt: users.lastLoginAt,
       createdAt: users.createdAt,
+      role: users.role,
       sealId: userSeals.objectRefId,
     })
     .from(users)
     .leftJoin(userSeals, eq(userSeals.userId, users.id))
-    .where(eq(users.role, 'doctor'))
+    .where(inArray(users.role, [...MANAGED_ROLES]))
     .orderBy(desc(users.createdAt));
 
   return rows.map((row) => ({
     id: row.id,
+    role: row.role as ManagedRole,
     fullName: row.fullName,
     email: row.email,
     provisionalReg: row.provisionalReg,
@@ -424,12 +491,13 @@ export async function getDoctor(
     .from(users)
     .leftJoin(userSeals, eq(userSeals.userId, users.id))
     .leftJoin(objectRefs, eq(objectRefs.id, userSeals.objectRefId))
-    .where(and(eq(users.id, userId), eq(users.role, 'doctor')));
+    .where(and(eq(users.id, userId), inArray(users.role, [...MANAGED_ROLES])));
 
   if (!row) return undefined;
 
   return {
     id: row.id,
+    role: row.role as ManagedRole,
     fullName: row.fullName,
     email: row.email,
     provisionalReg: row.provisionalReg,

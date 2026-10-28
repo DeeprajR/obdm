@@ -43,6 +43,7 @@ import { findRequestsDueAWave, sendWave } from './use-cases/waves.js';
 import { applyWalkIns } from './use-cases/walk-ins.js';
 import { remindAbandonedSignups } from './use-cases/reminders.js';
 import { publishBotHealth } from './use-cases/publish-health.js';
+import { STRANGER_TRANSCRIPT_DAYS, pruneStrangerTranscripts } from './use-cases/transcripts.js';
 
 export type TickResult = {
   readonly imported: number;
@@ -177,6 +178,16 @@ export async function tick(ctx: BotContext): Promise<TickResult> {
     await pruneChatRateLimits(ctx.db, new Date(ctx.clock.now().getTime() - 24 * 60 * 60 * 1000));
   } catch (error) {
     process.stderr.write(`prune of chat throttle windows failed: ${String(error)}\n`);
+  }
+
+  // What a visitor typed and never registered is not kept for ever (§12.3).
+  try {
+    await pruneStrangerTranscripts(
+      ctx.db,
+      new Date(ctx.clock.now().getTime() - STRANGER_TRANSCRIPT_DAYS * 24 * 60 * 60 * 1000),
+    );
+  } catch (error) {
+    process.stderr.write(`prune of visitor transcripts failed: ${String(error)}\n`);
   }
 
   /* --- 12. tell the other half how it went ------------------------------ */

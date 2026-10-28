@@ -138,8 +138,9 @@ export type OtpRow = {
 export async function findLiveOtpForUser(
   tx: Transaction,
   userId: string,
+  options: { readonly lock?: boolean } = {},
 ): Promise<OtpRow | undefined> {
-  const [row] = await tx
+  const query = tx
     .select()
     .from(passwordResetOtps)
     .where(
@@ -150,6 +151,7 @@ export async function findLiveOtpForUser(
       ),
     );
 
+  const [row] = options.lock === true ? await query.for('update') : await query;
   return row;
 }
 

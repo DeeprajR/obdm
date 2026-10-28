@@ -4,7 +4,7 @@ import { cookies, headers } from 'next/headers';
 
 import { db } from '@obdm/platform';
 import {
-  clientAddress,
+  clientAddressFromHeaders,
   isSameOrigin,
   nodeTokens,
   resolveActor,
@@ -103,7 +103,7 @@ export async function requestMetadata(): Promise<{
   // Behind a proxy the socket address is the proxy's. The entry the nearest
   // proxy wrote is read, validated as an address, and used only as a throttle
   // key, never as an identity or an access decision (`clientAddress`).
-  const ip = clientAddress(headerList.get('x-forwarded-for'), headerList.get('x-real-ip'));
+  const ip = clientAddressFromHeaders((name) => headerList.get(name));
 
   return { ip, userAgent: headerList.get('user-agent') };
 }

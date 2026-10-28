@@ -119,9 +119,10 @@ export async function signOutAction(): Promise<void> {
 /* -------------------------------------------------------------------------- */
 
 const doctorSchema = z.object({
-  fullName: z.string().trim().min(1, 'Enter the doctor’s name.').max(200),
+  fullName: z.string().trim().min(1, 'Enter their name.').max(200),
   email: z.string().trim().min(3, 'Enter an email address.').max(320),
   provisionalReg: z.string().trim().max(64).nullable(),
+  role: z.enum(['doctor', 'blood_centre', 'volunteer_admin']).default('doctor'),
 });
 
 export async function createDoctorAction(
@@ -134,6 +135,7 @@ export async function createDoctorAction(
     fullName: formData.get('fullName'),
     email: formData.get('email'),
     provisionalReg: formValue(formData, 'provisionalReg').trim() || null,
+    role: formValue(formData, 'role') || 'doctor',
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Check the form and try again.' };

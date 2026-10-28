@@ -38,8 +38,10 @@ import {
   acceptRequest,
   answerScreeningQuestion,
   declineRequest,
+  isJourneyOf,
 } from './use-cases/journey.js';
 import { standingFor } from './use-cases/needs.js';
+import { forgetTranscript } from './use-cases/transcripts.js';
 import {
   journeyForBoardTap,
   openBoard,
@@ -435,6 +437,8 @@ export async function handleUpdate(ctx: BotContext, update: IncomingUpdate): Pro
   if (update.kind === 'text') {
     const word = said.toLowerCase().replace(/^\//, '');
     if (word === 'stop' || word === 'delete' || word === 'pause') {
+      // Nothing is held about them, and that includes what they typed here.
+      await forgetTranscript(ctx, address);
       await reply(ctx, address, [{ text: MESSAGES.nothingToStop }], update.updateId);
       return;
     }
@@ -501,6 +505,18 @@ async function handleJourneyChoice(
 ): Promise<void> {
   const [verb, ...rest] = data.split(':');
   const argument = rest.join(':');
+
+  /*
+    Only the donor whose journey it is may answer it. The tap names a journey
+    and nothing else, so without this a journey id that leaked would let
+    somebody accept, decline or answer health questions for another donor.
+  */
+  const tappedJourney = argument.split(':')[0] ?? '';
+  const donor = await findDonorByAddress(ctx, address);
+  if (!donor || !(await isJourneyOf(ctx, tappedJourney, donor.donorId))) {
+    await reply(ctx, address, [{ text: MESSAGES.notYourRequest }], updateId);
+    return;
+  }
 
   /*
     The card or question they just tapped, marked with the answer they gave, so
@@ -761,8 +777,10 @@ async function handleCommandDuringInterview(
   }
 
   // "stop" and "delete": nothing is committed until the acknowledgement (§5),
-  // so leaving means dropping the draft, and saying that nothing was kept.
+  // so leaving means dropping the draft and the transcript of answering it,
+  // and saying that nothing was kept.
   await clearInterview(ctx, address);
+  await forgetTranscript(ctx, address);
   const text = word === 'delete' ? MESSAGES.nothingToDelete : MESSAGES.signupDiscarded;
   await reply(ctx, address, [{ text }], updateId);
   return true;

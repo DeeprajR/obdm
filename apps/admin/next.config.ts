@@ -56,6 +56,9 @@ const config: NextConfig = {
   serverExternalPackages: ['postgres', '@node-rs/argon2'],
   poweredByHeader: false,
   typedRoutes: true,
+  // `forbidden()` and `unauthorized()` answer 403 and 401 only with this on;
+  // without it they throw, and a refused page is a 500.
+  experimental: { authInterrupts: true },
 };
 
 export default config;

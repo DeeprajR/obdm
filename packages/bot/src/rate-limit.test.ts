@@ -6,8 +6,10 @@ import { chatRateLimits } from '@obdm/db/bot';
 import { createBotDatabase } from './db.js';
 import {
   callerAddressFrom,
+  callerAddressFromHeaders,
   pruneChatRateLimits,
   takeChatToken,
+  throttleKeyOf,
   type RateLimitPolicy,
 } from './rate-limit.js';
 
@@ -18,9 +20,10 @@ describe.skipIf(!testUrl)('the chat throttle (§3, ADR 0017 §8)', () => {
   const db = createBotDatabase(testUrl ?? '');
 
   /** Small, so the suite does not post thirty times to see a refusal. */
-  const policies: Record<'device' | 'ip', RateLimitPolicy> = {
+  const policies: Record<'device' | 'ip' | 'new_device', RateLimitPolicy> = {
     device: { windowMinutes: 1, maxAttempts: 3 },
     ip: { windowMinutes: 1, maxAttempts: 5 },
+    new_device: { windowMinutes: 1, maxAttempts: 2 },
   };
 
   // Ten seconds into a minute, so the window has fifty seconds left.
@@ -98,9 +101,46 @@ describe.skipIf(!testUrl)('the chat throttle (§3, ADR 0017 §8)', () => {
     const rows = await db.select({ key: chatRateLimits.key }).from(chatRateLimits);
     expect(rows.map((r) => r.key)).toEqual(['new']);
   });
+
+  it('bounds how fast one address can be a new device, whatever cookie it drops', async () => {
+    // A script that sends no cookie is a new device every time; the device
+    // key alone would give each request a fresh allowance.
+    const fresh = (i: number) => ({ device: `fresh-${String(i)}`, ip: '10.0.0.7', newDevice: true });
+    expect(await takeChatToken(db, fresh(1), now, policies)).toEqual({ allowed: true });
+    expect(await takeChatToken(db, fresh(2), now, policies)).toEqual({ allowed: true });
+    expect(await takeChatToken(db, fresh(3), now, policies)).toMatchObject({
+      allowed: false,
+      scope: 'new_device',
+    });
+    // A returning device on the same address is not caught by it.
+    expect(
+      await takeChatToken(db, { device: 'known', ip: '10.0.0.7' }, now, policies),
+    ).toEqual({ allowed: true });
+  });
 });
 
 describe('the address key (§3)', () => {
+  it('reads the trusted header behind Cloudflare, and nothing the client could forge', () => {
+    const headers: Record<string, string> = {
+      'cf-connecting-ip': '49.37.1.2',
+      'x-forwarded-for': '9.9.9.9',
+    };
+    const get = (name: string): string | null => headers[name] ?? null;
+    expect(callerAddressFromHeaders(get, 'cf-connecting-ip')).toBe('49.37.1.2');
+    // Unset, the forwarded-for rule: the entry the nearest proxy wrote.
+    expect(callerAddressFromHeaders(get, undefined)).toBe('9.9.9.9');
+    expect(callerAddressFromHeaders(() => 'not an address', 'cf-connecting-ip')).toBeNull();
+  });
+
+  it('keys IPv6 on its /64, so rotating the low bits escapes nothing', () => {
+    expect(throttleKeyOf('2001:db8:1:2:aaaa::1')).toBe('2001:db8:1:2::/64');
+    expect(throttleKeyOf('2001:db8:1:2:bbbb:cccc:dddd:eeee')).toBe('2001:db8:1:2::/64');
+    expect(throttleKeyOf('2001:db8::1')).toBe('2001:db8:0:0::/64');
+    expect(throttleKeyOf('::ffff:1.2.3.4')).toBe('1.2.3.4');
+    expect(throttleKeyOf('1.2.3.4')).toBe('1.2.3.4');
+    expect(throttleKeyOf(null)).toBeNull();
+  });
+
   it('is the entry the nearest proxy wrote, never the one the client sent', () => {
     expect(callerAddressFrom('9.9.9.9, 1.2.3.4', null)).toBe('1.2.3.4');
     expect(callerAddressFrom('1.2.3.4', null)).toBe('1.2.3.4');

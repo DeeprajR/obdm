@@ -4,7 +4,7 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
 import { CONFIG_DEFAULTS } from '@obdm/config';
-import { accountInvites, users } from '@obdm/db';
+import { accountInvites, emailDeliveries, users } from '@obdm/db';
 import { newId, idGenerator } from '@obdm/ids';
 import { createFakeClock } from '@obdm/testing';
 
@@ -13,11 +13,11 @@ import { argon2Hasher, nodeTokens } from '../adapters/crypto.js';
 import type { Actor } from '../domain/authorization.js';
 import type { UseCaseContext } from '../context.js';
 import { consumeInvite } from './account.js';
-import { setAccountStatus } from './doctors.js';
+import { createDoctor, setAccountStatus, setDoctorEmail, updateDoctor } from './doctors.js';
 
 const testUrl = process.env['TEST_DATABASE_URL'];
 
-describe.skipIf(!testUrl)('setAccountStatus (§13)', () => {
+describe.skipIf(!testUrl)('administering accounts (§2.2, §13)', () => {
   const client = postgres(testUrl ?? '', { max: 5, onnotice: () => undefined });
   const db = drizzle(client) as unknown as Database;
 
@@ -60,6 +60,58 @@ describe.skipIf(!testUrl)('setAccountStatus (§13)', () => {
 
   afterAll(async () => {
     await client.end({ timeout: 5 });
+  });
+
+  it('edits staff, never an administrator, and never the administrator doing it', async () => {
+    const doctor = await account('doctor', 'active');
+    const other = await account('admin', 'active');
+    const input = { fullName: 'Renamed', provisionalReg: null };
+
+    expect((await updateDoctor(context(admin()), doctor, input)).ok).toBe(true);
+    // A form can be posted with any id: an administrator's own, or another's.
+    expect((await updateDoctor(context(admin()), adminId, input)).ok).toBe(false);
+    expect((await updateDoctor(context(admin()), other, input)).ok).toBe(false);
+    expect((await setDoctorEmail(context(admin()), other, 'mine@obdm.invalid')).ok).toBe(false);
+
+    const [untouched] = await db.select().from(users).where(eq(users.id, other));
+    expect(untouched?.email).not.toBe('mine@obdm.invalid');
+  });
+
+  it('provisions blood centre staff, invited to the centre application', async () => {
+    const created = await createDoctor(context(admin()), {
+      fullName: 'Counter Staff',
+      email: 'counter@obdm.invalid',
+      provisionalReg: 'IGNORED-FOR-STAFF',
+      role: 'blood_centre',
+    });
+    if (!created.ok) throw new Error('expected the account');
+
+    const [row] = await db.select().from(users).where(eq(users.id, created.value.userId));
+    expect(row?.role).toBe('blood_centre');
+    expect(row?.provisionalReg).toBeNull();
+
+    const [mail] = await db.select().from(emailDeliveries);
+    expect(JSON.stringify(mail?.payload)).toContain('localhost:3002/invite/');
+  });
+
+  it('kills the old invite when an invited address is corrected, and sends a new one', async () => {
+    const created = await createDoctor(context(admin()), {
+      fullName: 'Typo Doctor',
+      email: 'typo@obdm.invalid',
+      provisionalReg: null,
+    });
+    if (!created.ok) throw new Error('expected the account');
+
+    expect((await setDoctorEmail(context(admin()), created.value.userId, 'right@obdm.invalid')).ok).toBe(true);
+
+    const invites = await db
+      .select()
+      .from(accountInvites)
+      .where(eq(accountInvites.userId, created.value.userId));
+    // The first one is dead; exactly one is live, and it went to the right inbox.
+    expect(invites.filter((invite) => invite.supersededAt === null)).toHaveLength(1);
+    const sentTo = (await db.select().from(emailDeliveries)).map((mail) => mail.toAddress);
+    expect(sentTo).toContain('right@obdm.invalid');
   });
 
   it('withdraws an invite nobody has opened yet', async () => {

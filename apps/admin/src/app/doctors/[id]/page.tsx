@@ -16,6 +16,7 @@ import { ChangeEmailForm, EditDoctorForm, SealForm } from '../../forms';
 import { removeSealAction, resendInviteAction, setStatusAction } from '../../actions';
 import { requireAccess, useCaseContext } from '@/lib/guards';
 import { getDoctor } from '@obdm/platform';
+import { isUuidV7 } from '@obdm/ids';
 import { getPatientsForDoctor } from '@obdm/hospital';
 
 export const metadata: Metadata = { title: 'Doctor · Administration' };
@@ -31,14 +32,18 @@ export default async function DoctorPage({
 }) {
   const { id } = await params;
   const actor = await requireAccess(`/doctors/${id}`);
+  // Not an id at all: a 404, rather than a query Postgres refuses as a 500.
+  if (!isUuidV7(id)) notFound();
   const ctx = await useCaseContext(actor);
 
   const doctor = await getDoctor(ctx, id);
   if (!doctor) notFound();
+  const isDoctor = doctor.role === 'doctor';
 
   // Requires `patients:read_all`, and writes an audit row naming every record
   // it returned. See ADR 0003: this is the system's largest disclosure surface.
-  const patients = await getPatientsForDoctor(ctx, id);
+  // Only a doctor has patients, so for anyone else it is not read at all.
+  const patients = isDoctor ? await getPatientsForDoctor(ctx, id) : undefined;
 
   const resend = resendInviteAction.bind(null, id);
   const deactivate = setStatusAction.bind(null, id, 'deactivated');
@@ -100,6 +105,7 @@ export default async function DoctorPage({
             userId={doctor.id}
             fullName={doctor.fullName}
             provisionalReg={doctor.provisionalReg}
+            registration={isDoctor}
           />
         </Card>
 
@@ -107,31 +113,33 @@ export default async function DoctorPage({
           <ChangeEmailForm userId={doctor.id} currentEmail={doctor.email} />
         </Card>
 
-        <Card title="Seal">
-          <div className="space-y-4">
-            {doctor.hasSeal ? (
-              <>
-                {/*
-                  Served through an authenticated route, never a public URL. A
-                  signature anyone can fetch is a signature anyone can reuse.
-                */}
-                <img
-                  src={`/api/seal/${doctor.id}`}
-                  alt={`Seal for ${doctor.fullName}`}
-                  className="max-h-32 rounded-control border border-border bg-surface-muted"
-                />
-                <form action={clearSeal}>
-                  <Button type="submit" variant="danger" size="sm">
-                    Remove seal
-                  </Button>
-                </form>
-              </>
-            ) : (
-              <p className="text-sm text-ink-muted">No seal uploaded.</p>
-            )}
-            <SealForm userId={doctor.id} />
-          </div>
-        </Card>
+        {isDoctor ? (
+          <Card title="Seal">
+            <div className="space-y-4">
+              {doctor.hasSeal ? (
+                <>
+                  {/*
+                    Served through an authenticated route, never a public URL. A
+                    signature anyone can fetch is a signature anyone can reuse.
+                  */}
+                  <img
+                    src={`/api/seal/${doctor.id}`}
+                    alt={`Seal for ${doctor.fullName}`}
+                    className="max-h-32 rounded-control border border-border bg-surface-muted"
+                  />
+                  <form action={clearSeal}>
+                    <Button type="submit" variant="danger" size="sm">
+                      Remove seal
+                    </Button>
+                  </form>
+                </>
+              ) : (
+                <p className="text-sm text-ink-muted">No seal uploaded.</p>
+              )}
+              <SealForm userId={doctor.id} />
+            </div>
+          </Card>
+        ) : null}
 
         <Card title="Access">
           <div className="space-y-3">
@@ -166,26 +174,28 @@ export default async function DoctorPage({
         </Card>
       </div>
 
-      <Card title="Patients">
-        <div className="space-y-4">
-          <p className="text-sm text-ink-muted">
-            This doctor’s patients, live and historical. Opening this page is
-            recorded in the audit log, naming every record shown.
-          </p>
-          {patients === undefined ? (
+      {isDoctor ? (
+        <Card title="Patients">
+          <div className="space-y-4">
             <p className="text-sm text-ink-muted">
-              This account cannot read patient records.
+              This doctor’s patients, live and historical. Opening this page is
+              recorded in the audit log, naming every record shown.
             </p>
-          ) : (
-            <DataTable
-              columns={patientColumns}
-              rows={patients}
-              getRowKey={(p) => `${p.patientId}-${p.ipNo}`}
-              emptyLabel="This doctor has not requested blood for anyone yet."
-            />
-          )}
-        </div>
-      </Card>
+            {patients === undefined ? (
+              <p className="text-sm text-ink-muted">
+                This account cannot read patient records.
+              </p>
+            ) : (
+              <DataTable
+                columns={patientColumns}
+                rows={patients}
+                getRowKey={(p) => `${p.patientId}-${p.ipNo}`}
+                emptyLabel="This doctor has not requested blood for anyone yet."
+              />
+            )}
+          </div>
+        </Card>
+      ) : null}
 
       <Link
         href="/doctors"

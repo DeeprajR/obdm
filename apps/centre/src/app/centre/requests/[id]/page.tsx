@@ -14,6 +14,7 @@ import {
 import { CentreShell } from '../../../centre-shell';
 import { DecisionForm, HandOverForm } from '../../../centre-forms';
 import { requireAccess, useCaseContext } from '@/lib/guards';
+import { isUuidV7 } from '@obdm/ids';
 import {
   availableUnits,
   getDecisionForRequest,
@@ -49,6 +50,8 @@ export default async function DecisionPage({
 }) {
   const { id } = await params;
   const actor = await requireAccess(`/centre/requests/${id}`);
+  // Not an id at all: a 404, rather than a query Postgres refuses as a 500.
+  if (!isUuidV7(id)) notFound();
   const ctx = await useCaseContext(actor);
 
   const request = await getRequestForDecision(ctx, id);

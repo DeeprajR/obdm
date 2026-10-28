@@ -13,10 +13,13 @@
  * the limit across two adjacent windows. For a nuisance control that is the
  * right trade, and it keeps the table small.
  *
- * Two keys. The device, which is the hash of the cookie and is what a person
- * sees as "me"; and the caller's address, which bounds how many devices one
- * network can mint. Neither names anyone. A missing address counts nothing
- * against anyone rather than pooling every unknown caller under one key.
+ * Three keys. The device, which is the hash of the cookie and is what a person
+ * sees as "me"; the caller's address, which bounds what one network can send;
+ * and the same address again, counting only requests that minted a new
+ * device. A script can drop its cookie and be a new device every time, so the
+ * device key alone bounds nothing; how fast one address can be new is what
+ * does. Neither names anyone. A missing address counts nothing against anyone
+ * rather than pooling every unknown caller under one key.
  */
 
 import { isIP } from 'node:net';
@@ -43,7 +46,10 @@ export type RateLimitPolicy = {
  */
 export const CHAT_RATE_LIMITS: Readonly<Record<ChatRateLimitScope, RateLimitPolicy>> = {
   device: { windowMinutes: 1, maxAttempts: 30 },
-  ip: { windowMinutes: 1, maxAttempts: 900 },
+  ip: { windowMinutes: 1, maxAttempts: 300 },
+  // A crowd behind one carrier address registering at once after a poster is
+  // a few a minute; a script shedding its cookie is hundreds.
+  new_device: { windowMinutes: 1, maxAttempts: 20 },
 };
 
 /**
@@ -70,6 +76,49 @@ export function callerAddressFrom(
   return null;
 }
 
+/**
+ * The throttle key for an address. IPv6 is keyed on its /64, the block one
+ * subscriber is given: a single machine can rotate through the low 64 bits at
+ * will, so keying on the whole address would bound nothing. An IPv4-mapped
+ * address is its IPv4 address.
+ */
+export function throttleKeyOf(address: string | null): string | null {
+  if (address === null) return null;
+  if (isIP(address) !== 6) return address;
+
+  const lower = address.toLowerCase();
+  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(lower);
+  if (mapped?.[1]) return mapped[1];
+
+  const [head = '', tail = ''] = lower.split('::');
+  const left = head === '' ? [] : head.split(':');
+  const right = tail === '' ? [] : tail.split(':');
+  const groups = lower.includes('::')
+    ? [...left, ...Array<string>(8 - left.length - right.length).fill('0'), ...right]
+    : left;
+  return `${groups.slice(0, 4).map((group) => group.replace(/^0+(?=.)/, '')).join(':')}::/64`;
+}
+
+/**
+ * The caller's address from a request's headers.
+ *
+ * Behind Cloudflare, `CLIENT_IP_HEADER=cf-connecting-ip` names the header the
+ * edge sets to the visitor's address and overwrites whatever the client sent.
+ * Trusted only because, behind the tunnel, nothing reaches the application
+ * except through that edge; behind Caddy, or with a port published, a client
+ * could write it, so it stays unset there and the forwarded-for rule applies.
+ */
+export function callerAddressFromHeaders(
+  get: (name: string) => string | null,
+  trustedHeader: string | undefined = process.env['CLIENT_IP_HEADER'],
+): string | null {
+  if (trustedHeader) {
+    const value = (get(trustedHeader) ?? '').trim();
+    return isIP(value) !== 0 ? value : null;
+  }
+  return callerAddressFrom(get('x-forwarded-for'), get('x-real-ip'));
+}
+
 export type RateLimitDecision =
   | { readonly allowed: true }
   | {
@@ -82,6 +131,8 @@ export type RateLimitDecision =
 export type RateLimitKeys = {
   readonly device: string;
   readonly ip: string | null;
+  /** True when this request minted the device: counted against the address. */
+  readonly newDevice?: boolean;
 };
 
 /** The instant the current fixed window opened. */
@@ -111,9 +162,11 @@ export async function takeChatToken(
   now: Date,
   policies: Readonly<Record<ChatRateLimitScope, RateLimitPolicy>> = CHAT_RATE_LIMITS,
 ): Promise<RateLimitDecision> {
+  const ip = throttleKeyOf(keys.ip);
   const scopes: readonly { scope: ChatRateLimitScope; key: string | null }[] = [
     { scope: 'device', key: keys.device },
-    { scope: 'ip', key: keys.ip },
+    { scope: 'ip', key: ip },
+    { scope: 'new_device', key: keys.newDevice === true ? ip : null },
   ];
 
   let refusal: RateLimitDecision | undefined;

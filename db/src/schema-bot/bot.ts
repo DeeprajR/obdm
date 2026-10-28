@@ -529,7 +529,7 @@ export const chatMessages = botSchema.table(
   ],
 );
 
-export const CHAT_RATE_LIMIT_SCOPES = ['device', 'ip'] as const;
+export const CHAT_RATE_LIMIT_SCOPES = ['device', 'ip', 'new_device'] as const;
 export type ChatRateLimitScope = (typeof CHAT_RATE_LIMIT_SCOPES)[number];
 
 /**
@@ -557,7 +557,7 @@ export const chatRateLimits = botSchema.table(
   },
   (table) => [
     uniqueIndex('chat_rate_limits_window_idx').on(table.scope, table.key, table.windowStart),
-    check('chat_rate_limits_scope_check', sql`scope IN ('device', 'ip')`),
+    check('chat_rate_limits_scope_check', sql`scope IN ('device', 'ip', 'new_device')`),
     check('chat_rate_limits_attempts_check', sql`attempts >= 0`),
   ],
 );

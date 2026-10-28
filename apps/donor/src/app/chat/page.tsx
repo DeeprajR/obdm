@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { Chat } from './chat';
+import { NeededNow } from './needed-now';
 
 export const metadata: Metadata = { title: 'OBDM · Donors' };
 
@@ -50,6 +51,7 @@ export default async function ChatPage({
         </div>
       </header>
 
+      <NeededNow />
       <Chat requestId={requestId} />
     </div>
   );

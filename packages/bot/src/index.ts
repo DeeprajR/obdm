@@ -69,8 +69,10 @@ export { handleUpdate } from './conversation.js';
 export {
   CHAT_RATE_LIMITS,
   callerAddressFrom,
+  callerAddressFromHeaders,
   pruneChatRateLimits,
   takeChatToken,
+  throttleKeyOf,
   type RateLimitDecision,
   type RateLimitKeys,
   type RateLimitPolicy,
@@ -185,6 +187,7 @@ export {
   type BoardBlock,
   type BoardEntry,
 } from './use-cases/board.js';
+export { neededNow, type NeededNow } from './use-cases/needed-now.js';
 
 export {
   REMIND_AFTER_HOURS,

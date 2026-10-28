@@ -22,6 +22,29 @@ const asDay = (value: string): string =>
   dayFormat.format(new Date(`${value}T00:00:00+05:30`));
 
 /**
+ * The board, shared for fifteen seconds between everyone who opens it. It is
+ * the one page here anybody on the internet can load, and each load was a
+ * query; demand fifteen seconds old is still today's demand. The promise is
+ * what is shared, so a burst arriving as the cache expires waits on one query
+ * rather than starting one each.
+ */
+type BoardRows = Awaited<ReturnType<typeof publicBoard>>;
+const FRESH_MS = 15_000;
+let shared: { readonly at: number; readonly rows: Promise<BoardRows> } | undefined;
+
+function sharedBoard(ctx: Parameters<typeof publicBoard>[0]): Promise<BoardRows> {
+  if (shared === undefined || Date.now() - shared.at > FRESH_MS) {
+    const rows = publicBoard(ctx);
+    shared = { at: Date.now(), rows };
+    // A failed read is not kept: the next visitor tries again.
+    rows.catch(() => {
+      shared = undefined;
+    });
+  }
+  return shared.rows;
+}
+
+/**
  * The public demand board (§6, §9.4).
  *
  * No account, and the one page an outsider can read. It shows five fields
@@ -50,7 +73,7 @@ export default async function BoardPage() {
    * must never be shown invented demand for a real hospital.
    */
   const published = ctx.config.flag.publicBoard;
-  const rows = published ? await publicBoard(ctx) : [];
+  const rows = published ? await sharedBoard(ctx) : [];
 
   const byGroup = STOCK_DISPLAY_ORDER.map((group) => ({
     group,

@@ -10,7 +10,7 @@ import type { NavItem } from '@obdm/ui';
  */
 
 export const PRIMARY_NAV: readonly NavItem[] = [
-  { href: '/doctors', match: '/doctors', label: 'Doctors' },
+  { href: '/doctors', match: '/doctors', label: 'Staff' },
   { href: '/updates', match: '/updates', label: 'Update requests' },
   { href: '/panel', match: '/panel', label: 'Control panel' },
 ];

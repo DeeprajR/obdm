@@ -88,6 +88,21 @@ async function equaliseTiming(
   await ctx.ports.hasher.verify(decoyHash, password);
 }
 
+/**
+ * How many times the per-(account, address) limit the account as a whole may
+ * take before it too is refused.
+ *
+ * The hard limit is keyed on the account **and** the address together. Keyed
+ * on the account alone, anybody who knew a doctor's email could send five
+ * wrong passwords every fifteen minutes and keep that doctor out of a system
+ * they need in an emergency, correct password or not. The account-wide count
+ * stays, much higher, as the bound on guessing spread across many addresses.
+ */
+export const ACCOUNT_WIDE_FACTOR = 10;
+
+/** The key for one account from one address, under the account scope. */
+export const pairKeyOf = (accountKey: string, ipKey: string): string => `${accountKey}#${ipKey}`;
+
 export async function signIn(
   ctx: UseCaseContext,
   input: SignInInput,
@@ -96,25 +111,29 @@ export async function signIn(
   const throttle = ctx.config.auth.loginThrottle;
   const accountKey = input.email.trim().toLowerCase();
   const ipKey = ctx.request?.ip ?? 'unknown';
+  const pairKey = pairKeyOf(accountKey, ipKey);
 
   return ctx.db.transaction(async (tx) => {
     const audit = createAuditWriter(tx, ctx.actor, ctx.correlationId, now);
 
     /* 1. Throttle, before any work that could be measured. ------------------ */
-    const [ipAttempts, accountAttempts] = await Promise.all([
+    const [ipAttempts, accountAttempts, pairAttempts] = await Promise.all([
       attemptsInWindow(tx, 'login_ip', ipKey, now, throttle.windowMinutes),
       attemptsInWindow(tx, 'login_account', accountKey, now, throttle.windowMinutes),
+      attemptsInWindow(tx, 'login_account', pairKey, now, throttle.windowMinutes),
     ]);
 
     const overIpLimit = ipAttempts >= throttle.maxAttemptsPerIp;
-    const overAccountLimit = accountAttempts >= throttle.maxAttemptsPerAccount;
+    const overAccountLimit =
+      pairAttempts >= throttle.maxAttemptsPerAccount ||
+      accountAttempts >= throttle.maxAttemptsPerAccount * ACCOUNT_WIDE_FACTOR;
 
     if (overIpLimit || overAccountLimit) {
       await audit({
         action: 'session.throttled',
         subjectType: 'email',
         subjectId: accountKey,
-        metadata: { ipAttempts, accountAttempts },
+        metadata: { ipAttempts, accountAttempts, pairAttempts },
       });
       return err(rateLimited(secondsUntilWindowEnds(now, throttle.windowMinutes)));
     }
@@ -190,6 +209,7 @@ export async function signIn(
     // network one person signing in successfully must not reset an attacker's
     // budget from the same address.
     await clearAttempts(tx, 'login_account', accountKey);
+    await clearAttempts(tx, 'login_account', pairKey);
 
     await audit({
       action: 'session.created',
@@ -215,4 +235,5 @@ async function recordFailure(
 ): Promise<void> {
   await recordFailedAttempt(tx, 'login_ip', ipKey, now, windowMinutes);
   await recordFailedAttempt(tx, 'login_account', accountKey, now, windowMinutes);
+  await recordFailedAttempt(tx, 'login_account', pairKeyOf(accountKey, ipKey), now, windowMinutes);
 }

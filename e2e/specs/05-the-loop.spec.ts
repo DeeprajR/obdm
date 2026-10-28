@@ -75,7 +75,7 @@ test('the loop closes: request, decision, recruitment, donation, thanks, stand-d
   try {
     await test.step('Donor A opens the donor app and registers as B−', async () => {
       await donorA.open();
-      await donorA.waitForBubble(/thank you for coming/);
+      await donorA.begin();
       await donorA.register({
         phone: '9847000101',
         name: donorAName,
@@ -91,7 +91,7 @@ test('the loop closes: request, decision, recruitment, donation, thanks, stand-d
 
     await test.step('Donor B registers as O−, a group that can give to a B− patient', async () => {
       await donorB.open();
-      await donorB.waitForBubble(/thank you for coming/);
+      await donorB.begin();
       await donorB.register({
         phone: '9847000102',
         name: donorBName,

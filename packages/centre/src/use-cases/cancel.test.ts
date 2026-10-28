@@ -361,6 +361,20 @@ describe.skipIf(!testUrl)('cancelling a request (§3, §8)', () => {
     expect(result.ok && result.value.bagsReleased).toBe(0);
   });
 
+  it('refuses a decline with no reason, whatever the form did', async () => {
+    const id = await submitted(1);
+    const result = await decideRequest(context(counter), {
+      requestUuid: id,
+      action: 'decline',
+      note: '   ',
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe('DeclineNeedsNote');
+
+    const [row] = await db.select().from(bloodRequests).where(eq(bloodRequests.id, id));
+    expect(row?.status).toBe('submitted');
+  });
+
   it('does not let a doctor record a hand-over', async () => {
     await stock(1);
     const id = await submitted(1);

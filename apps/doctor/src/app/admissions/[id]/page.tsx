@@ -8,6 +8,7 @@ import { Card, DescList, PageHeader } from '@obdm/ui';
 import { KitShell } from '../../kit-shell';
 import { StartRequestButton, DischargeButton } from '../../request-buttons';
 import { requireAccess } from '@/lib/guards';
+import { isUuidV7 } from '@obdm/ids';
 import { db } from '@obdm/platform';
 import { admissions, patients } from '@obdm/db';
 import { WORDING, bloodGroupLabel, type BloodGroup } from '@obdm/domain';
@@ -22,6 +23,7 @@ export default async function AdmissionPage({
   const { id } = await params;
   const actor = await requireAccess(`/admissions/${id}`);
   if (actor.kind !== 'user') return null;
+  if (!isUuidV7(id)) notFound();
 
   const [row] = await db
     .select({ admission: admissions, patient: patients })

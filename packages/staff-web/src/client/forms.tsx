@@ -225,6 +225,21 @@ export function RequestEmailChangeForm({
           />
         )}
       </FormField>
+      <FormField
+        label="Your current password"
+        hint="So that nobody who finds you signed in can move your account to their inbox."
+        required
+      >
+        {(props) => (
+          <TextInput
+            {...props}
+            name="currentPassword"
+            type="password"
+            autoComplete="current-password"
+            required
+          />
+        )}
+      </FormField>
       <SubmitButton label="Send the confirmation" busy="Sending…" />
     </form>
   );

@@ -52,6 +52,8 @@ export type BoardEntry = {
  */
 export type BoardBlock =
   | { readonly reason: 'not_registered' }
+  /** They said stop, or asked for their data to be deleted. Waves skip them too. */
+  | { readonly reason: 'stopped' }
   /** Their answers put them outside the thresholds, with the reason stored. */
   | { readonly reason: 'not_qualified'; readonly detail: string }
   | { readonly reason: 'flagged' }
@@ -116,6 +118,8 @@ export async function openBoard(
       durableFlagStatus: donors.durableFlagStatus,
       qualificationStatus: donors.qualificationStatus,
       qualificationReason: donors.qualificationReason,
+      optedOutAt: donors.optedOutAt,
+      deletedAt: donors.deletedAt,
     })
     .from(donors)
     .where(eq(donors.id, donorId));
@@ -191,16 +195,22 @@ function toEntry(
  * Ordered by what they can act on: something a person can resolve comes before
  * an interval they can only wait out.
  */
-function blockFor(
+export function blockFor(
   donor: {
     nextEligibleOn: string | null;
     snoozeUntil: string | null;
     durableFlagStatus: string;
     qualificationStatus: string;
     qualificationReason: string | null;
+    optedOutAt: Date | null;
+    deletedAt: Date | null;
   },
   today: string,
 ): BoardBlock | null {
+  // The same two the wave predicate excludes (§7.7): somebody who said stop,
+  // or whose data was deleted, is asked nothing, by a wave or by a link.
+  if (donor.deletedAt !== null || donor.optedOutAt !== null) return { reason: 'stopped' };
+
   /**
    * The stored judgement first, and it carries its own sentence.
    *

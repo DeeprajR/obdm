@@ -45,6 +45,15 @@ export class ChatPage {
     await expect(this.log).toBeVisible();
   }
 
+  /**
+   * Somebody new is asked nothing until they choose to register: this is
+   * that choice, and it waits for the greeting it brings.
+   */
+  async begin(): Promise<void> {
+    await this.page.getByRole('button', { name: 'Register as a donor' }).click();
+    await this.waitForBubble(/thank you for coming/);
+  }
+
   outgoing(): Locator {
     return this.log.locator('[data-direction="out"]');
   }

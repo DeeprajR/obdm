@@ -26,12 +26,14 @@ import {
 } from '../domain/credentials.js';
 import {
   emailTaken,
+  invalidCredentials,
   linkNotUsable,
   notAuthorized,
   otpNotAccepted,
   passwordTooShort,
   rateLimited,
   type EmailTaken,
+  type InvalidCredentials,
   type LinkNotUsable,
   type NotAuthorized,
   type OtpNotAccepted,
@@ -67,7 +69,7 @@ import {
   recordFailedAttempt,
   secondsUntilWindowEnds,
 } from '../repositories/rate-limits.js';
-import { SESSION_TTL_HOURS } from './sign-in.js';
+import { ACCOUNT_WIDE_FACTOR, SESSION_TTL_HOURS, pairKeyOf } from './sign-in.js';
 
 /* -------------------------------------------------------------------------- */
 /* Activation                                                                  */
@@ -95,6 +97,13 @@ export async function consumeInvite(
 
   const problem = checkPassword(password, ctx.config.auth.minPasswordLength);
   if (problem) return err(passwordTooShort(ctx.config.auth.minPasswordLength));
+
+  // The link first, the hash after: a token that matches nothing costs a
+  // lookup, never an Argon2id run.
+  const known = await ctx.db.transaction((tx) =>
+    findInviteByToken(tx, ctx.ports.tokens.fingerprint(token)),
+  );
+  if (!known || !isLinkUsable(known, now)) return err(linkNotUsable());
 
   const passwordHash = await ctx.ports.hasher.hash(password);
 
@@ -163,15 +172,22 @@ export async function requestPasswordOtp(
   const throttle = ctx.config.auth.loginThrottle;
   const ipKey = ctx.request?.ip ?? 'unknown';
 
+  const pairKey = pairKeyOf(email, ipKey);
+
   return ctx.db.transaction(async (tx) => {
-    const [ipAttempts, accountAttempts] = await Promise.all([
+    const [ipAttempts, accountAttempts, pairAttempts] = await Promise.all([
       attemptsInWindow(tx, 'otp_ip', ipKey, now, throttle.windowMinutes),
       attemptsInWindow(tx, 'otp_account', email, now, throttle.windowMinutes),
+      attemptsInWindow(tx, 'otp_account', pairKey, now, throttle.windowMinutes),
     ]);
 
+    // The same rule as sign-in: tight per account and address, so nobody
+    // elsewhere can keep a person from resetting their own password; loose
+    // per account, as the bound on codes sent to one inbox.
     if (
       ipAttempts >= throttle.maxAttemptsPerIp ||
-      accountAttempts >= throttle.maxAttemptsPerAccount
+      pairAttempts >= throttle.maxAttemptsPerAccount ||
+      accountAttempts >= throttle.maxAttemptsPerAccount * ACCOUNT_WIDE_FACTOR
     ) {
       return err(rateLimited(secondsUntilWindowEnds(now, throttle.windowMinutes)));
     }
@@ -180,6 +196,7 @@ export async function requestPasswordOtp(
     // Otherwise the throttle itself would answer "does this address exist".
     await recordFailedAttempt(tx, 'otp_ip', ipKey, now, throttle.windowMinutes);
     await recordFailedAttempt(tx, 'otp_account', email, now, throttle.windowMinutes);
+    await recordFailedAttempt(tx, 'otp_account', pairKey, now, throttle.windowMinutes);
 
     const account = await findAccountByEmail(tx, email);
     const audit = createAuditWriter(tx, ctx.actor, ctx.correlationId, now);
@@ -249,13 +266,13 @@ export async function verifyOtpAndReset(
   const problem = checkPassword(newPassword, ctx.config.auth.minPasswordLength);
   if (problem) return err(passwordTooShort(ctx.config.auth.minPasswordLength));
 
-  const passwordHash = await ctx.ports.hasher.hash(newPassword);
-
   return ctx.db.transaction(async (tx) => {
     const account = await findAccountByEmail(tx, email);
     if (account?.status !== 'active') return err(otpNotAccepted(0));
 
-    const live = await findLiveOtpForUser(tx, account.id);
+    // Locked: concurrent guesses queue on the code's row, so each one counts
+    // against the limit the one before it already moved.
+    const live = await findLiveOtpForUser(tx, account.id, { lock: true });
     if (!live || !isOtpUsable(live, now, maxAttempts)) return err(otpNotAccepted(0));
 
     if (live.otpHash !== ctx.ports.tokens.fingerprint(otp)) {
@@ -265,6 +282,10 @@ export async function verifyOtpAndReset(
 
     if (!(await consumeOtp(tx, live.id, now))) return err(otpNotAccepted(0));
 
+    // Hashed only once the code is right. Argon2id is deliberately costly, and
+    // spending it on every guess would let anybody burn the server's memory
+    // by posting codes that were never going to work.
+    const passwordHash = await ctx.ports.hasher.hash(newPassword);
     await setPasswordHash(tx, account.id, passwordHash);
     await revokeAllSessionsForUser(tx, account.id, now);
 
@@ -302,7 +323,8 @@ export async function verifyOtpAndReset(
 export async function requestEmailChange(
   ctx: UseCaseContext,
   newEmailInput: string,
-): Promise<Result<Record<string, never>, NotAuthorized | EmailTaken>> {
+  currentPassword: string,
+): Promise<Result<Record<string, never>, NotAuthorized | EmailTaken | InvalidCredentials>> {
   if (ctx.actor.kind !== 'user') return err(notAuthorized('profile:manage'));
 
   const now = ctx.clock.now();
@@ -314,6 +336,17 @@ export async function requestEmailChange(
   return ctx.db.transaction(async (tx) => {
     const account = await findAccountById(tx, actorId);
     if (!account) return err(notAuthorized('profile:manage'));
+
+    /*
+      The password again, here. A session is twelve hours on a ward computer;
+      without this, anybody who found one open could move the account's
+      address to theirs, confirm it, reset the password and keep it. The
+      notice to the old address would arrive too late to act on.
+    */
+    if (!account.passwordHash || !(await ctx.ports.hasher.verify(account.passwordHash, currentPassword))) {
+      return err(invalidCredentials());
+    }
+
     if (account.email.toLowerCase() === newEmail) return err(emailTaken());
 
     const clash = await tx.select({ id: users.id }).from(users).where(eq(users.email, newEmail));
@@ -384,6 +417,18 @@ export async function confirmEmailChange(
   return ctx.db.transaction(async (tx) => {
     const request = await findEmailChangeByToken(tx, ctx.ports.tokens.fingerprint(token));
     if (!request || !isLinkUsable(request, now)) return err(linkNotUsable());
+
+    // Still the account the change was asked of: the same address, and still
+    // active. An administrator who corrected the address since, or closed the
+    // account, has overruled this link, and it must not undo them.
+    const [account] = await tx
+      .select({ email: users.email, status: users.status })
+      .from(users)
+      .where(eq(users.id, request.userId))
+      .for('update');
+    if (account?.status !== 'active' || account.email.toLowerCase() !== request.currentEmail.toLowerCase()) {
+      return err(linkNotUsable());
+    }
 
     // Someone else may have taken the address between the request and the
     // click; the unique index would reject the update anyway, and this turns

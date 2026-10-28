@@ -33,6 +33,8 @@ import {
 } from './journey.js';
 import { applyCounterOutcomes } from './outcomes.js';
 import { applyWalkIns } from './walk-ins.js';
+import { neededNow } from './needed-now.js';
+import { journeyForBoardTap } from './board.js';
 import { findRequestsDueAWave, isEligible, selectWave, sendWave } from './waves.js';
 
 const testUrl = process.env['TEST_DATABASE_URL'];
@@ -806,6 +808,72 @@ describe.skipIf(!testUrl)('the bot loop (§7.3, §7.4, §7.6, §7.7)', () => {
   /* ==================================================================== */
   /* Import                                                                */
   /* ==================================================================== */
+
+  describe('who may say yes (§2, §5)', () => {
+    it('refuses a yes from a donor whose blood cannot be given for the patient', async () => {
+      // A request link or a board tap reaches anybody who registers, and a
+      // registration costs nothing; the match is checked where the yes lands.
+      await openDemand(1, 'O-');
+      const [imported] = await importOpenDemands(context());
+      if (!imported) throw new Error('nothing imported');
+      const donor = await makeDonor({ bloodGroup: 'AB+' });
+      const journey = await journeyForBoardTap(context(), imported.botRequestId, donor.donorId);
+      if (!journey) throw new Error('no journey');
+
+      const result = await acceptRequest(context(), journey);
+      expect(result).toMatchObject({ ok: false, error: { kind: 'NotEligible' } });
+
+      const [request] = await db
+        .select()
+        .from(bot.botRequests)
+        .where(eq(bot.botRequests.id, imported.botRequestId));
+      expect(request?.confirmedCount).toBe(0);
+    });
+
+    it('refuses a yes from a donor who is paused or still in their interval', async () => {
+      await openDemand(1, 'O+');
+      const [imported] = await importOpenDemands(context());
+      if (!imported) throw new Error('nothing imported');
+      const donor = await makeDonor({ bloodGroup: 'O+', nextEligibleOn: addDays(clock.today(), 30) });
+      const journey = await journeyForBoardTap(context(), imported.botRequestId, donor.donorId);
+      if (!journey) throw new Error('no journey');
+
+      expect(await acceptRequest(context(), journey)).toMatchObject({
+        ok: false,
+        error: { kind: 'NotEligible' },
+      });
+    });
+  });
+
+  describe('what is needed now (§5)', () => {
+    it('sums what recruitment still has to find, by group, and nothing else', async () => {
+      // One open floor demand per group is all the schema allows.
+      await openDemand(3, 'O+');
+      await openDemand(2, 'A+');
+      await openDemand(1, 'B-');
+      const imported = await importOpenDemands(context());
+      expect(imported).toHaveLength(3);
+
+      // In the system's group order, not the order they were raised.
+      expect(await neededNow(context())).toEqual([
+        { bloodGroup: 'O+', units: 3 },
+        { bloodGroup: 'A+', units: 2 },
+        { bloodGroup: 'B-', units: 1 },
+      ]);
+
+      // A confirmed donor is a unit no longer needed; a covered group drops out.
+      const bNeg = imported.find((row) => row.bloodGroup === 'B-');
+      if (!bNeg) throw new Error('no B- request');
+      const donor = await makeDonor({ bloodGroup: 'B-' });
+      await sendWave(context(), bNeg.botRequestId);
+      await passScreening(await journeyFor(bNeg.botRequestId, donor.donorId));
+
+      expect(await neededNow(context())).toEqual([
+        { bloodGroup: 'O+', units: 3 },
+        { bloodGroup: 'A+', units: 2 },
+      ]);
+    });
+  });
 
   describe('importing demand (§8.4)', () => {
     it('never fans out the same demand twice', async () => {
