@@ -18,7 +18,7 @@ export {
 export { LiveRefresh } from './live.js';
 export { RequestUpdateForm } from './request-update-form.js';
 export { ServiceWorker } from './service-worker.js';
-export { SignInForm } from './sign-in-form.js';
+export { DemoEntryForm, SignInForm } from './sign-in-form.js';
 export { SignOutButton } from './sign-out-button.js';
 
 export type { FormAction, FormState, SignInAction, SignInFormState } from '../form-state.js';

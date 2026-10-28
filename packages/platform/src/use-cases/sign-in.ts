@@ -21,8 +21,10 @@ import type { UserRole } from '@obdm/db';
 
 import type { UseCaseContext } from '../context.js';
 import {
+  accountNotFound,
   invalidCredentials,
   rateLimited,
+  type AccountNotFound,
   type InvalidCredentials,
   type RateLimited,
 } from '../errors.js';
@@ -236,4 +238,81 @@ async function recordFailure(
   await recordFailedAttempt(tx, 'login_ip', ipKey, now, windowMinutes);
   await recordFailedAttempt(tx, 'login_account', accountKey, now, windowMinutes);
   await recordFailedAttempt(tx, 'login_account', pairKeyOf(accountKey, ipKey), now, windowMinutes);
+}
+
+/**
+ * How many demonstration sessions one address may open in a sign-in window.
+ * Generous, because a whole department behind one hospital NAT may open the
+ * demonstration in the same quarter-hour; bounded, so a script cannot fill
+ * the sessions table.
+ */
+export const DEMO_SESSIONS_PER_IP = 60;
+
+/**
+ * A session on the shared demonstration account, with no password (§3 does
+ * not apply: this is the prototype being shown, not the system in use).
+ *
+ * The deployment names the account (`DEMO_ACCOUNT` on that application); a
+ * visitor names nothing, so the button cannot be pointed at anyone else. The
+ * account must be active and of this application's role, and never an
+ * administrator, whatever the configuration says.
+ *
+ * Throttled per address under the sign-in scope, on a key of its own, so the
+ * demonstration neither spends nor is limited by the password form's budget.
+ */
+export async function startDemoSession(
+  ctx: UseCaseContext,
+  demoEmail: string,
+  audience: Audience,
+): Promise<Result<SignInSuccess, AccountNotFound | RateLimited>> {
+  const now = ctx.clock.now();
+  const throttle = ctx.config.auth.loginThrottle;
+  const ipKey = `demo#${ctx.request?.ip ?? 'unknown'}`;
+
+  return ctx.db.transaction(async (tx) => {
+    const audit = createAuditWriter(tx, ctx.actor, ctx.correlationId, now);
+
+    const opened = await attemptsInWindow(tx, 'login_ip', ipKey, now, throttle.windowMinutes);
+    if (opened >= DEMO_SESSIONS_PER_IP) {
+      return err(rateLimited(secondsUntilWindowEnds(now, throttle.windowMinutes)));
+    }
+
+    const account = await findAccountByEmail(tx, demoEmail.trim().toLowerCase());
+    if (
+      account?.status !== 'active' ||
+      account.role === 'admin' ||
+      !ROLES_BY_AUDIENCE[audience].includes(account.role)
+    ) {
+      return err(accountNotFound());
+    }
+
+    await recordFailedAttempt(tx, 'login_ip', ipKey, now, throttle.windowMinutes);
+
+    const token = ctx.ports.tokens.issue();
+    const sessionId = ctx.ids.next<'SessionId'>();
+    const expiresAt = new Date(now.getTime() + SESSION_TTL_HOURS * 3_600_000);
+
+    await createSession(tx, {
+      id: sessionId,
+      userId: account.id,
+      tokenHash: ctx.ports.tokens.fingerprint(token),
+      audience,
+      expiresAt,
+      ip: ctx.request?.ip ?? null,
+      userAgent: ctx.request?.userAgent ?? null,
+    });
+
+    await audit({
+      action: 'session.created',
+      subjectType: 'user',
+      subjectId: account.id,
+      metadata: { sessionId, role: account.role, audience, demo: true },
+    });
+
+    return ok({
+      token,
+      expiresAt,
+      user: { id: account.id, fullName: account.fullName, role: account.role },
+    });
+  });
 }

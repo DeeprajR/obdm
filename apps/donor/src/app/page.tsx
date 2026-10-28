@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation';
 
 import { linkButtonClasses } from '@obdm/ui';
 
+import { DemandByGroup } from './needed-now';
+
 export const metadata: Metadata = {
   title: 'OBDM · Open Blood Donation Management',
   description:
@@ -180,6 +182,8 @@ export default async function LandingPage({
             ) : null}
           </div>
         </section>
+
+        <DemandByGroup />
 
         <section id="how" aria-labelledby="how-heading" className="flex scroll-mt-4 flex-col gap-4">
           <h2 id="how-heading" className="text-lg font-semibold text-ink">

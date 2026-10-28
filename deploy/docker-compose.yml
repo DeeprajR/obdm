@@ -113,9 +113,16 @@ services:
       - caddy-config:/config
     depends_on: [doctor, admin, centre, volunteer, donor]
 
+  # DEMO_ACCOUNT opens a shared demonstration account from a button on that
+  # application's sign-in page, with no password (README, "Demo mode"). Empty
+  # is off. Never on the admin application, and the use case refuses an
+  # administrator's account whatever is set here.
   doctor:
     <<: *web
     image: ${IMAGE_PREFIX}/doctor:${IMAGE_TAG:-latest}
+    environment:
+      <<: *web-env
+      DEMO_ACCOUNT: ${DEMO_DOCTOR_EMAIL:-}
 
   admin:
     <<: *web
@@ -124,10 +131,16 @@ services:
   centre:
     <<: *web
     image: ${IMAGE_PREFIX}/centre:${IMAGE_TAG:-latest}
+    environment:
+      <<: *web-env
+      DEMO_ACCOUNT: ${DEMO_CENTRE_EMAIL:-}
 
   volunteer:
     <<: *web
     image: ${IMAGE_PREFIX}/volunteer:${IMAGE_TAG:-latest}
+    environment:
+      <<: *web-env
+      DEMO_ACCOUNT: ${DEMO_VOLUNTEER_EMAIL:-}
 
   donor:
     # The donor application is the bot (ADR 0017). It connects as app_bot and

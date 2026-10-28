@@ -26,6 +26,38 @@ function Submit() {
   );
 }
 
+function EnterDemo() {
+  const { pending } = useFormStatus();
+
+  return (
+    <Button type="submit" loading={pending} className="w-full">
+      {pending ? 'Opening…' : 'Enter the demo'}
+    </Button>
+  );
+}
+
+/**
+ * The one button that replaces the password while the prototype is being
+ * shown. It posts nothing: the deployment decides which account it opens.
+ */
+export function DemoEntryForm({ action }: { action: SignInAction }) {
+  const [state, formAction] = useActionState(action, initialState);
+
+  return (
+    <form action={formAction} className="space-y-3">
+      {state.error ? (
+        <p
+          role="alert"
+          className="rounded-control border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger"
+        >
+          {state.error}
+        </p>
+      ) : null}
+      <EnterDemo />
+    </form>
+  );
+}
+
 export function SignInForm({ action }: { action: SignInAction }) {
   const [state, formAction] = useActionState(action, initialState);
 

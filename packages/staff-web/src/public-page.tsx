@@ -34,7 +34,7 @@ export function PublicPage({
             aria-hidden
             className="flex size-9 items-center justify-center rounded-control bg-primary text-base font-bold text-white"
           >
-            B
+            O
           </span>
           <div>
             <p className="text-base font-semibold text-ink">OBDM · {app.name}</p>

@@ -113,8 +113,10 @@ export {
 } from './repositories/email-outbox.js';
 
 export {
+  DEMO_SESSIONS_PER_IP,
   SESSION_TTL_HOURS,
   signIn,
+  startDemoSession,
   type SignInError,
   type SignInSuccess,
 } from './use-cases/sign-in.js';
